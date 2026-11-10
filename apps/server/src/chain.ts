@@ -128,12 +128,26 @@ export function viewOn<T>(contractId: string, method: string, args: object = {})
 }
 export const view = <T>(method: string, args: object = {}): Promise<T> => viewOn<T>(config.hub, method, args);
 
-/** An account's balance in yoctoNEAR (null if it doesn't exist). */
-export async function balanceOf(accountId: string): Promise<bigint | null> {
-  try {
-    const a = (await quiet.viewAccount({ accountId, finalityQuery: { finality: 'optimistic' } } as never)) as unknown as { amount: string };
-    return BigInt(a.amount);
-  } catch { return null; }
+/** An account's balance in yoctoNEAR (null only if the account doesn't exist; RPC errors throw). */
+export function balanceOf(accountId: string): Promise<bigint | null> {
+  return slot(async () => {
+    let last: unknown;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const url = RPCS[attempt % RPCS.length];
+      try {
+        const res = await fetch(url, {
+          method: 'POST', headers: { 'content-type': 'application/json' }, signal: AbortSignal.timeout(10_000),
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'query', params: { request_type: 'view_account', finality: 'optimistic', account_id: accountId } }),
+        });
+        const j = (await res.json()) as { result?: { amount: string }; error?: unknown };
+        if (j.result?.amount) return BigInt(j.result.amount);
+        if (/UNKNOWN_ACCOUNT|does not exist/.test(JSON.stringify(j.error ?? ''))) return null;
+        last = new Error(`view_account ${accountId}: ${JSON.stringify(j.error ?? res.status).slice(0, 160)}`);
+      } catch (e) { last = e; }
+      await sleep(400 * (attempt + 1));
+    }
+    throw last;
+  });
 }
 
 /** A key's permission (with its remaining allowance for a function-call key), or null. */
