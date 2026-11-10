@@ -22,6 +22,22 @@ Built for NEAR HACKATHON (Nov 2026). Design: [DESIGN.md](DESIGN.md).
 
 TRY_IT_PLACEHOLDER
 
+## Tracks, honestly
+
+| Track | What is real | What is not |
+|---|---|---|
+| `memecoins` | NEP-141 token per startup; fixed supply, 0% to founders; linear curve; the 2% fee can only reach the marketing treasury; supply & fee panel | no reactive supply beyond the curve |
+| `social` | a Sputnik DAO v2 per startup; campaign funding is a `FunctionCall` proposal holders vote on; join/prune by token balance | one holder one vote, not token-weighted (by design) |
+| `security` | spend policy (approved campaigns, payee allowlist, per-campaign and per-payout caps, hourly rate limit, milestones), onchain audit log with flags, FC-key-only agents with capped wallets, lookalike refusal (live on testnet) | the hub owner key still exists on testnet |
+| `swarms` | three creator agents bid in commit-reveal auctions every brief; the contract settles by a deterministic rule | agents follow simple pricing rules, not learned strategies |
+| `agents` | agents earn tUSD, post bonds, buy tokens, and pay the scout for vetting and audience briefs (`agent_pay`) | payments are inside the hub's wallets, not cross-chain |
+| `privacy` | sealed bids and sealed pitches; NEAR AI TEE-signed reports and pitches, kept as proofs and checked by `verify` | openings sit on our server until the reveal |
+| `business` | treasury → procurement (auctions) → payouts runs by rules; the founder only sets constraints | the founder agent posts briefs from a fixed list |
+| `realworld` | creators are paid in a stablecoin-shaped token through a policy; gasless meta-transactions for signed-in users | tUSD is our own labelled test token (no testnet stablecoin can be minted on demand) |
+| `nfts` | soulbound creator NFT with metadata computed from live state; receipt NFTs per completed campaign | no royalties or NFT-owned accounts |
+| `defi` | the bonding-curve market with slippage limits on both sides | **no NEAR Intents settlement** (we chose not to ship a half integration) |
+| `thesis` | a public dashboard read live from the chain, with a written thesis | testnet data from a simulated audience |
+
 ## How it works
 
 ```
