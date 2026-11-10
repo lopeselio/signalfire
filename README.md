@@ -79,7 +79,7 @@ contracts/hub     Rust near-sdk 5.29: launchpad, curve market, treasuries, spend
 
 ```bash
 pnpm test             # packages/core: 22 tests (curve, hashes, scoring, milestones, policy, lookalikes; the shared vector)
-pnpm contract:test    # contracts/hub: 35 tests (the same shared vector, launch, trades and unwinds, wallets and caps,
+pnpm contract:test    # contracts/hub: 36 tests (the same shared vector, launch, trades and unwinds, wallets and caps,
                       # vetting and lookalikes, auctions, DAO-only funding, attribution, milestones, held payouts,
                       # failed transfers, expiry, soulbound and dynamic NFTs, solvency)
 pnpm typecheck

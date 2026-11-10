@@ -646,3 +646,10 @@ fn solvency_adds_up() {
     let owed: u128 = v["owed"].as_str().unwrap().parse().unwrap();
     assert_eq!(owed, s.reserve.0 + s.available.0 + NEAR);
 }
+
+#[test]
+fn tusd_formats_with_two_decimals() {
+    assert_eq!(tusd_str(452_034), "0.45");
+    assert_eq!(tusd_str(1_800_000), "1.80");
+    assert_eq!(tusd_str(0), "0.00");
+}

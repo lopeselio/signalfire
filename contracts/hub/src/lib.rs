@@ -297,6 +297,11 @@ fn yocto(n: u128) -> NearToken {
     NearToken::from_yoctonear(n)
 }
 
+/// tUSD raw units (6 decimals) as "1.23".
+pub fn tusd_str(raw: u128) -> String {
+    format!("{}.{:02}", raw / 1_000_000, (raw % 1_000_000) / 10_000)
+}
+
 fn all_ok() -> bool {
     (0..env::promise_results_count()).all(|i| env::promise_result_checked(i, 1024).is_ok())
 }
@@ -1060,7 +1065,7 @@ impl Hub {
             prior_payouts_to_payee: cr.payouts,
         });
         let tusd = tusd_for(amount);
-        let n = self.log(Some(&c.startup), Some(campaign_id), "payout", Some(&winner), amount, &outcome, flags, format!("milestone {k}: {tusd} tUSD (6 dp)"));
+        let n = self.log(Some(&c.startup), Some(campaign_id), "payout", Some(&winner), amount, &outcome, flags, format!("milestone {k}: {} tUSD", tusd_str(tusd)));
         if outcome != "paid" {
             return PromiseOrValue::Value(outcome);
         }
@@ -1150,7 +1155,7 @@ impl Hub {
             winner.clone(),
             Some(TokenMetadata {
                 title: Some(format!("{} campaign #{campaign_id}: {}", s.id.to_uppercase(), c.title)),
-                description: Some(format!("Receipt: {} new buyers for {} tUSD (6 dp) of marketing paid from the {} treasury.", c.results, c.paid_tusd.0, s.id.to_uppercase())),
+                description: Some(format!("Receipt: {} new buyers for {} tUSD of marketing paid from the {} treasury.", c.results, tusd_str(c.paid_tusd.0), s.id.to_uppercase())),
                 extra: Some(extra.to_string()),
                 ..Default::default()
             }),
@@ -1342,12 +1347,12 @@ impl Hub {
         let mut m = base.unwrap_or_default();
         m.title = Some(format!("Signalfire creator: {}", c.name));
         m.description = Some(format!(
-            "{} campaigns won, {} completed, {} missed, {} buyers brought, {} tUSD (6 dp) earned. Reputation {rep} bps.{}",
+            "{} campaigns won, {} completed, {} missed, {} buyers brought, {} tUSD earned. Reputation {rep} bps.{}",
             c.won,
             c.completed,
             c.missed,
             c.results,
-            c.paid_tusd.0,
+            tusd_str(c.paid_tusd.0),
             if c.revoked { " Revoked." } else { "" }
         ));
         m.extra = Some(
