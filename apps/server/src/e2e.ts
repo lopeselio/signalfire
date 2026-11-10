@@ -1,5 +1,6 @@
 // The whole loop on testnet, in one process, with no server needed:
-//   pnpm e2e [budgetNEAR]
+//   pnpm e2e [budgetNEAR]          a new campaign
+//   pnpm e2e --campaign <id>        carry an existing campaign to the end
 // 1. the demo startup has fees in its marketing treasury (the operator trades to add some if not)
 // 2. the scout vets any creator still waiting
 // 3. the founder posts a brief; three AI creator agents seal bids with NEAR AI pitches, then reveal
@@ -18,7 +19,9 @@ import { invalidate, snapshot } from './snapshot.ts';
 import { getWire } from './store.ts';
 import { verifyCampaign } from './verify.ts';
 
-const budget = parseNear(process.argv[2] ?? '0.15');
+const resumeAt = process.argv.indexOf('--campaign');
+const resume = resumeAt > 0 ? Number(process.argv[resumeAt + 1]) : null;
+const budget = parseNear(resume === null ? process.argv[2] ?? '0.15' : '0');
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const t0 = Date.now();
 const stamp = (): string => `[${String(Math.round((Date.now() - t0) / 1000)).padStart(4)}s]`;
@@ -56,13 +59,14 @@ for (let i = 0; i < 6; i++) {
 }
 
 // 3. the brief
-const brief = await call<number>(config.operator, 'create_campaign', {
+const brief = resume !== null ? { value: resume, tx: '' } : await call<number>(config.operator, 'create_campaign', {
   startup: s.id, title: `E2E ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`,
   brief: 'Bring three students who have never held GLOW to buy a little through your link.',
   target: 3, budget: budget.toString(), commit_secs: 45, reveal_secs: 45, duration_secs: 1800,
 }, 30);
 const id = brief.value;
-console.log(`${stamp()} founder posted campaign #${id}: ${fmtNear(budget)} NEAR budget, 3 new holders wanted\n         ${explorerTx(brief.tx)}`);
+if (resume === null) console.log(`${stamp()} founder posted campaign #${id}: ${fmtNear(budget)} NEAR budget, 3 new holders wanted\n         ${explorerTx(brief.tx)}`);
+else console.log(`${stamp()} carrying campaign #${id} to the end`);
 
 // 4-7. the agents do the rest
 const deadline = Date.now() + 15 * 60_000;
