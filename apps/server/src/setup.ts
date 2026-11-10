@@ -14,7 +14,8 @@ import { YOCTO, fmtNear, parseNear } from '@signalfire/core';
 import { balanceOf, call, callOn, send, view } from './chain.ts';
 import { config, explorerTx, hasKey } from './config.ts';
 import { getConfig, getStartup, getWallet, ftBalance } from './hub.ts';
-import { CREATORS, FAN_COUNT, HOLDERS, SCOUT, fanAccount } from './personas.ts';
+import { CREATORS, FAN_COUNT, HOLDERS, IMPOSTOR, SCOUT, fanAccount } from './personas.ts';
+import { pendingApplicants, setPendingApplicants } from './store.ts';
 
 const OWNER = config.hub;
 const credDir = join(homedir(), '.near-credentials', config.network);
@@ -96,6 +97,19 @@ async function main(): Promise<void> {
     if (!hasKey(c.account)) { say(`no key for ${c.account}; skipped`); continue; }
     const r = await call(c.account, 'apply_creator', { name: c.name, profile: c.profile }, 20);
     say(`${c.name} applied as a creator (0.01 NEAR vetting fee in escrow)`, r.tx);
+  }
+
+  // an impostor applies under a look-alike name; the scout files a report and the contract refuses it (audit: lookalike)
+  if (process.env.SKIP_IMPOSTOR !== '1') {
+    await ensureAgent(IMPOSTOR.account.split('.')[0], { balance: '0.1', wallet: '0.02', capTx: '0.02', capDay: '0.02' });
+    const done = await view('get_creator', { account: IMPOSTOR.account });
+    const applied = await view('get_application', { account: IMPOSTOR.account });
+    const vetted = (await view<{ account: string | null; flags: string[] }[]>('get_audit', { from: 0, limit: 200 })).some((e) => e.account === IMPOSTOR.account);
+    if (!done && !applied && !vetted) {
+      const r = await call(IMPOSTOR.account, 'apply_creator', { name: IMPOSTOR.name, profile: IMPOSTOR.profile }, 20);
+      say(`${IMPOSTOR.name} (an impostor) applied as a creator`, r.tx);
+      setPendingApplicants([...pendingApplicants(), IMPOSTOR.account]);
+    } else if (applied) setPendingApplicants([...pendingApplicants(), IMPOSTOR.account]);
   }
 
   // holders buy their first GLOW

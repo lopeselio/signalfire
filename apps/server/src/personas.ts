@@ -12,6 +12,9 @@ export const CREATORS: CreatorPersona[] = [
   { name: 'Ember', account: sub('creator-ember'), title: 'campus events', profile: 'Runs pop-up study nights with campus clubs and hands out referral cards.', style: 'energetic, in person', bidShare: 0.85 },
 ];
 
+/** An impostor whose name is one look-alike character away from Nova: the contract refuses it by rule. */
+export const IMPOSTOR = { name: 'N0va', account: sub('creator-n0va'), profile: 'Official Nova backup account. Same videos, new wallet.' };
+
 export const SCOUT = { name: 'Lens', account: sub('scout-lens') };
 
 export interface HolderPersona { name: string; account: string; /** the most of the free treasury this holder lets one campaign take */ maxShare: number; /** lowest creator reputation it backs (bps) */ minRep: number }
