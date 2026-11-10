@@ -1,6 +1,6 @@
 import { verifyMessage } from 'ethers';
 import {
-  MIN_ATTRIB, bidHash, cost, credible, milestoneAmount, pickWinner, pitchHash, sha256Hex, threshold, tusdFor,
+  MIN_ATTRIB, bidHash, cost, credible, fmtTusd, milestoneAmount, pickWinner, pitchHash, sha256Hex, threshold, tusdFor,
 } from '@signalfire/core';
 import type { ProofBundle } from './proof.ts';
 
@@ -109,7 +109,7 @@ export async function verifyCampaign(id: number, bundle: ProofBundle, log: (s: s
   });
   if (c.milestones_paid > 0) check(c.results >= threshold(c.target, c.milestones_paid), `the results (${c.results}) reach milestone ${c.milestones_paid}'s threshold (${threshold(c.target, c.milestones_paid)})`, 'paid ahead of the results');
   check(sum === BigInt(c.paid) && sum <= BigInt(c.price), 'payouts add up to what the campaign paid, within the price', 'payouts do not add up');
-  check(tusd === BigInt(c.paid_tusd), `${(Number(tusd) / 1e6).toFixed(2)} tUSD paid at the fixed test rate (1 NEAR = 3 tUSD)`, 'tUSD amounts disagree');
+  check(tusd === BigInt(c.paid_tusd), `${fmtTusd(tusd)} tUSD paid at the fixed test rate (1 NEAR = 3 tUSD)`, 'tUSD amounts disagree');
   const held = entries.filter((e) => e.outcome.startsWith('held'));
   if (held.length) ok(`${held.length} payout attempt(s) held by the policy: ${held.map((e) => e.outcome).join(', ')}`);
   const fund = entries.find((e) => e.action === 'fund');
