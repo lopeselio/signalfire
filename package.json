@@ -1,0 +1,25 @@
+{
+  "name": "signalfire",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@11.26.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter ./apps/* dev",
+    "build": "pnpm --filter @signalfire/web build",
+    "start": "pnpm --filter @signalfire/server start",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "verify": "pnpm --filter @signalfire/server verify",
+    "e2e": "pnpm --filter @signalfire/server e2e",
+    "setup": "pnpm --filter @signalfire/server setup",
+    "contract:test": "cd contracts/hub && cargo test --locked",
+    "contract:build": "cd contracts/hub && cargo near build non-reproducible-wasm --locked"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "3.2.7",
+    "tsx": "4.20.6"
+  }
+}
