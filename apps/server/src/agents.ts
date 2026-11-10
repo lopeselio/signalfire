@@ -199,9 +199,15 @@ async function campaignStep(s: Snapshot, c: Campaign, opts: TickOptions): Promis
     }
     if (unlocked(c.target, c.results) > c.milestones_paid) {
       const k = c.milestones_paid + 1;
+      // a held payout is logged onchain each try: wait 5 minutes before asking the policy again
+      const heldAt = getState<Record<string, number>>('held', {})[`${c.id}`] ?? 0;
+      if (Date.now() - heldAt < 5 * 60_000) return;
       const out = await act<string>('Signalfire', `claimed milestone ${k} of #${c.id} for ${personaOf(c.winner ?? '')?.name ?? short(c.winner ?? '')}`, () =>
         call<string>(config.operator, 'claim_milestone', { campaign_id: c.id }, 120), 'payout', c.id);
-      if (out && out !== 'paid') addWire({ who: 'spend policy', what: `held milestone ${k} of #${c.id}: ${out}`, kind: 'held', campaign: c.id });
+      if (out && out !== 'paid') {
+        addWire({ who: 'spend policy', what: `held milestone ${k} of #${c.id}: ${out}`, kind: 'held', campaign: c.id });
+        setState('held', { ...getState<Record<string, number>>('held', {}), [`${c.id}`]: Date.now() });
+      }
       return;
     }
     if (c.results < c.target && (opts.only === undefined || opts.only === c.id)) await audience(s, c, st);
