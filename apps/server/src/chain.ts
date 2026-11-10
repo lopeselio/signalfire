@@ -89,8 +89,42 @@ export function send(signer: string, to: string, yocto: bigint): Promise<string>
   return run;
 }
 
-export async function viewOn<T>(contractId: string, method: string, args: object = {}): Promise<T> {
-  return (await provider.callFunction({ contractId, method, args: args as Record<string, unknown>, blockQuery: { finality: 'optimistic' } })) as T;
+// Views go straight to the RPCs with our own failover, at most 6 in flight (public RPCs reset bursts).
+let inflight = 0;
+const waiting: (() => void)[] = [];
+async function slot<T>(fn: () => Promise<T>): Promise<T> {
+  if (inflight >= 6) await new Promise<void>((r) => waiting.push(r));
+  inflight++;
+  try { return await fn(); } finally { inflight--; waiting.shift()?.(); }
+}
+
+export function viewOn<T>(contractId: string, method: string, args: object = {}): Promise<T> {
+  return slot(async () => {
+    let last: unknown;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const url = RPCS[attempt % RPCS.length];
+      try {
+        const res = await fetch(url, {
+          method: 'POST', headers: { 'content-type': 'application/json' }, signal: AbortSignal.timeout(10_000),
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'query', params: { request_type: 'call_function', finality: 'optimistic', account_id: contractId, method_name: method, args_base64: Buffer.from(JSON.stringify(args)).toString('base64') } }),
+        });
+        const j = (await res.json()) as { result?: { result: number[]; error?: string }; error?: { cause?: { name?: string }; data?: string; message?: string } };
+        if (j.result?.result) {
+          const raw = Buffer.from(j.result.result).toString('utf8');
+          return (raw ? JSON.parse(raw) : null) as T;
+        }
+        const msg = j.result?.error ?? j.error?.data ?? j.error?.message ?? `HTTP ${res.status}`;
+        // the contract refused (a panic in a view, an unknown account): no point retrying
+        if (/wasm execution failed|panicked|does not exist|UNKNOWN_ACCOUNT|CodeDoesNotExist|MethodNotFound/i.test(String(msg) + JSON.stringify(j.error ?? ''))) throw Object.assign(new Error(`${method}: ${msg}`), { refused: true });
+        last = new Error(`${method}: ${msg}`);
+      } catch (e) {
+        if ((e as { refused?: boolean }).refused) throw e;
+        last = e;
+      }
+      await sleep(300 * (attempt + 1));
+    }
+    throw last;
+  });
 }
 export const view = <T>(method: string, args: object = {}): Promise<T> => viewOn<T>(config.hub, method, args);
 
