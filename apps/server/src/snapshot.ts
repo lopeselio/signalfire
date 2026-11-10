@@ -28,16 +28,25 @@ export interface Snapshot {
 }
 
 let cache: { at: number; p: Promise<Snapshot> } | null = null;
+let good: Snapshot | null = null;
 const TTL = 4000;
 
 export function invalidate(): void { cache = null; }
 
+/** A fresh read (at most TTL old). The agents use this. */
 export function snapshot(): Promise<Snapshot> {
   if (cache && Date.now() - cache.at < TTL) return cache.p;
-  const p = build();
+  const p = build().then((s) => { good = s; return s; });
   cache = { at: Date.now(), p };
   p.catch(() => { if (cache?.p === p) cache = null; });
   return p;
+}
+
+/** The last good read right away (refreshing it in the background when stale). The API uses this. */
+export function latest(): Promise<Snapshot> {
+  if (!good) return snapshot();
+  if (Date.now() - good.at > TTL && !(cache && Date.now() - cache.at < TTL)) void snapshot().catch(() => undefined);
+  return Promise.resolve(good);
 }
 
 async function build(): Promise<Snapshot> {

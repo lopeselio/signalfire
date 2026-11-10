@@ -10,7 +10,7 @@ import { ftBalance } from './hub.ts';
 import { attestation, nearAiEnabled } from './nearai.ts';
 import { CREATORS, HOLDERS, SCOUT } from './personas.ts';
 import { buildProof } from './proof.ts';
-import { snapshot, type Snapshot } from './snapshot.ts';
+import { latest as snapshot, type Snapshot } from './snapshot.ts';
 import { bidsFor, getWire, loadVetting, pendingApplicants, setPendingApplicants } from './store.ts';
 
 // ---------- tiny HTTP helpers ----------
