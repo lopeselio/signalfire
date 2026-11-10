@@ -20,7 +20,89 @@ Built for NEAR HACKATHON (Nov 2026). Design: [DESIGN.md](DESIGN.md).
 - Test stablecoin: [`tusd.signalfire.testnet`](https://testnet.nearblocks.io/address/tusd.signalfire.testnet) ("Test USD (testnet only, no value)")
 - Operator (runs the demo startup and the agents): `signalfire-ref.testnet`. Gasless relayer: `signalfire-relay.testnet`.
 
-TRY_IT_PLACEHOLDER
+## Try it (do X, see Y)
+
+```bash
+pnpm install
+pnpm build            # the web app
+pnpm start            # http://localhost:8861 (server + built web app + the agent loop)
+```
+
+With no NEAR keys the server still serves everything read-only from testnet (the agents need the operator's and
+agents' keys; set `AGENTS=0` to run without them). Without `NEARAI_API_KEY`, pitches and reports use plain
+fallback text, marked unsigned.
+
+1. **Open the landing page.** You see the headline, a "not equity, testnet only" notice, and the treasury drawn as a
+   beacon: free, committed to campaigns, paid out, and **"paid to founders: 0"**. Below: live numbers (fees in,
+   treasury, campaigns funded by holders, cost per new holder), "How it works" in five steps, and **The wire**, the
+   agents acting onchain with a tx link on every line. First visit: four onboarding cards (reopen with **?**).
+2. **Open Glowpath (`/s/glow`), tab Market.** A price chart from the onchain trade ring; the trades table tags buys
+   that counted for a campaign ("campaign #1"). The **Supply and fees** panel shows a fixed 1,000,000 GLOW supply,
+   **founder allocation 0**, the curve reserve, and "2% of every trade, to the marketing treasury only".
+   Type an amount in **Buy**: the quote (tokens, fee to the treasury, storage on first buy, price after, minimum
+   accepted at your slippage) is the contract's own math from `packages/core`.
+3. **Buy for real (optional).** Click **Sign in** (NEAR wallet: Meteor, HOT, Intear, MyNearWallet…), buy 0.1 NEAR of
+   GLOW. The call goes gasless through the relayer when your wallet can sign delegate actions. Open
+   `/s/glow?ref=c1`: the panel says you're buying through campaign #1's link (a result only counts while that
+   campaign is running). Sell some back from the **Sell** tab (`ft_transfer_call` with `min_near_out`).
+4. **Tab Treasury and campaigns.** The ledger (free, committed, paid, fees in, forfeited bonds), the founder's
+   constraints, the holders' council (members of `glow-dao`), and each campaign: a phase timeline
+   (bidding → reveal → holder vote → running → paid), **the bid book** (sealed hashes while bidding; after the
+   reveal: price, credible or not, reputation, and the creator's pitch with a **"signed by NEAR AI TEE"** badge),
+   **the DAO proposal** with each holder's vote (signed-in holders get Vote yes / Vote no; anyone with 100 GLOW gets
+   **Join the holders**), the milestones with tUSD paid, the referral link, and **Proof (JSON)**.
+   Further down, **the audit log** with outcome and flag chips: `paid`, `new_payee`, `burst`, and
+   `rejected` + `lookalike` for the impostor `creator-n0va`.
+5. **Creators (`/creators`).** Nova, Quill, Ember: their soulbound creator NFT (its record is computed from live
+   state), receipt NFTs (`receipt:0`, `receipt:1`), tUSD earned, wallet caps, and the scout's vetting report with its
+   TEE badge. Signed in, **Become a creator** funds your hub wallet, applies (the scout's 0.01 NEAR fee goes into
+   escrow), and the scout vets you within a minute.
+6. **Dashboard (`/dashboard`).** Read live from the chain: totals, the startups table, cost per result for each
+   completed campaign, creators' records, the hub's solvency (everything it owes vs its balance), and the thesis.
+7. **Watch a campaign happen.** With the server running and keys present, the founder agent posts a brief every few
+   minutes when nothing is running (`AUTO_BRIEFS=1`). Or run the whole loop yourself:
+
+   ```
+   pnpm e2e 0.12
+   [   5s] founder posted campaign #1: 0.12 NEAR budget, 3 new holders wanted
+   [  28s] Nova: paid Lens 0.002 NEAR for an audience brief on #1
+   [  28s] Quill: sealed a bid on #1 (price and pitch hidden until the reveal)
+   [  69s] Quill: revealed 0.0652 NEAR on #1
+   [ 204s] Signalfire: settled the auction for #1 and filed the funding proposal in glow-dao
+   [ 232s] Ada: voted YES in glow-dao on proposal 1: fund #1 at 0.0652 NEAR
+   [ 233s] campaign #1 is now funded (winner creator-quill.signalfire.testnet at 0.0652 NEAR)
+   [ 251s] fan-04: bought 0.06 NEAR of GLOW through Quill's link (c1)
+   [ 272s] Signalfire: claimed milestone 1 of #1 for Quill
+   …
+   [ 363s] campaign #1: done; 3/3 results; 3 milestones; 0.0652 NEAR paid as 0.19 tUSD to creator-quill.signalfire.testnet
+   ✓ 36 checks passed, 0 failed
+   ```
+
+   Transactions from that run: [brief](https://testnet.nearblocks.io/txns/JWPop34qnZaprBtUB1jjsGfFKcGcmA3KxvSVmrpAoAy),
+   [sealed bid](https://testnet.nearblocks.io/txns/J3nzaYknrNYpgHBCULDJBJTYHwt6vc6MpTuTRDsYqwR8),
+   [reveal](https://testnet.nearblocks.io/txns/AAT5BSj9ud39gsEUjCjJNMwh69768bv49jUVF44xioKE),
+   [settle + DAO proposal](https://testnet.nearblocks.io/txns/G9PdewGWoc4NLxUfHFDsiZeMHsUUWE6b7rFFkWtkwp8d),
+   [vote](https://testnet.nearblocks.io/txns/8Knxh64E7gxxKU3pjFG5SP5aPTRiGNBdog1DjAA58tvL),
+   [vote that executed fund_campaign](https://testnet.nearblocks.io/txns/3GYi9WDWnzKQQrBUTCRbXv6WbxmmrMgjELynrUafBerb),
+   [attributed buy](https://testnet.nearblocks.io/txns/HoG1eC8Lu7tXUFgZqcNs7gkDdMUeFReuNexPqbfVDTTv),
+   [milestone 1 in tUSD](https://testnet.nearblocks.io/txns/EagbQf51KhYUwCzGwepwWiKhvJ3K67rxvAz4mZa7fhaS),
+   [milestone 3 + receipt NFT](https://testnet.nearblocks.io/txns/HqYnDaLEWdNXUenBBYy5vbGztXtiJodTL9JuJFPqG3Wv).
+8. **Check it yourself**, with no keys and without trusting our server:
+
+   ```
+   pnpm verify 1 http://localhost:8861
+   ✓ creator-quill.signalfire.testnet: the opening matches the sealed commitment
+   ✓ the winner (creator-quill.signalfire.testnet) is the lowest reputation-weighted credible bid
+   ✓ DAO proposal 1 in glow-dao.signalfire.testnet calls signalfire.testnet.fund_campaign({"campaign_id":1}) and moves no money itself
+   ✓ nobody in the DAO may propose or approve a transfer
+   ✓ milestone 1: 21736000000000000000000 yoctoNEAR to the winner [flags: none]
+   ✓ receipt NFT receipt:1 belongs to the creator and records 3 results for 65208000000000000000000 yoctoNEAR
+   ✓ creator-quill.signalfire.testnet: pitch signed by the NEAR AI TEE key 0xfdbd7952…
+   ✓ 36 checks passed, 0 failed
+   ```
+
+   It fetches only the proof bundle (bid openings, pitches, reports, signatures) from the server and reads the hub,
+   the DAO and the NFTs over public RPC itself.
 
 ## Tracks, honestly
 
