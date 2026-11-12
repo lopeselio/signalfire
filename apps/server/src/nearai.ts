@@ -29,7 +29,7 @@ const headers = (): Record<string, string> => ({ authorization: `Bearer ${config
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /** Asks the TEE model. Falls back to `fallback` (unsigned, model "none") if NEAR AI is off or fails. */
-export async function ask(who: string, system: string, user: string, fallback: string, maxTokens = 220): Promise<Signed> {
+export async function ask(who: string, system: string, user: string, fallback: string, maxTokens = 220, timeoutMs = 20_000, temperature = 0.7): Promise<Signed> {
   const model = config.nearAi.model;
   const at = Date.now();
   if (!nearAiEnabled()) return { who, text: fallback, model: 'none', request: '', response: '', at };
@@ -37,11 +37,11 @@ export async function ask(who: string, system: string, user: string, fallback: s
     model,
     messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
     max_tokens: maxTokens,
-    temperature: 0.7,
+    temperature,
     chat_template_kwargs: { enable_thinking: false },
   });
   try {
-    const res = await fetch(`${config.nearAi.baseUrl}/chat/completions`, { method: 'POST', headers: headers(), body: request, signal: AbortSignal.timeout(20_000) });
+    const res = await fetch(`${config.nearAi.baseUrl}/chat/completions`, { method: 'POST', headers: headers(), body: request, signal: AbortSignal.timeout(timeoutMs) });
     const response = await res.text();
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const body = JSON.parse(response) as { id: string; choices: { message: { content: string | null } }[] };
