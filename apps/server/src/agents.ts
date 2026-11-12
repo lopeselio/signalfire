@@ -3,10 +3,11 @@ import { bidHash, fmtNear, isLookalike, parseNear, pitchHash, sha256Hex, unlocke
 import { call, callOn, view } from './chain.ts';
 import { config, hasKey } from './config.ts';
 import { ftBalance, getProposal, type Campaign, type Startup } from './hub.ts';
-import { ask, jsonFrom } from './nearai.ts';
+import { ask, askPrivate, jsonFrom, nearAiEnabled, type Signed } from './nearai.ts';
 import { BRIEFS, CREATORS, FAN_COUNT, HOLDERS, SCOUT, bidPrice, fanAccount, holderApproves, holdersOf, type CreatorPersona } from './personas.ts';
 import { snapshot, invalidate, type Snapshot } from './snapshot.ts';
-import { addWire, getState, loadBid, pendingApplicants, saveBid, saveVetting, setPendingApplicants, setState } from './store.ts';
+import { PRIVATE_VERDICT_FORMAT, parseVerdict, privateLines, type PrivateVerdict } from './verdict.ts';
+import { addWire, dropPrivateApp, getState, loadBid, loadPrivateApp, loadVetting, pendingApplicants, saveBid, saveVetting, setPendingApplicants, setState } from './store.ts';
 
 // The agent loop. Every tick it reads the chain and lets each agent act on what it sees:
 //   scout     vets applicants (NEAR AI report, hash onchain; admission is the contract's rule)
@@ -60,22 +61,47 @@ export async function vet(s: Snapshot, account: string): Promise<void> {
   const admitted = s.creators.map((c) => c.creator.account);
   const looks = admitted.filter((a) => isLookalike(account, a));
   const fallback = JSON.stringify({ summary: `${app.name}: ${app.profile}`, risks: looks.length ? [`name looks like ${looks.join(', ')}`] : [], fit: 3 });
-  const proof = await ask(
-    SCOUT.name,
+  const system =
     'You are Lens, the scout that vets marketing creators for Signalfire, a market where startups pay creators from a marketing treasury. ' +
-      'Write a short, fair vetting note. Reply with JSON only: {"summary": string (max 40 words), "strengths": [string], "risks": [string], "fit": 1-5}. ' +
-      'You do not decide admission: the contract does, by rule.',
-    `Applicant account: ${account}\nName: ${app.name}\nProfile: ${app.profile}\nAlready admitted creators: ${admitted.join(', ') || 'none'}\n` +
-      `Name check (rule): ${looks.length ? `looks like ${looks.join(', ')} - the contract will refuse it` : 'no lookalike'}`,
-    fallback,
-    260,
-  );
-  const report = proof.text;
+    'Write a short, fair vetting note. Reply with JSON only: {"summary": string (max 40 words), "strengths": [string], "risks": [string], "fit": 1-5}. ' +
+    'You do not decide admission: the contract does, by rule.';
+  const user = `Applicant account: ${account}\nName: ${app.name}\nProfile: ${app.profile}\nAlready admitted creators: ${admitted.join(', ') || 'none'}\n` +
+    `Name check (rule): ${looks.length ? `looks like ${looks.join(', ')} - the contract will refuse it` : 'no lookalike'}`;
+  // The public note sees only public facts. A private application gets a second, end-to-end encrypted call: the
+  // applicant's details were sealed to the model in their browser (we can't read them), and the model may answer
+  // only with a score and fixed phrases (a JSON schema), so nothing it says can repeat the details.
+  const proof = await ask(SCOUT.name, system, user, fallback, 260);
+  const priv = loadPrivateApp(account);
+  let privateProof: Signed | undefined;
+  let privateVerdict: PrivateVerdict | undefined;
+  let privateDropped = false;
+  if (priv) {
+    try {
+      if (!nearAiEnabled()) throw new Error('NEAR AI is off');
+      const p = await askPrivate(SCOUT.name,
+        'You are Lens, the scout that vets marketing creators. The last message holds private details the applicant shared only with you. ' +
+          'Judge whether they support the public profile. Answer only in the required JSON: fit is your overall rating of the applicant from 1 (poor) to 5 (excellent), ' +
+          'private_details says how well the private details back the profile, concern names the biggest gap (or none).',
+        user, priv.sealed, priv.modelPub, PRIVATE_VERDICT_FORMAT);
+      const v = parseVerdict(p.text);
+      if (!v || !p.signature) throw new Error('the private reply was not exactly a signed verdict');
+      privateProof = p;
+      privateVerdict = v;
+    } catch (e) {
+      console.warn(`private vetting for ${account}: ${(e as Error).message}`);
+      privateDropped = true;
+    }
+    dropPrivateApp(account); // whatever happened, the ciphertext is gone from our disk now
+  }
+  const commitment = privateVerdict ? priv!.commitment : undefined;
+  // the verdict and the commitment are part of the report, so its hash onchain covers them
+  const report = privateVerdict ? proof.text + privateLines(privateVerdict, commitment!) : proof.text;
   const reportHash = sha256Hex(report);
-  saveVetting({ account, name: app.name, profile: app.profile, report, reportHash, proof, at: Date.now() });
-  const out = await act<boolean>(SCOUT.name, `vetted ${short(account)} (${looks.length ? 'lookalike: refused by rule' : 'report filed'})`, () =>
+  const rec = { account, name: app.name, profile: app.profile, report, reportHash, proof, at: Date.now(), privateCommitment: commitment, privateVerdict, privateProof, privateDropped: privateDropped || undefined };
+  saveVetting(rec);
+  const out = await act<boolean>(SCOUT.name, `vetted ${short(account)} (${looks.length ? 'lookalike: refused by rule' : commitment ? 'private application, report filed' : 'report filed'})`, () =>
     call<boolean>(SCOUT.account, 'vet_creator', { account, report_hash: reportHash }, 60), 'vet');
-  if (out !== undefined) saveVetting({ account, name: app.name, profile: app.profile, report, reportHash, proof, admitted: out, at: Date.now() });
+  if (out !== undefined) saveVetting({ ...rec, admitted: out, at: Date.now() });
 }
 
 // ---------- creators ----------
