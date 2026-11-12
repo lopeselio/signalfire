@@ -29,3 +29,5 @@
 .receipt-check { margin-top: 8px; }
 .receipt-check .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
 .receipt-check label.file { cursor: pointer; display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; }
+.keyless h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.keyless-actions li { padding: 3px 0; border-bottom: 1px dashed var(--line); }
