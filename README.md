@@ -78,8 +78,11 @@ fallback text, marked unsigned.
    the auction settles), and the payee allowlist, milestones and fee are fixed by the contract.
 8. **Dashboard (`/dashboard`).** Read live from the chain: totals, the startups table, cost per result for each
    completed campaign, creators' records, the hub's solvency (everything it owes vs its balance), and the thesis.
-9. **Watch a campaign happen.** With the server running and keys present, the founder agent posts a brief every few
-   minutes when nothing is running (`AUTO_BRIEFS=1`). Or run the whole loop yourself:
+9. **Watch a campaign happen.** With the server running and keys present, the founder agent posts a brief for one of
+   the operator's startups (Glowpath, Fernbook, Looproom, Kilnday) when none is running: one campaign at a time, at
+   least 45 minutes apart (`BRIEF_EVERY_MIN`), 3 hours per startup (`BRIEF_SAME_STARTUP_MIN`), sized to a third of
+   that treasury's free balance, and only when enough fan accounts can still finish it (`AUTO_BRIEFS=1`). On the
+   hosted site that is the wire you see moving. Or run the whole loop yourself:
 
    ```
    pnpm e2e 0.12
@@ -193,6 +196,9 @@ pnpm human-bid <account> [url]  # a person's sealed bid end to end (the account'
 
 - **Contract:** `pnpm contract:build`, then `near contract deploy signalfire.testnet use-file contracts/hub/target/near/signalfire_hub.wasm with-init-call new json-args '{"owner":"signalfire.testnet","operator":"signalfire-ref.testnet","ft_global":"ft.globals.primitives.testnet","dao_global":"dao.globals.primitives.testnet"}' prepaid-gas '100 Tgas' attached-deposit '0 NEAR' network-config testnet sign-with-legacy-keychain send` (later: `without-init-call`).
 - **Testnet setup:** `pnpm setup` (idempotent): tUSD, the scout, the demo startup and its DAO, the agents with their FC keys (saved to `~/.near-credentials/testnet`), the creators' applications, the holders' first GLOW, and some trading volume so the treasury has fees.
+  `pnpm seed-demo` (dry run; `--go` to do it) launches the other demo startups (Fernbook, Looproom, Kilnday: fictional
+  products and founders, run by the operator), each with three holder agents as its council, their first tokens and
+  trading volume, and tops up the fans' hub wallets; it stops if the operator would drop below 5 NEAR.
 - **Hosting:** `scripts/deploy-azure.sh` (Azure Container Apps, one replica; resource group `signalfire`). `scripts/azure-storage.sh` mounts an Azure Files share at `/data` once, so bid openings, pitches, reports and the wire survive redeploys. The agents' FC keys are shipped as one secret; the hub owner's key is not.
 
 ## Disclosures
