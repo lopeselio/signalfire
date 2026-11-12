@@ -41,7 +41,7 @@ IMAGE="$ACR.azurecr.io/signalfire:$TAG"
 # the operator's, relayer's and agents' keys, as one JSON secret ({"account" or "account#dao": "ed25519:…"})
 KEYS=$(node -e '
   const fs = require("fs"), os = require("os"), path = require("path");
-  const [, hub, operator, relayer, owner] = process.argv.slice(1);
+  const [hub, operator, relayer, owner] = process.argv.slice(1); // node -e: argv[1] is the first argument
   const dir = path.join(os.homedir(), ".near-credentials", "testnet");
   const out = {};
   const add = (signer, file) => { try { out[signer] = JSON.parse(fs.readFileSync(path.join(dir, file), "utf8")).private_key; } catch {} };
