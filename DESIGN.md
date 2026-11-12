@@ -178,5 +178,5 @@ signatures on the NEAR AI reports.
 | business | treasury → procurement (auctions) → payouts runs on rules; humans set constraints |
 | realworld | tUSD payouts (labelled test stablecoin), gasless meta-transactions |
 | nfts | soulbound dynamic creator NFT, campaign receipt NFTs |
-| defi | the bonding-curve market with slippage limits; creators swap tUSD for NEAR through NEAR Intents (`token_diff` + `execute_intents`, CLI) |
+| defi | the bonding-curve market with slippage limits; creators cash tUSD out for NEAR through NEAR Intents in the web app (`token_diff` + `native_withdraw`, settled by `execute_intents` on Signalfire's own testnet Verifier, `signalfire-intents.testnet`) |
 | thesis | the public dashboard read live from the chain, with a written thesis |
