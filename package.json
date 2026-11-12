@@ -14,6 +14,7 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "verify": "pnpm --filter @signalfire/server verify",
+    "verify-brief": "pnpm --filter @signalfire/server verify-brief",
     "e2e": "pnpm --filter @signalfire/server e2e",
     "setup": "pnpm --filter @signalfire/server setup",
     "human-bid": "pnpm --filter @signalfire/server human-bid",

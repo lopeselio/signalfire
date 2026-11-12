@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit -p .",
     "test": "vitest run --passWithNoTests",
     "verify": "tsx --env-file-if-exists=../../.env src/verify.ts",
+    "verify-brief": "tsx --env-file-if-exists=../../.env src/verify-brief.ts",
     "e2e": "tsx --env-file-if-exists=../../.env src/e2e.ts",
     "setup": "tsx --env-file-if-exists=../../.env src/setup.ts",
     "human-bid": "tsx --env-file-if-exists=../../.env src/human-bid.ts",
