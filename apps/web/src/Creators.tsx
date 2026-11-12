@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fmtNear, fmtTusd, parseNear } from '@signalfire/core';
+import { CashOut } from './CashOut.tsx';
 import { api, type CreatorDetail, type CreatorRec, type Nft } from './api.ts';
 import { Acct, Chip, Near, SignInHint, TeeBadge, useApp } from './ui.tsx';
 import { call } from './wallet.ts';
@@ -24,6 +25,7 @@ export function Creators() {
         {creators.length === 0 && <p className="muted">No creators admitted yet. The scout vets applicants within a minute.</p>}
         {creators.map((c) => <CreatorCard key={c.creator.account} c={c} />)}
       </div>
+      <CashOut />
       <Apply />
     </div>
   );
