@@ -14,6 +14,7 @@
     "human-bid": "tsx --env-file-if-exists=../../.env src/human-bid.ts",
     "seed-demo": "tsx --env-file-if-exists=../../.env src/seed-demo.ts",
     "thesis": "tsx --env-file-if-exists=../../.env src/thesis-cli.ts",
+    "cashout-check": "tsx --env-file-if-exists=../../.env src/cashout-check.ts",
     "intents-swap": "tsx --env-file-if-exists=../../.env src/intents-swap.ts"
   },
   "dependencies": {
