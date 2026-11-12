@@ -280,11 +280,11 @@ fallback text, marked unsigned.
     Glowpath (GLOW) on signalfire.testnet, founder signalfire-ref.testnet
     ✓ the founder in the bundle is the founder onchain (signalfire-ref.testnet)
     ✓ no founder links claimed (nothing to recheck)
-    ✓ the evidence hashes to 308eed6e8f05… (sha256 of its canonical JSON)
+    ✓ the evidence hashes to 96770fb05f869c00… (sha256 of its canonical JSON)
     ✓ the 4 rule checks recompute from the evidence
     ✓ the model was given the published rules (no advice, cite every line, inference labelled)
     ✓ the model was given exactly this evidence and nothing else
-    ✓ re-running the guard on the signed reply gives the brief shown (17 lines kept, 0 dropped)
+    ✓ re-running the guard on the signed reply gives the brief shown (18 lines kept, 0 dropped)
     ✓ TEE: Intel TDX quote: its signature chains to Intel’s root CA (dcap-qvl)
     …
     ✓ the brief was signed by the attested NEAR AI TEE key 0xfdbd7952…
