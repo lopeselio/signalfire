@@ -1358,6 +1358,8 @@ impl Hub {
             || (a.status == "signing" && a.signed_ms.is_some_and(|t| now.saturating_sub(t) >= RESIGN_AFTER_MS));
         require!(ready, "this action is not waiting for a signature");
         require!(nonce > desk.last_nonce, "nonce must be above the last one signed");
+        // NEAR refuses a nonce above block_height * 10^6; so do we, or a crank could push last_nonce out of reach
+        require!(nonce <= env::block_height().saturating_mul(1_000_000), "nonce above what NEAR accepts at this height");
         let bh = block_hash_bytes(&block_hash).unwrap_or_else(|| env::panic_str("block_hash: base58 of 32 bytes"));
         let pk = ed25519_bytes(&desk.public_key).unwrap();
         let tx = payout_tx(&desk, &pk, nonce, &bh, self.tusd.as_ref().unwrap(), &env::current_account_id(), &a);
