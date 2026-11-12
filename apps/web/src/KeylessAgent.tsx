@@ -25,6 +25,9 @@ const STATUS: Record<string, string> = {
   'failed:transfer': 'failed, undone',
 };
 
+/** tUSD with enough decimals that a small payout doesn't read as 0. */
+const small = (raw: string): string => (BigInt(raw) < 10_000n ? (Number(raw) / 1e6).toFixed(4) : fmtTusd(raw));
+
 export function KeylessAgent({ startup }: { startup?: string }) {
   const [info, setInfo] = useState<Info | null>(null);
   useEffect(() => {
@@ -59,7 +62,7 @@ export function KeylessAgent({ startup }: { startup?: string }) {
         <ul className="plain small keyless-actions">
           {actions.slice(0, 6).map((a) => (
             <li key={a.id}>
-              #{a.campaign} milestone {a.milestone}: {fmtTusd(a.tusd)} tUSD to {a.receiver.split('.')[0]} · {STATUS[a.status] ?? a.status} · {ago(a.created_ms)}
+              #{a.campaign} milestone {a.milestone}: {small(a.tusd)} tUSD to {a.receiver.split('.')[0]} · {STATUS[a.status] ?? a.status} · {ago(a.created_ms)}
               {a.txUrl && <> · <a href={a.txUrl} target="_blank" rel="noreferrer">agent’s tx</a></>}
             </li>
           ))}
