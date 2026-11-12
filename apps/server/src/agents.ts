@@ -31,7 +31,7 @@ const BRIEF_SHARE_BPS = 1000n;
 export const BRIEF_TARGET = Number(process.env.BRIEF_TARGET ?? '2');
 /** gap after any brief, and between two briefs of the same startup */
 export const BRIEF_EVERY_MS = Number(process.env.BRIEF_EVERY_MIN ?? '480') * 60_000;
-const BRIEF_SAME_STARTUP_MS = Number(process.env.BRIEF_SAME_STARTUP_MIN ?? '180') * 60_000;
+export const BRIEF_SAME_STARTUP_MS = Number(process.env.BRIEF_SAME_STARTUP_MIN ?? '180') * 60_000;
 const ACTIVE = ['bidding', 'proposing', 'voting', 'funded', 'propose_failed'];
 const MAX_FANS = 40;
 

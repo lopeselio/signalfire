@@ -2,7 +2,7 @@ import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 import { fmtTusd, openingMatches, pitchHash, priceAt } from '@signalfire/core';
-import { startAgents } from './agents.ts';
+import { BRIEF_EVERY_MS, BRIEF_SAME_STARTUP_MS, startAgents } from './agents.ts';
 import { BA_PATH, accountFromHeaders, authHandler } from './ba.ts';
 import { view } from './chain.ts';
 import { config, explorerTx, hasKey } from './config.ts';
@@ -10,13 +10,13 @@ import { evidenceRoute } from './evidence/routes.ts';
 import { ftBalance } from './hub.ts';
 import { NRAS_URL } from '@signalfire/attest';
 import { attestation, modelE2eeKey, nearAiEnabled, type Signed } from './nearai.ts';
-import { CREATORS, HOLDERS, SCOUT } from './personas.ts';
+import { BRIEFS, CREATORS, HOLDERS, SCOUT } from './personas.ts';
 import { agentInfo } from './keyless.ts';
 import { buildProof, vettingProof } from './proof.ts';
 import { computeThesis, type Thesis } from './thesis.ts';
 import { cashOutInfo, settleCashOut, type CashOutRequest } from './cashout.ts';
 import { latest as snapshot, type Snapshot } from './snapshot.ts';
-import { addWire, bidsFor, getWire, loadBid, loadVetting, pendingApplicants, saveBid, savePrivateApp, setPendingApplicants } from './store.ts';
+import { addWire, bidsFor, getState, getWire, loadBid, loadVetting, pendingApplicants, saveBid, savePrivateApp, setPendingApplicants } from './store.ts';
 
 // ---------- tiny HTTP helpers ----------
 
@@ -63,6 +63,21 @@ function pitchesOf(s: Snapshot, id: number): Record<string, { pitch: string; sig
   return Object.fromEntries(bidsFor(id).filter((b) => revealed.has(b.creator)).map((b) => [b.creator, { pitch: b.pitch, signed: !!b.proof.signature, model: b.human ? 'creator' : b.proof.model }]));
 }
 
+/**
+ * When the founder agent may post its next brief: after the gap since the last one and once some startup's own gap
+ * has passed. An estimate for the onboarding's waiting states: it also waits for running campaigns to finish, a
+ * treasury with enough free NEAR and fans who can still buy.
+ */
+function briefSchedule(s: Snapshot): { auto: boolean; everyMin: number; nextAt: number | null } {
+  const everyMin = Math.round(BRIEF_EVERY_MS / 60_000);
+  const auto = config.agents && config.autoBriefs && hasKey(config.operator);
+  const mine = s.startups.filter((st) => st.founder === config.operator && st.status === 'live' && BRIEFS[st.id]?.length);
+  if (!auto || mine.length === 0) return { auto: false, everyMin, nextAt: null };
+  const lastBy = getState<Record<string, number>>('last-brief-by', {});
+  const soonest = Math.min(...mine.map((st) => (lastBy[st.id] ?? 0) + BRIEF_SAME_STARTUP_MS));
+  return { auto, everyMin, nextAt: Math.max(getState<number>('last-brief', 0) + BRIEF_EVERY_MS, soonest) };
+}
+
 function publicState(s: Snapshot) {
   const totals = { feesIn: 0n, available: 0n, committed: 0n, paid: 0n, volume: 0n, results: 0, funded: 0, done: 0 };
   for (const st of s.startups) {
@@ -88,6 +103,7 @@ function publicState(s: Snapshot) {
     nearAi: nearAiEnabled(),
     nearAiModel: config.nearAi.model,
     relayer: hasKey(config.relayer) ? config.relayer : null,
+    briefs: briefSchedule(s),
     startups: s.startups.map((st) => ({ ...st, price: priceAt(BigInt(st.circulating)).toString(), holders: s.holders[st.id] ?? [] })),
     campaigns: s.campaigns.map((c) => {
       const p = s.proposals[c.id];
