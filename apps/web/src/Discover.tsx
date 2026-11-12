@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { fmtNear } from '@signalfire/core';
 import { acctUrl, type Startup } from './api.ts';
+import { EvidenceChips, EvidenceFilters, NO_FILTER, passes, useEvidenceSummaries, type Summaries } from './EvidenceChips.tsx';
 import { useApp } from './ui.tsx';
 
 // Discover: every startup on the hub as a card. One big number per card, the marketing treasury, because that is
@@ -55,7 +56,7 @@ const Arrow = () => (
   <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 11.5 11.5 4.5M6 4.5h5.5V10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
 
-export function StartupCard({ s }: { s: Startup }) {
+export function StartupCard({ s, ev }: { s: Startup; ev?: Summaries | null }) {
   const { state, go } = useApp();
   const f = founderOf(s, state!.operator);
   const treasury = BigInt(s.available) + BigInt(s.committed);
@@ -78,6 +79,7 @@ export function StartupCard({ s }: { s: Startup }) {
         <span className="s-big-n">{fmtNear(treasury, 3)}<small> NEAR</small></span>
         <span className="s-big-sub">{fmtNear(s.paid, 3)} NEAR paid to creators · {results} new buyers reached</span>
       </div>
+      <EvidenceChips sum={ev?.[s.id]} />
       <footer className="s-card-foot">
         <Avatar name={f.name} />
         <span className="s-founder"><strong>{f.name}</strong><small>{f.role}{f.demo ? ' (fictional)' : ''}</small></span>
@@ -91,13 +93,15 @@ export function StartupCard({ s }: { s: Startup }) {
   );
 }
 
-type Sort = 'treasury' | 'new' | 'buyers';
+type Sort = 'treasury' | 'new' | 'buyers' | 'evidence';
 
 export function Discover() {
   const { state, account, go } = useApp();
   const [sort, setSort] = useState<Sort>('treasury');
-  const list = state!.startups.filter((s) => s.status === 'live');
-  const key = (s: Startup): bigint => (sort === 'treasury' ? BigInt(s.available) + BigInt(s.committed) : sort === 'new' ? BigInt(s.created_ms) : BigInt(s.buyers));
+  const ev = useEvidenceSummaries();
+  const [filter, setFilter] = useState(NO_FILTER);
+  const list = state!.startups.filter((s) => s.status === 'live' && passes(filter, ev?.[s.id]));
+  const key = (s: Startup): bigint => (sort === 'evidence' ? BigInt(ev?.[s.id]?.score ?? 0) : sort === 'treasury' ? BigInt(s.available) + BigInt(s.committed) : sort === 'new' ? BigInt(s.created_ms) : BigInt(s.buyers));
   const sorted = [...list].sort((a, b) => (key(b) > key(a) ? 1 : key(b) < key(a) ? -1 : 0));
   return (
     <div className="discover">
@@ -111,12 +115,14 @@ export function Discover() {
       </section>
       <div className="d-tools" role="radiogroup" aria-label="Sort startups">
         <span className="muted small">Sort by</span>
-        {([['treasury', 'Marketing treasury'], ['buyers', 'Buyers'], ['new', 'Newest']] as [Sort, string][]).map(([k, l]) => (
+        {([['treasury', 'Marketing treasury'], ['buyers', 'Buyers'], ['new', 'Newest'], ['evidence', 'Most evidence']] as [Sort, string][]).map(([k, l]) => (
           <button key={k} role="radio" aria-checked={sort === k} className={`pill${sort === k ? ' on' : ''}`} onClick={() => setSort(k)}>{l}</button>
         ))}
         {account && <button className="ghost small d-launch" onClick={() => go('/launch')}>Launch a startup</button>}
       </div>
-      <div className="s-grid">{sorted.map((s) => <StartupCard key={s.id} s={s} />)}</div>
+      <EvidenceFilters f={filter} set={setFilter} />
+      <div className="s-grid">{sorted.map((s) => <StartupCard key={s.id} s={s} ev={ev} />)}</div>
+      {sorted.length === 0 && <p className="muted">No startup has that evidence yet. A founder adds it by linking and proving their GitHub and X.</p>}
       <p className="muted small d-note">
         The demo startups and their founders are fictional; one operator account runs them on testnet, and the creators,
         holders and fans are agents. Anyone signed in can launch a startup of their own.
