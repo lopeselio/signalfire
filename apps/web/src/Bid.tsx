@@ -83,7 +83,7 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
       }).then((ok) => { if (ok) { setPrice(''); setPitch(''); } });
     };
     return (
-      <div className="mybid">
+      <div className="mybid" data-tour="my-bid">
         <h4>Your sealed bid</h4>
         <p className="small">Your price and pitch stay in this browser; only their hash goes onchain, with a 0.02 NEAR bond from your Signalfire wallet that comes back when you reveal. Credible prices for this brief: <Near y={floor} d={4} /> to <Near y={budget} d={4} />. The lowest price after your reputation discount ({rep >= 0 ? '+' : ''}{rep / 100}%) wins.</p>
         <label className="field"><span>Your price (NEAR)</span>
@@ -139,7 +139,7 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
     { k: won ? 'won' : settled && c.winner ? 'lost' : settled ? 'no winner' : 'settled', on: settled },
   ];
   return (
-    <div className="mybid">
+    <div className="mybid" data-tour="my-bid">
       <h4>Your sealed bid</h4>
       <ol className="timeline small-steps" aria-label="Your bid">
         {steps.map((x, i) => <li key={x.k} className={x.on && (i === steps.length - 1 || !steps[i + 1].on) ? 'now' : x.on ? 'past' : ''}>{x.k}</li>)}
