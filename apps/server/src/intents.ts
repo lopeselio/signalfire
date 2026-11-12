@@ -1,7 +1,8 @@
 import { parseKey } from 'near-kit';
 
-// NEAR Intents (the open-source near/intents Verifier; on testnet we use the author's own deployment,
-// `bazaar-intents.testnet`, the same one the Bazaar of Liars settles barters on).
+// NEAR Intents (the open-source near/intents Verifier). NEAR runs no Intents Verifier on testnet (intents.near is
+// mainnet only), so Signalfire deploys its own instance at `signalfire-intents.testnet` (the near/intents build, code
+// hash 3Trdk9S3GqVygezZjjshYP7r8GWisgaob1bFTaqZd9au, fee 0).
 //
 // Each party's identity in the Verifier is the implicit account of its own key, so only that key can sign for it.
 // An intent is a NEP-413 signed message { signer_id, deadline, intents: [...] } with recipient = the Verifier and a
@@ -9,7 +10,7 @@ import { parseKey } from 'near-kit';
 // The Verifier checks every signature and that each token's diffs sum to zero across the batch, then moves the
 // tokens; `ft_withdraw` sends them out to a NEAR account. Nothing settles unless every side's intent does.
 
-export const VERIFIER = process.env.INTENTS_VERIFIER ?? 'bazaar-intents.testnet';
+export const VERIFIER = process.env.INTENTS_VERIFIER ?? 'signalfire-intents.testnet';
 export const NONCE_PREFIX = '5628f6c6';
 
 /** The Verifier's id for a NEP-141 token. */

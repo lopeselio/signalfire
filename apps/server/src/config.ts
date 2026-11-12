@@ -14,6 +14,8 @@ export const config = {
   operator: env('OPERATOR_ID', 'signalfire-ref.testnet'),
   /** pays gas for signed-in users' meta-transactions (NEP-366), relayed by better-near-auth */
   relayer: env('RELAYER_ID', 'signalfire-relay.testnet'),
+  /** buys creators' tUSD for NEAR through the Intents Verifier (its own account, so the operator keeps its NEAR for gas) */
+  desk: env('DESK_ID', 'signalfire-desk.testnet'),
   /** the startup the operator runs and the agents work for */
   demo: env('DEMO_STARTUP', 'glow'),
   /** run the agent loop (creators, scout, holders, audience, cranks) */
