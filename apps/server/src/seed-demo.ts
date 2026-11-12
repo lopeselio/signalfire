@@ -18,7 +18,8 @@ import { ensureAgent } from './setup.ts';
 const GO = process.argv.includes('--go');
 const KEEP = parseNear(process.env.KEEP_SPARE ?? '5');
 const FEES_WANTED = parseNear(process.env.SEED_FEES ?? '0.2');
-const HOLDER = { balance: '0.06', wallet: '0.06', capTx: '0.05', capDay: '0.06' };
+// gas is reserved at a pessimistic price: a 150 Tgas vote needs ~0.15 NEAR on the account
+const HOLDER = { balance: '0.2', wallet: '0.06', capTx: '0.05', capDay: '0.06' };
 const FAN_BUY = parseNear('0.06');
 const FAN_STORAGE = parseNear('0.0015');
 const FAN_CAP_DAY = parseNear('0.2');
@@ -44,9 +45,10 @@ async function main(): Promise<void> {
     const holders = holdersOf(d.id);
     // the operator pays for the holder agents: it sends the hub what create_agent attaches
     for (const h of holders) {
-      if ((await balanceOf(h.account)) !== null) continue;
-      const tx = await send(op, config.hub, parseNear(HOLDER.balance) + parseNear(HOLDER.wallet));
-      say(`operator paid the hub for ${h.name}'s account and wallet`, tx);
+      if ((await balanceOf(h.account)) === null) {
+        const tx = await send(op, config.hub, parseNear(HOLDER.balance) + parseNear(HOLDER.wallet));
+        say(`operator paid the hub for ${h.name}'s account and wallet`, tx);
+      }
       await ensureAgent(h.account.split('.')[0], { ...HOLDER, dao });
     }
     let s = await getStartup(d.id);
