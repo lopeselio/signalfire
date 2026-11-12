@@ -339,7 +339,7 @@ function CampaignCard({ c, s, isHolder }: { c: Campaign; s: Startup; isHolder: b
                       <span className="sealed" title={b.hash}>sealed {b.hash.slice(0, 16)}…</span>
                     )}
                   </div>
-                  {p && <blockquote>{p.pitch} <TeeBadge signed={p.signed} model={p.model} /></blockquote>}
+                  {p && <blockquote>{p.pitch} <TeeBadge signed={p.signed} model={p.model} src={{ kind: 'pitch', campaign: c.id, creator: b.creator }} what="pitch" /></blockquote>}
                 </li>
               );
             })}
