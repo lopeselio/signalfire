@@ -6,6 +6,7 @@ import { api, acctUrl, type AuditEntry, type Campaign, type Startup, type Trade 
 import { MyBid } from './Bid.tsx';
 import { PriceChart } from './Chart.tsx';
 import { EvidenceTab } from './Evidence.tsx';
+import { KeylessAgent } from './KeylessAgent.tsx';
 import { FounderForms } from './Founder.tsx';
 import { Wire } from './Wire.tsx';
 import { Acct, Chip, Near, SignInHint, TeeBadge, Terms, ago, flagKind, fmtLeft, useApp, useNow } from './ui.tsx';
@@ -256,6 +257,7 @@ function Treasury({ s }: { s: Startup }) {
           {isHolder && <p className="ok-text small">You’re a holder: you can vote on funding proposals below.</p>}
           <SignInHint what="join the holders and vote" />
         </section>
+        <KeylessAgent startup={s.id} />
       </div>
       <div className="col-main">
         <FounderForms s={s} />
