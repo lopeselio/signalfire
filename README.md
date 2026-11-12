@@ -221,6 +221,83 @@ fallback text, marked unsigned.
     [`execute_intents`](https://testnet.nearblocks.io/txns/wDqtxwgP1v8TucRv5bZSkodQfHuaE4qxJ3WqFMzHjJ9).
     `pnpm intents-swap <account>` is the earlier variant where both sides sign with implicit-account identities.
 
+12. **Look at the team before you back a startup: the Evidence tab.** Open any startup (`/s/glow?tab=evidence`).
+    Every item has a source link and the time it was fetched:
+    - **Founder-linked sources**: GitHub (user, org or `owner/repo`) and X accounts the founder linked, each
+      **verified** (proven, see below) or only **claimed**.
+    - **Founder history**: the founder's NEAR account from NearBlocks API v3 (`/v3/accounts/<id>`: created when and in
+      which transaction; `/stats`: transactions and active days, or a `next_page`-cursor count for a newer account),
+      and the other startups they launched here and how those went.
+    - **Shipped work**, for verified links only: a repository's commits in the last 30 and 90 days, last push and
+      release, contributors, open issues and PRs, languages, stars (GitHub REST API; cached 6 h, because GitHub allows
+      60 requests an hour without a token; set `GITHUB_TOKEN` in `.env` to raise it, never in the repo).
+    - **Onchain track record**, read from the hub: fees in, paid to creators (and 0 to founders), campaigns posted,
+      delivered and missed, cost per new buyer, buyers over time from the trade ring, the creators who ran them.
+
+    Next to it, the **AI research brief**: the TEE model on NEAR AI Cloud reads only that evidence (each item under an
+    id, E1, E2, …) and answers in four sections: **Observed** (facts, each citing ids), **AI reading** (inference,
+    labelled as such), **Gaps and red flags** (rule checks computed by code, plus the model's), **What to check
+    yourself**. Click a citation to open its source. The **✓ Private AI, verified** badge checks the brief's TEE
+    signature in your browser, like the vetting reports. The guardrails are code, not a prompt alone
+    (`guardBrief` in `packages/core`): a line is removed when it has no valid citation, gives buy/sell/hold advice or a
+    price prediction, uses fundraising words (invest, returns, equity…), or holds a number its cited sources don't;
+    a hedged "observation" is moved to the AI reading. Removed lines are listed under the brief with the reason. The
+    model's output is also constrained to a JSON schema with bounded sections. A brief is rewritten every 6 hours
+    (`BRIEF_EVERY_H`) and on **Write a fresh brief** (once per startup per 15 minutes, 12 an hour in all).
+
+    The demo startups are fictional and run by the operator, so they honestly show "no verified founder links, no
+    verified repository" and a red flag that the platform runs them: only their onchain record is real. We link no
+    real person's or company's accounts to them.
+
+    **How a real founder gets the full brief.** On **Launch**, optionally enter a GitHub and an X account (saved as
+    claims). In the **Founder's desk** (tab Treasury and campaigns), **Link and prove your GitHub and X**: click **Sign
+    with my wallet** (NEP-413, no transaction): the wallet signs
+
+    ```
+    Signalfire founder link
+    <you> (founder of <SYM> on signalfire.testnet) controls the GitHub repository <owner/repo>.
+    startup: <sym>
+    founder: <you>
+    link: github:<owner/repo>
+    ```
+
+    with recipient `signalfire.testnet` and nonce `sha256(message)`. Publish the line it gives you
+    (`signalfire-proof:<sym>:<you>:github:<owner/repo>:<signature>`, short enough for a post) **from that account**: a
+    file in the repository or a public gist by its owner (GitHub), or a post by the handle (X, read through X's
+    public oEmbed). Paste the URL and click **Check proof**: the server fetches it, checks that the place belongs to
+    the linked account, and checks the signature against your account's **full-access keys** over public RPC. Only
+    then does the link show as verified and its GitHub numbers enter the evidence.
+
+    **Where links live.** In the server's store (`DATA_DIR/evidence/links`), with the proof URL, the signed message,
+    the signature and the key, all published in `/api/evidence/<sym>/proof`. Not onchain: a proof is a signature by
+    the founder's own key, so the server can't forge one, and anyone can recheck it without us; putting it in the hub
+    would need a contract migration two days before the deadline and would add only availability, not trust.
+
+    Recheck a brief without trusting us (no keys needed):
+
+    ```
+    pnpm verify-brief glow https://signalfire.lopeselio.online
+    Glowpath (GLOW) on signalfire.testnet, founder signalfire-ref.testnet
+    ✓ the founder in the bundle is the founder onchain (signalfire-ref.testnet)
+    ✓ no founder links claimed (nothing to recheck)
+    ✓ the evidence hashes to 308eed6e8f05… (sha256 of its canonical JSON)
+    ✓ the 4 rule checks recompute from the evidence
+    ✓ the model was given the published rules (no advice, cite every line, inference labelled)
+    ✓ the model was given exactly this evidence and nothing else
+    ✓ re-running the guard on the signed reply gives the brief shown (17 lines kept, 0 dropped)
+    ✓ TEE: Intel TDX quote: its signature chains to Intel’s root CA (dcap-qvl)
+    …
+    ✓ the brief was signed by the attested NEAR AI TEE key 0xfdbd7952…
+    ✓ E2 founder account created in 9G6YaD284t… (NearBlocks)
+    ✓ E4 treasury: fees in 0.377 → 0.377 NEAR, paid to creators 0.2057 → 0.2057 (never down)
+    ✓ 33 checks passed, 0 failed
+    ```
+
+    For each verified link it also re-fetches the proof and rechecks the signature against the founder's current
+    full-access keys. **Discover** shows evidence chips on each card (verified founder, repo active in 30 days,
+    campaigns delivered) and filters on them, plus a **Most evidence** sort: a count of checkable evidence (`summarize`
+    in `packages/core`), not a judgement of quality.
+
 ## Tracks, honestly
 
 Every one of the hackathon's 13 tracks, with the evidence a reviewer can check (a page on the hosted demo, a
@@ -278,6 +355,7 @@ contracts/hub     Rust near-sdk 5.29: launchpad, curve market, treasuries, spend
 - **That a campaign caused its buys.** A result is "a first-time buyer used the code". The demo audience is our own fan accounts, run by the server.
 - **That the model's report is wise**, only that the TEE produced it unaltered, and it decides nothing.
 - **That a private applicant told the truth**, only that the model saw exactly what they sealed (if they show the receipt). The server still sees the verdict (score and fixed phrases) and knows *that* someone applied privately; it never sees the details.
+- **That a research brief is right or complete.** The guard proves every kept line cites real evidence and that its numbers appear in those sources, not that the model read them correctly (a "0" can be attached to the wrong field), and the evidence is only what we could fetch. A verified link proves the founder controls an account, not who they are or that the work is theirs alone.
 - **That a reply came from the instance we attested.** The badge attests the model now, with a fresh nonce; the reply was signed earlier. Instances of a model share one signing key, so a matching signer proves the key lives only in attested TEEs, not which instance served the reply (docs.near.ai says so too).
 - **That the operator doesn't control a creator.** The demo creators are our agents. Anyone the scout admits can bid, and admission is by rule, but the scout is a registered account we run.
 - **The hub account still has a full-access key** on testnet so we can iterate; a production deployment would remove it. The global FT and Sputnik code are published by NEAR's `globals.primitives` accounts, which could update them.
@@ -289,8 +367,8 @@ contracts/hub     Rust near-sdk 5.29: launchpad, curve market, treasuries, spend
 ```bash
 pnpm test             # packages/attest: 6 tests (a live NEAR AI report verified offline with saved Intel collateral, a
                       # replayed nonce, a tampered event log and compose, reply signatures recovered and tampered)
-                      # packages/core: 35 tests (curve, hashes, sealed openings, scoring, milestones, policy, wallets, founder limits, lookalikes; the shared vector)
-                      # apps/server: 7 tests (the relayer's live whitelist, the NEAR Intents helpers)
+                      # packages/core: 53 tests (curve, hashes, sealed openings, scoring, milestones, policy, wallets, founder limits, lookalikes, intents, founder-link proofs, evidence hash, rule checks, the brief's guard; the shared vector)
+                      # apps/server: 21 tests (the relayer's live whitelist, the NEAR Intents helpers, founder-link proofs against stubbed GitHub/X/RPC, reading the model's reply)
 pnpm contract:test    # contracts/hub: 37 tests (the same shared vector, launch, trades and unwinds, wallets and caps,
                       # vetting and lookalikes, auctions, DAO-only funding, attribution, milestones, held payouts,
                       # failed transfers, expiry, soulbound and dynamic NFTs, solvency)
@@ -303,6 +381,7 @@ pnpm cashout-check <account> [tUSD raw]  # the web app's NEAR Intents cash-out, 
 pnpm intents-swap <account> [tUSD raw]  # cash tUSD out for NEAR through the NEAR Intents Verifier (implicit identities)
 pnpm private-apply <account> [url]  # a private creator application end to end (signs in with the account's key)
 pnpm verify creator <account> [url]  # a creator's vetting report: hash onchain, TEE signatures, the private verdict
+pnpm verify-brief <startup> [url]  # a startup's founder-link proofs and AI research brief: evidence hash, prompt, guard, TEE signature, sources now
 ```
 
 ## Deploying

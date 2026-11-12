@@ -160,6 +160,39 @@ server: every bid opening against its commitment, the winner by the shared scori
 status, every attributed buyer's trade, every payout against the policy and milestones, the receipt NFT, and the
 signatures on the NEAR AI reports.
 
+## Evidence and the AI research brief (discovery)
+
+Creators are vetted; founders are not: anyone with a wallet and 1 NEAR can launch and claim any history. So every
+startup page has an **Evidence** tab, adapted from the Solana request "Discovery and trading for onchain startup
+fundraising": help people look at the team behind a token before they back it, with traceable sources, and use AI
+to organize the evidence without presenting speculation as fact.
+
+- **Founder-linked sources, proven.** A founder links GitHub (user, org or `owner/repo`) and X accounts (at launch
+  and from the Founder's desk). Proof of control: the founder's wallet signs a NEP-413 message naming the startup,
+  the founder account and the link (recipient = the hub, nonce = sha256(message)); the founder publishes the
+  resulting `signalfire-proof:…` line from that account (a file in the repository or a gist by its owner; a post by
+  the X handle) and pastes the URL. The server fetches it from those hosts only, checks the place belongs to the
+  linked account and the signature against one of the founder's **full-access keys** (public RPC). Unproven links
+  stay "claimed" and are never fetched for numbers. Links live in the server store with their proofs, published in
+  `/api/evidence/<sym>/proof`: a signature by the founder's key is self-certifying, so onchain storage would add
+  availability, not trust (and a hub migration this late).
+- **Evidence items**, numbered E1…En, each with a source link and a fetch time: founder-linked sources; the founder's
+  NEAR account (NearBlocks API v3: creation, transactions, active days) and other startups they launched here;
+  shipped work for verified GitHub links (commits in 30/90 days, last push and release, contributors, issues,
+  languages, stars; cached 6 h); the onchain record from the hub (treasury, campaigns, cost per new buyer, buyers
+  over time, creators). `evidenceHash` = sha256 of the canonical JSON.
+- **The research brief.** The TEE model on NEAR AI Cloud gets only the evidence (`evidencePrompt`) and published
+  rules, with its output constrained to a JSON schema (observed / reading / gaps / check, bounded). Code then decides
+  what is shown (`guardBrief`, packages/core, deterministic): every line must cite existing ids; advice, price talk,
+  predictions and fundraising words are removed; every standalone number and date must appear in the cited sources;
+  a hedged "observation" moves to the AI reading. Gaps and red flags are first computed by rule (`ruleFlags`: no
+  verified links or repository, a founder account under 7 days, a platform-run demo, missed campaigns, a quiet or
+  archived repository). The exact request, response and the enclave's signature are stored; the Private AI badge and
+  `pnpm verify-brief` check them, and the latter re-runs the guard, recomputes the hash and rule checks, rechecks
+  every link proof and re-reads the sources. Rewritten every 6 h and on request (rate-limited).
+- **Discover** filters on verified founder, repository active in 30 days and campaigns delivered, and sorts by the
+  amount of checkable evidence (`summarize`), never by a model's opinion. The model decides nothing.
+
 ## Trust model: what the chain does not prove
 
 - That a creator's campaign *caused* the buys: attribution is "first-time buyers who used the code". The demo
@@ -170,6 +203,8 @@ signatures on the NEAR AI reports.
 - The hub account still has a full-access key on testnet (to iterate). The global FT and Sputnik code are published
   by NEAR's `globals.primitives` accounts; their publisher could update them.
 - tUSD is a test token whose only backing is the NEAR the desk keeps; the 1:3 rate is a constant, not an oracle.
+- That a research brief is right: only that every kept line cites real evidence and its numbers appear there. A
+  verified link proves control of an account, not identity.
 
 ## Track mapping
 
