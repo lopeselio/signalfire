@@ -68,7 +68,7 @@ export function StartupCard({ s }: { s: Startup }) {
       <header className="s-card-head">
         <StartupLogo id={s.id} />
         <div>
-          <h3><a href={`/s/${s.id}`} onClick={(e) => { e.preventDefault(); open(); }}>{s.name}</a></h3>
+          <h3><a href={`/s/${s.id}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); open(); }}>{s.name}</a></h3>
           <span className="s-sym">{s.id.toUpperCase()}{running && <span className="s-live">campaign {running.phase === 'funded' ? 'running' : 'open'}</span>}</span>
         </div>
       </header>
