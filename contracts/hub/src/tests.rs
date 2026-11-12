@@ -31,6 +31,7 @@ fn ctx_with(who: &str, deposit: u128, results: Vec<PromiseResult>) {
             .attached_deposit(NearToken::from_yoctonear(deposit))
             .account_balance(NearToken::from_near(1000))
             .block_timestamp(now() * 1_000_000)
+            .block_height(200_000_000)
             .build(),
         near_sdk::test_vm_config(),
         RuntimeFeesConfig::test(),
@@ -768,6 +769,12 @@ fn keyless_agent_pays_an_approved_milestone_exactly_once() {
     let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         ctx("crank.testnet", 1);
         let _ = h.agent_sign(0, 5, VEC_BLOCK.into());
+    }));
+    assert!(r.is_err());
+    // a nonce NEAR would refuse at this height is refused here too
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ctx("crank.testnet", 1);
+        let _ = h.agent_sign(0, u64::MAX, VEC_BLOCK.into());
     }));
     assert!(r.is_err());
     // the MPC network's signature checks against the agent's key: the signed transaction is kept
