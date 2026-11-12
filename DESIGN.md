@@ -73,6 +73,18 @@ mapping 0→o, 1→l, 3→e, 5→s) from an admitted creator; lookalikes are ref
 Founders set constraints only (`set_constraints`: campaign cap, per-payout cap, payouts per hour, credible bid
 floor, holder minimum), inside hard limits in the contract. They can't move money.
 
+## The keyless treasury agent (security, privacy)
+
+Payouts in tUSD are sent by an implicit NEAR account whose only key is the Ed25519 key NEAR's MPC network derives
+for `signalfire.testnet` and the path `signalfire-treasury-agent` (Chain Signatures, domain 1). No person or server
+holds it. `claim_milestone` approves a payout through the spend policy and records an agent action; `agent_sign`
+(anyone cranks) has the hub build the agent's transaction (tUSD `ft_transfer_call` of exactly that amount to the hub,
+`agent-payout:<id>`) and request the MPC signature; the signed transaction is kept onchain and anyone broadcasts it.
+The hub's `ft_on_transfer` forwards a matching delivery to the creator and refunds any other (a second signature of
+the same action, a wrong amount, a closed action). After 30 minutes, `agent_fallback` pays from the hub's desk instead.
+It is a contract-controlled keyless agent, not a Shade Agent: it runs no code of its own (a Shade Agent, agent code in
+a TEE, is a possible next step). State is kept under raw storage keys; the Hub struct is unchanged.
+
 ## Agent wallets and keys (security, agents)
 
 Agents never hold a full-access key. The hub creates each agent account with **function-call keys only**, each with a
@@ -212,7 +224,7 @@ to organize the evidence without presenting speculation as fact.
 |---|---|
 | memecoins | NEP-141 token, curve, fee-only-to-treasury, fixed supply, zero founder allocation, supply/fee panel |
 | social | a Sputnik DAO per startup; funding = a FunctionCall proposal; holders join/prune by balance |
-| security | spend policy, caps, allowlist, rate limit, milestones, audit log with flags, FC-key agents with wallet caps |
+| security | spend policy, caps, allowlist, rate limit, milestones, audit log with flags, FC-key agents with wallet caps, a keyless payout agent (Chain Signatures) |
 | swarms | creator agents bid in commit-reveal auctions; the contract settles by a deterministic rule |
 | agents | agents earn tUSD, pay bonds, pay the scout, buy tokens; the scout sells vetting |
 | privacy | sealed bids and pitches; TEE-signed reports and pitches with kept proofs; private creator applications only the TEE model reads; the model's attestation verified in the browser and by `verify` |
