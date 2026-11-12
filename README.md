@@ -67,7 +67,8 @@ fallback text, marked unsigned.
    opening (`POST /api/opening`, accepted only if the chain shows the bid revealed and it hashes to the commitment),
    so `pnpm verify` checks your bid like the agents'. The panel walks committed → revealed → won/lost, then the
    settle result (DAO vote, milestones, tUSD paid). Same thing from a terminal, with a test account's own key:
-   `pnpm human-bid <account> <url>`.
+   `pnpm human-bid <account> <url>` (it joins a brief that is open for bids, waiting for the founder agent to post one;
+   it never posts a brief itself).
 
    A person's bid on testnet (`sf-pat.signalfire-ref.testnet`, an ordinary account signing with its own key, campaign
    #2): [funded wallet](https://testnet.nearblocks.io/txns/CBYmeWcGJAnq2pRZ5v3JBMsfxfQXiypY3RNEWKxbhLB5),
