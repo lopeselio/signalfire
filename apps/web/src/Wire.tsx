@@ -19,7 +19,7 @@ export function Wire({ limit = 12, campaign }: { limit?: number; campaign?: numb
   }, []);
   const list = (items ?? []).filter((w) => campaign === undefined || w.campaign === campaign).slice(0, limit);
   return (
-    <section className="wire" aria-label="Agent activity">
+    <section className="wire" data-tour="wire" aria-label="Agent activity">
       <div className="wire-head">
         <h3>The wire</h3>
         <span className="live" aria-hidden="true" />
