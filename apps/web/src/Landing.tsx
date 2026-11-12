@@ -17,7 +17,7 @@ function Beacon() {
   const total = free + committed + paid || 1;
   const w = (v: number): string => `${Math.max(v > 0 ? 3 : 0, (v / total) * 100)}%`;
   return (
-    <div className="beacon-card" aria-label="Where the trading fees went">
+    <div className="beacon-card" data-tour="beacon" aria-label="Where the trading fees went">
       <div className="bc-head">
         <span className="bc-title">Marketing treasuries</span>
         <span className="chip ok">live from testnet</span>
