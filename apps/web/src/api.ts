@@ -27,7 +27,7 @@ export interface Campaign {
   pitches: Record<string, { pitch: string; signed: boolean; model: string }>;
   proposal: Proposal | null;
 }
-export interface Wallet { owner: string; balance: string; locked: string; cap_tx: string; cap_day: string; day_spent: string; spent_total: string }
+export interface Wallet { owner: string; balance: string; locked: string; cap_tx: string; cap_day: string; day_start_ms: number; day_spent: string; spent_total: string }
 export interface CreatorRec {
   creator: { account: string; name: string; profile: string; report_hash: string; scout: string; admitted_ms: number; revoked: boolean; won: number; completed: number; missed: number; results: number; payouts: number; paid: string; paid_tusd: string };
   rep_bps: number; tusd: string; wallet: Wallet | null; vetted: boolean;

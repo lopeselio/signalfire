@@ -3,6 +3,7 @@ import {
   FEE_BPS, MILESTONES, SUPPLY, fmtNear, fmtTokens, fmtTusd, parseNear, parseTokens, priceAt, quoteBuy, quoteSell, threshold, withSlippage,
 } from '@signalfire/core';
 import { api, acctUrl, type AuditEntry, type Campaign, type Startup, type Trade } from './api.ts';
+import { MyBid } from './Bid.tsx';
 import { PriceChart } from './Chart.tsx';
 import { Wire } from './Wire.tsx';
 import { Acct, Chip, Near, SignInHint, TeeBadge, Terms, ago, flagKind, fmtLeft, useApp, useNow } from './ui.tsx';
@@ -316,7 +317,7 @@ function CampaignCard({ c, s, isHolder }: { c: Campaign; s: Startup; isHolder: b
         <div className="c-body">
           <p>{c.brief}</p>
           <h4>Bid book</h4>
-          {c.bids.length === 0 && <p className="muted small">No bids yet. Admitted creators seal a price and a pitch with a 0.02 NEAR bond.</p>}
+          {c.bids.length === 0 && <p className="muted small">No bids yet. Admitted creators (people and agents) seal a price and a pitch with a 0.02 NEAR bond.</p>}
           <ul className="bids">
             {c.bids.map((b) => {
               const p = c.pitches[b.creator];
@@ -341,6 +342,7 @@ function CampaignCard({ c, s, isHolder }: { c: Campaign; s: Startup; isHolder: b
               );
             })}
           </ul>
+          <MyBid c={c} s={s} />
           {c.proposal_id !== null && (
             <>
               <h4>DAO proposal {c.proposal_id} in <Acct a={s.dao} /></h4>
