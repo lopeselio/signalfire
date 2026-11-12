@@ -53,15 +53,26 @@ function useFound(step: Step): Found {
   return f;
 }
 
+type Ring = { style: CSSProperties; via: boolean } | null;
+
 export function Tour({ x }: { x: X }) {
   const t = useTour();
+  // the ring outlives each step's card, so it glides from one element to the next
+  const [ring, setRing] = useState<Ring>(null);
+  const on = !!t.tour;
+  useEffect(() => { if (!on) setRing(null); }, [on]);
   if (!t.tour) return null;
   const path = pathById(t.tour.path);
   const index = Math.min(Math.max(t.tour.index, 0), path.steps.length - 1);
-  return <TourStep key={`${path.id}:${index}`} path={path} index={index} x={x} seen={t.seen} />;
+  return (
+    <>
+      {ring && <div className={`tour-ring${ring.via ? ' via' : ''}`} style={ring.style} aria-hidden="true" />}
+      <TourStep key={`${path.id}:${index}`} path={path} index={index} x={x} seen={t.seen} setRing={setRing} />
+    </>
+  );
 }
 
-function TourStep({ path, index, x, seen }: { path: Path; index: number; x: X; seen: string[] }) {
+function TourStep({ path, index, x, seen, setRing }: { path: Path; index: number; x: X; seen: string[]; setRing: (r: Ring) => void }) {
   const { go } = useApp();
   const step = path.steps[index];
   const found = useFound(step);
@@ -69,7 +80,8 @@ function TourStep({ path, index, x, seen }: { path: Path; index: number; x: X; s
   const wasDone = useRef(done);
   const [justDone, setJustDone] = useState(false);
   const [stay, setStay] = useState(false);
-  const scrolled = useRef(false);
+  /** what the view was last brought to: the fallback, then the real element once it shows up */
+  const scrolled = useRef<'via' | 'target' | null>(null);
   const card = useRef<HTMLDivElement>(null);
   const [cardH, setCardH] = useState(220);
   const narrow = typeof window !== 'undefined' && window.innerWidth < 720;
@@ -85,14 +97,25 @@ function TourStep({ path, index, x, seen }: { path: Path; index: number; x: X; s
     tourStore.set({ tour: { path: path.id, index: j } });
   };
 
-  // go where the step happens, once, when it starts
-  useEffect(() => { if (route && offRoute) go(route); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // bring the element into view the first time it shows up
+  // go where the step happens when it starts; if the session loads a moment later and the place changes (your own
+  // startup instead of /launch), follow it, unless the visitor has already moved on
+  const auto = useRef<{ route: string | null; at: number }>({ route: null, at: Date.now() });
   useEffect(() => {
-    if (scrolled.current || found.mode === 'none' || !found.box) return;
-    scrolled.current = true;
-    const el = (step.target && find(step.target)) || firstVia(step.via, find)?.el;
+    if (!route) return;
+    const a = auto.current;
+    const first = a.route === null;
+    const follow = !first && route !== a.route && Date.now() - a.at < 6000 && location.pathname === pathOf(a.route!);
+    if (first || follow) {
+      auto.current = { route, at: a.at };
+      if (offRoute) go(route);
+    }
+  }, [route]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // bring the element into view the first time it shows up (again when a tab or card opens onto the real one)
+  useEffect(() => {
+    if (found.mode === 'none' || !found.box || scrolled.current === 'target' || scrolled.current === found.mode) return;
+    scrolled.current = found.mode;
+    const el = (found.mode === 'target' && step.target && find(step.target)) || firstVia(step.via, find)?.el;
     if (!el) return;
     const r = el.getBoundingClientRect();
     const head = 70;
@@ -126,11 +149,19 @@ function TourStep({ path, index, x, seen }: { path: Path; index: number; x: X; s
   useLayoutEffect(() => { if (card.current) setCardH(card.current.offsetHeight); });
 
   const box = found.box;
-  const ring: CSSProperties | null = box ? (() => {
+  const ring: { top: number; left: number; width: number; height: number } | null = box ? (() => {
     const top = Math.max(box.top - PAD, 4);
     const bottom = Math.min(box.top + box.height + PAD, window.innerHeight - 4);
     return { top, left: box.left - PAD, width: box.width + PAD * 2, height: Math.max(bottom - top, 24) };
   })() : null;
+  const ringKey = ring && found.mode !== 'none' ? `${found.mode}:${ring.top},${ring.left},${ring.width},${ring.height}` : '';
+  const born = useRef(Date.now());
+  useEffect(() => {
+    if (ring && found.mode !== 'none') { setRing({ style: ring, via: found.mode === 'via' }); return; }
+    // a new step's element may take a frame or a page change to appear: keep the old ring briefly so it can glide
+    const id = setTimeout(() => setRing(null), Math.max(0, 600 - (Date.now() - born.current)));
+    return () => clearTimeout(id);
+  }, [ringKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const pos = placeCard(box, narrow, cardH);
   const wait = !done && step.wait ? step.wait(x) : null;
   // count only the steps this build has (a step for a missing feature is skipped)
@@ -140,7 +171,6 @@ function TourStep({ path, index, x, seen }: { path: Path; index: number; x: X; s
 
   return (
     <>
-      {ring && found.mode !== 'none' && <div className={`tour-ring${found.mode === 'via' ? ' via' : ''}`} style={ring} aria-hidden="true" />}
       <div ref={card} className={`tour-card${narrow ? ' sheet' : ''}${!box ? ' free' : ''}`} style={pos} role="dialog" aria-modal="false" aria-labelledby="tour-title">
         <div className="tour-top">
           <span className="tour-path">{path.title} · step {n} of {total}</span>
