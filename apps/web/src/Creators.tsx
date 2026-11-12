@@ -94,7 +94,7 @@ function CreatorCard({ c }: { c: CreatorRec }) {
           })}
           {detail.vetting ? (
             <div className="vetting">
-              <h4>Scout’s vetting report <TeeBadge signed={detail.vetting.signed} model={detail.vetting.model} /></h4>
+              <h4>Scout’s vetting report <TeeBadge signed={detail.vetting.signed} model={detail.vetting.model} src={{ kind: 'vetting', account: cr.account }} what="vetting report" /></h4>
               {report?.summary ? (
                 <>
                   <p className="small">{report.summary}</p>

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { fmtNear } from '@signalfire/core';
 import { acctUrl, txUrl, type Me, type State } from './api.ts';
+import { PrivateAiBadge, type ReplySource } from './Attest.tsx';
 
 // Shared bits: the app context, links, amounts, chips, countdowns.
 
@@ -70,7 +71,8 @@ export function ago(t: number, now = Date.now()): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
-export function TeeBadge({ signed, model }: { signed: boolean; model?: string }) {
+export function TeeBadge({ signed, model, src, what }: { signed: boolean; model?: string; src?: ReplySource; what?: string }) {
+  if (signed && src && model) return <PrivateAiBadge src={src} model={model} what={what ?? 'reply'} />;
   if (model === 'creator') return <span className="tee off" title="A person wrote this pitch and sealed it in their browser; no model was involved">written by the creator</span>;
   if (!signed) return <span className="tee off" title="Written without NEAR AI (fallback text, unsigned)">unsigned</span>;
   return (
