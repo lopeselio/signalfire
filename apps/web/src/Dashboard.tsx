@@ -127,6 +127,7 @@ interface ThesisData {
   startups: { id: string; name: string; feesInNear: string; paidNear: string; campaignsDone: number; newBuyers: number; costPerBuyerNear: string | null }[];
   bounds: { payoutAttempts: number; paid: number; held: number; admissionsRefused: number; flags: Record<string, number>; agents: number; agentsFcOnly: number; fullAccessKeys: number; walletsCapDayNear: string; walletsSpentNear: string; fanSpentMaxNear: string; fanCapDayNear: string };
   latency: { campaigns: number; voteMedianS: number | null; briefToFundedMedianS: number | null; briefToPaidMedianS: number | null };
+  runway?: { firstBuysLeft: number; perCampaign: number; campaignsLeft: number; hoursBetweenBriefs: number; lastsUntil: string; treasuriesFreeNear: string };
   limits: string[];
 }
 
@@ -172,6 +173,13 @@ function Thesis() {
 
           <h3>4. Holders decide in minutes</h3>
           <p className="small">Across {t.latency.campaigns} funded campaigns: DAO proposal to funded, median <strong>{t.latency.voteMedianS ?? '—'} s</strong>; brief to funded {t.latency.briefToFundedMedianS ?? '—'} s; brief to the last milestone paid {t.latency.briefToPaidMedianS ?? '—'} s.</p>
+
+          {t.runway && (
+            <>
+              <h3>5. The demo keeps running</h3>
+              <p className="small">{t.runway.firstBuysLeft} first-time buys are left in the simulated audience: {t.runway.campaignsLeft} more campaigns of {t.runway.perCampaign} new buyers, one brief every {t.runway.hoursBetweenBriefs} hours, until about <strong>{t.runway.lastsUntil}</strong>. {t.runway.treasuriesFreeNear} NEAR is free in the treasuries to fund them.</p>
+            </>
+          )}
 
           <h3>Limits</h3>
           <ul className="small muted">{t.limits.map((l) => <li key={l}>{l}</li>)}</ul>
