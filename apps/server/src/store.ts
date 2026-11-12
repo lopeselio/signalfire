@@ -1,7 +1,8 @@
-import { mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { config } from './config.ts';
 import type { Signed } from './nearai.ts';
+import type { PrivateVerdict } from './verdict.ts';
 
 // JSON records under DATA_DIR (an Azure Files share when hosted). Everything that moves money is onchain;
 // these files keep what the chain only holds a hash of: sealed bid openings (secret until the reveal),
@@ -44,7 +45,30 @@ export function bidsFor(campaign: number): BidSecret[] {
 }
 
 /** The scout's vetting report for a creator, with its NEAR AI proof. reportHash = sha256Hex(report text). */
-export interface Vetting { account: string; name: string; profile: string; report: string; reportHash: string; proof: Signed; tx?: string; admitted?: boolean; at: number }
+export interface Vetting {
+  account: string; name: string; profile: string; report: string; reportHash: string; proof: Signed; tx?: string; admitted?: boolean; at: number;
+  /** a private application: sha256 commitment to the details the applicant sealed to the model (never seen here) */
+  privateCommitment?: string;
+  /** the model's verdict on the private details: a score and fixed phrases only (a JSON schema forces it), so the
+   *  public record can't repeat the details */
+  privateVerdict?: PrivateVerdict;
+  /** the end-to-end encrypted call that produced the verdict, with its Ed25519 TEE signature */
+  privateProof?: Signed;
+  /** the private details were submitted but could not reach the model (NEAR AI off or failing): they were dropped unread */
+  privateDropped?: boolean;
+}
+
+/**
+ * A private application waiting for the scout: ciphertext sealed in the applicant's browser to the model's
+ * attested key, which this server can't open. Removed as soon as the scout's call is made.
+ */
+export interface PrivateApp { account: string; sealed: string; modelPub: string; commitment: string; at: number }
+const privFile = (account: string): string => join(dir('private'), `${account}.json`);
+export const savePrivateApp = (p: PrivateApp): void => write(privFile(p.account), p);
+export const loadPrivateApp = (account: string): PrivateApp | null => read<PrivateApp>(privFile(account));
+export function dropPrivateApp(account: string): void {
+  try { unlinkSync(privFile(account)); } catch { /* already gone */ }
+}
 const vetFile = (account: string): string => join(dir('vetting'), `${account}.json`);
 export const saveVetting = (v: Vetting): void => write(vetFile(v.account), v);
 export const loadVetting = (account: string): Vetting | null => read<Vetting>(vetFile(account));
