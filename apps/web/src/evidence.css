@@ -1,0 +1,59 @@
+/* Evidence tab, research brief, founder links, Discover evidence chips. Kept apart from style.css; uses its variables. */
+.ev-intro p { max-width: 80ch; }
+.ev-chips { margin: 4px 0 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.ev-demo { margin: 12px 0 0; background: var(--night); border-left: 3px solid var(--warn); border-radius: 6px; padding: 8px 12px; }
+.ev-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.ev-grid > * { min-width: 0; }
+
+.ev-brief-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 6px; }
+.ev-brief-head h2 { margin: 0; }
+.ev-sec { margin: 18px 0 6px; font-size: 15px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.ev-sec span { font-weight: 400; letter-spacing: 0; }
+.ev-ai span { color: var(--warn); }
+.ev-reading { border-left: 3px solid var(--warn); background: rgba(154, 100, 0, 0.06); border-radius: 0 8px 8px 0; padding: 4px 12px; }
+.ev-reading .ev-lines li { font-style: italic; }
+.ev-sub { margin: 6px 0 2px; }
+.ev-lines { margin: 0; padding-left: 18px; font-size: 14px; }
+.ev-lines li { margin: 4px 0; overflow-wrap: anywhere; }
+.ev-flags li.red::marker { color: var(--bad); }
+.ev-flags li.red { color: var(--ash); }
+.ev-cites { display: inline-flex; gap: 3px; vertical-align: 1px; }
+.ev-cites a, .ev-cites span { font: 600 10.5px/1 var(--mono); padding: 2px 5px; border-radius: 5px; background: var(--night-3); color: var(--ash-2); text-decoration: none; }
+.ev-cites a:hover { background: var(--ember-wash); color: var(--ember-2); }
+.ev-dropped { margin-top: 14px; }
+.ev-dropped summary { cursor: pointer; color: var(--ash-2); }
+.ev-dropped ul { padding-left: 18px; }
+.ev-dropped li { margin: 4px 0; color: var(--smoke); }
+
+.ev-item { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 10px 0; background: #fff; }
+.ev-item header { display: flex; gap: 8px; align-items: baseline; margin-bottom: 6px; }
+.ev-item h3 { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.ev-id { font: 600 11px var(--mono); color: var(--ember-2); background: var(--ember-wash); border-radius: 5px; padding: 1px 5px; flex: none; }
+.ev-item .facts div { font-size: 12.5px; }
+.ev-item .facts dd { overflow-wrap: anywhere; min-width: 0; }
+.ev-item .facts dt { flex: none; }
+.ev-src { margin: 8px 0 0; color: var(--smoke); overflow-wrap: anywhere; }
+
+.ev-links { list-style: none; padding: 0; margin: 6px 0 10px; font-size: 14px; }
+.ev-links li { margin: 4px 0; overflow-wrap: anywhere; }
+.ev-founder .row { margin: 8px 0; }
+.ev-linkrow { border-top: 1px dashed var(--line); padding-top: 6px; }
+.ev-steps { padding-left: 18px; margin: 4px 0 8px; }
+.ev-steps li { margin: 6px 0; }
+.ev-steps li.row { display: list-item; }
+.ev-line { display: block; margin: 6px 0 2px; padding: 6px 8px; word-break: break-all; }
+.ev-input { flex: 1 1 220px; width: auto; min-width: 0; padding: 7px 10px; }
+.ev-steps .ev-input { width: 100%; margin-bottom: 6px; }
+.ev-launch { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px 4px; margin: 0 0 12px; }
+.ev-launch legend { font-size: 13px; font-weight: 600; padding: 0 4px; }
+
+.ev-card-chips { display: flex; flex-wrap: wrap; gap: 2px; margin-top: -4px; }
+.ev-filters { margin-top: -6px; }
+
+@media (max-width: 980px) {
+  .ev-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .ev-item .facts div { flex-direction: column; gap: 0; }
+  .ev-item .facts dd { text-align: left; }
+}
