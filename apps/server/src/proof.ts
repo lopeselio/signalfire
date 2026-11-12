@@ -1,6 +1,7 @@
 import { config, explorerTx } from './config.ts';
 import { getAudit, getCampaign, getProposal, getStartup } from './hub.ts';
 import type { Signed } from './nearai.ts';
+import { loadBrief } from './evidence/store.ts';
 import { bidsFor, getWire, loadVetting, type Vetting } from './store.ts';
 import type { PrivateVerdict } from './verdict.ts';
 
@@ -26,6 +27,8 @@ export interface ProofBundle {
   bids: ProofBid[];
   vetting: ProofVetting[];
   txs: { what: string; who: string; tx: string; url: string }[];
+  /** the startup's latest AI research brief: its evidence hash and where its full proof is (`pnpm verify-brief`) */
+  brief?: { at: number; evidenceHash: string; signed: boolean; proof: string } | null;
 }
 
 export async function buildProof(id: number): Promise<ProofBundle | null> {
@@ -45,7 +48,9 @@ export async function buildProof(id: number): Promise<ProofBundle | null> {
     .filter((w) => w.campaign === id && w.tx)
     .reverse()
     .map((w) => ({ what: w.what, who: w.who, tx: w.tx!, url: explorerTx(w.tx!) }));
-  return { campaign: id, hub: config.hub, startup: s.id, dao: s.dao, bids, vetting, txs };
+  const b = loadBrief<{ at: number; evidenceHash: string; proof: { signature?: string } | null }>(s.id);
+  const brief = b ? { at: b.at, evidenceHash: b.evidenceHash, signed: !!b.proof?.signature, proof: `/api/evidence/${s.id}/proof` } : null;
+  return { campaign: id, hub: config.hub, startup: s.id, dao: s.dao, bids, vetting, txs, brief };
 }
 
 export { getAudit, getProposal };
