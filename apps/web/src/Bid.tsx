@@ -4,6 +4,8 @@ import {
 } from '@signalfire/core';
 import { api, type Campaign, type Startup } from './api.ts';
 import { Acct, Chip, Near, Tx, fmtLeft, useApp, useNow } from './ui.tsx';
+import { lib } from './Attest.tsx';
+import { sealKey, useSealed } from './Sealed.tsx';
 import { call } from './wallet.ts';
 
 // A person's sealed bid, the same commit-reveal the creator agents use (packages/core seals it, the hub checks it):
@@ -11,7 +13,7 @@ import { call } from './wallet.ts';
 // file), and sends only the hash with commit_bid. In the reveal window one click sends the opening with reveal_bid;
 // then the server publishes it so `pnpm verify` can check it. Both calls take no deposit, so they go gasless.
 
-export interface SavedOpening extends BidOpening { hub: string; savedAt: number; committedTx?: string; revealedTx?: string }
+export interface SavedOpening extends BidOpening { hub: string; savedAt: number; committedTx?: string; revealedTx?: string; sealedFor?: 'outlayer' }
 
 const KEY = 'signalfire:openings';
 
@@ -49,7 +51,11 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
   const [importErr, setImportErr] = useState<string | null>(null);
   const [, setTick] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  const sealedInfo = useSealed(c);
   if (!account || !state) return null;
+  // a brief scored by OutLayer: the bid is also encrypted to the scorer's key, and is never revealed
+  const teeKey = sealKey(c, sealedInfo);
+  const tee = !!sealedInfo?.book;
   const hub = state.hub;
   const mine = c.bids.find((b) => b.creator === account);
   const admitted = !!me?.creator && !me.creator.creator.revoked;
@@ -77,15 +83,18 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
       const o: SavedOpening = { ...sealBid(c.id, account, yocto!, pitch.trim(), randomSalt()), hub, savedAt: Date.now() };
       keepOpening(o); // saved before it's sent: a commit that lands while the page reloads can still be revealed
       void run(`Seal a bid on #${c.id}`, async () => {
-        const r = await call(hub, 'commit_bid', { campaign_id: c.id, hash: o.hash });
-        keepOpening({ ...o, committedTx: r.tx });
+        const r = teeKey
+          ? await call(hub, 'commit_sealed_bid', { campaign_id: c.id, hash: o.hash, ciphertext: (await lib()).sealBid(teeKey, hub, c.id, account, { price: o.price, pitch_hash: o.pitchHash, salt: o.salt }) })
+          : await call(hub, 'commit_bid', { campaign_id: c.id, hash: o.hash });
+        keepOpening({ ...o, committedTx: r.tx, ...(teeKey ? { sealedFor: 'outlayer' as const } : {}) });
         return r;
       }).then((ok) => { if (ok) { setPrice(''); setPitch(''); } });
     };
     return (
       <div className="mybid" data-tour="my-bid">
         <h4>Your sealed bid</h4>
-        <p className="small">Your price and pitch stay in this browser; only their hash goes onchain, with a 0.02 NEAR bond from your Signalfire wallet that comes back when you reveal. Credible prices for this brief: <Near y={floor} d={4} /> to <Near y={budget} d={4} />. The lowest price after your reputation discount ({rep >= 0 ? '+' : ''}{rep / 100}%) wins.</p>
+        {teeKey && <p className="small"><strong>Scored privately in a TEE.</strong> This browser also encrypts your price to a key only Signalfire’s scoring program can derive inside an OutLayer TEE. You never reveal: when bidding closes the TEE opens every bid and returns only the winner’s. If you lose, your price is never shown to anyone, us included. Your bond comes back once the TEE has scored the brief.</p>}
+        <p className="small">Your price and pitch stay in this browser; only their hash {teeKey ? 'and the ciphertext go' : 'goes'} onchain, with a 0.02 NEAR bond from your Signalfire wallet{teeKey ? '' : ' that comes back when you reveal'}. Credible prices for this brief: <Near y={floor} d={4} /> to <Near y={budget} d={4} />. The lowest price after your reputation discount ({rep >= 0 ? '+' : ''}{rep / 100}%) wins.</p>
         <label className="field"><span>Your price (NEAR)</span>
           <input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} aria-invalid={!!price && !inRange} placeholder={fmtNear(budget / 2n, 3)} />
         </label>
@@ -99,7 +108,7 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
           {short && <button className="ghost small" disabled={!!busy} onClick={() => void run('Fund wallet', () => call(hub, 'fund_wallet', { account }, BID_BOND))}>Fund wallet with 0.02 NEAR</button>}
           <button className="primary small" disabled={!ready || !!busy} onClick={seal}>Seal bid (0.02 NEAR bond)</button>
         </div>
-        <p className="muted small">Bids close in {fmtLeft(c.commit_ends_ms - now)}. Keep this browser’s storage or download the opening after you seal: without it you can’t reveal, and an unrevealed bond goes to the treasury.</p>
+        <p className="muted small">Bids close in {fmtLeft(c.commit_ends_ms - now)}. {teeKey ? 'Sealed bids for the TEE need no reveal from you.' : 'Keep this browser’s storage or download the opening after you seal: without it you can’t reveal, and an unrevealed bond goes to the treasury.'}</p>
       </div>
     );
   }
@@ -135,7 +144,7 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
   const won = c.winner === account;
   const steps = [
     { k: 'committed', on: true },
-    { k: 'revealed', on: mine.revealed },
+    { k: tee ? 'scored in the TEE' : 'revealed', on: tee ? settled : mine.revealed },
     { k: won ? 'won' : settled && c.winner ? 'lost' : settled ? 'no winner' : 'settled', on: settled },
   ];
   return (
@@ -145,7 +154,13 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
         {steps.map((x, i) => <li key={x.k} className={x.on && (i === steps.length - 1 || !steps[i + 1].on) ? 'now' : x.on ? 'past' : ''}>{x.k}</li>)}
       </ol>
       <p className="small">Commitment onchain <code title={mine.hash}>{mine.hash.slice(0, 16)}…</code>{opening?.committedTx && <> · <Tx h={opening.committedTx} label="commit tx" /></>}{opening?.revealedTx && <> · <Tx h={opening.revealedTx} label="reveal tx" /></>}</p>
-      {!mine.revealed && (
+      {!mine.revealed && tee && (
+        <p className="small">
+          {!settled ? 'Encrypted for the TEE. Nothing more to do: when bidding closes, OutLayer scores every sealed bid and returns only the winner’s.' : 'Your bid was never opened: your price exists only as ciphertext onchain, and nobody (us included) saw it.'}
+          {opening && <> You sealed <Near y={opening.price} />.</>}
+        </p>
+      )}
+      {!mine.revealed && !tee && (
         opening ? (
           <>
             <p className="small">Sealed: <Near y={opening.price} /> with your pitch “{opening.pitch.slice(0, 120)}{opening.pitch.length > 120 ? '…' : ''}”</p>
@@ -168,11 +183,11 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
         )
       )}
       {mine.revealed && (
-        <p className="small">Revealed at <Near y={mine.price!} />: <Chip kind={mine.credible ? 'ok' : 'bad'}>{mine.credible ? 'credible' : 'outside the credible range'}</Chip> reputation {mine.rep >= 0 ? '+' : ''}{mine.rep / 100}%.
+        <p className="small">{tee ? 'Opened by the TEE as the winning bid' : 'Revealed'} at <Near y={mine.price!} />: <Chip kind={mine.credible ? 'ok' : 'bad'}>{mine.credible ? 'credible' : 'outside the credible range'}</Chip> reputation {mine.rep >= 0 ? '+' : ''}{mine.rep / 100}%.
           {!published && opening && <> <button className="link" onClick={() => void publish(opening).then(() => setTick((t) => t + 1))}>Publish the opening</button> so anyone can check it.</>}
         </p>
       )}
-      {mine.revealed && stage === 'settle' && (
+      {mine.revealed && !tee && stage === 'settle' && (
         <div className="row">
           <span className="muted small">The reveal window is over. Anyone may settle the auction (the operator does it within a minute).</span>
           <button className="ghost small" disabled={!!busy} onClick={() => void run(`Settle #${c.id}`, () => call(hub, 'settle_auction', { campaign_id: c.id }))}>Settle now</button>
@@ -184,7 +199,7 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
             You won at <Near y={c.price} />. {c.phase === 'voting' || c.phase === 'proposing' ? 'The holders are voting on funding it in the DAO.' : c.phase === 'funded' ? `Funded: ${c.results}/${c.target} buyers so far, ${c.milestones_paid}/3 milestones paid (${fmtTusd(c.paid_tusd)} tUSD to you). Share your link: ${location.origin}/s/${s.id}?ref=c${c.id}` : c.phase === 'done' ? `Done: ${fmtTusd(c.paid_tusd)} tUSD paid to you, receipt NFT ${c.receipt ?? ''}.` : c.phase === 'expired' ? 'It expired before reaching the target; the unpaid part went back to the treasury.' : c.phase}
           </p>
         ) : (
-          <p className="small">{c.winner ? <>Lost to <Acct a={c.winner} /> at <Near y={c.price} />.</> : 'No credible bid won.'} {mine.revealed ? 'Your bond is back in your wallet.' : ''}</p>
+          <p className="small">{c.winner ? <>Lost to <Acct a={c.winner} /> at <Near y={c.price} />.</> : 'No credible bid won.'} {mine.revealed || tee ? 'Your bond is back in your wallet.' : ''}</p>
         )
       )}
     </div>

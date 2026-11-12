@@ -7,6 +7,7 @@ import { MyBid } from './Bid.tsx';
 import { PriceChart } from './Chart.tsx';
 import { EvidenceTab } from './Evidence.tsx';
 import { KeylessAgent } from './KeylessAgent.tsx';
+import { SealedPanel } from './Sealed.tsx';
 import { FounderForms } from './Founder.tsx';
 import { Wire } from './Wire.tsx';
 import { Acct, Chip, Near, SignInHint, TeeBadge, Terms, ago, flagKind, fmtLeft, useApp, useNow } from './ui.tsx';
@@ -348,6 +349,7 @@ function CampaignCard({ c, s, isHolder }: { c: Campaign; s: Startup; isHolder: b
               );
             })}
           </ul>
+          <SealedPanel c={c} />
           <MyBid c={c} s={s} />
           {c.proposal_id !== null && (
             <>
