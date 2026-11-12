@@ -37,7 +37,8 @@ export const HOLDERS: HolderPersona[] = [
 ];
 export const holdersOf = (startup: string): HolderPersona[] => HOLDERS.filter((h) => h.startup === startup);
 
-export const FAN_COUNT = 12;
+/** the simulated audience: fan-01 … fan-24 (pnpm setup opens 12, pnpm seed-demo the rest) */
+export const FAN_COUNT = 24;
 export const fanAccount = (i: number): string => sub(`fan-${String(i).padStart(2, '0')}`);
 
 /** A creator's price: its share of the budget, moved ±10% by its salt (so bids differ run to run). */
@@ -66,24 +67,24 @@ export const DEMO_STARTUPS: DemoStartup[] = [
 /** Briefs the founder agent posts, per startup, in turn. Each asks for new first-time buyers through the creator's link. */
 export const BRIEFS: Record<string, { title: string; brief: string }[]> = {
   glow: [
-    { title: 'Three study groups for exam week', brief: 'Bring 3 new study groups to Glowpath during exam week: show them the quiet spots still open after midnight near campus. Each first-time GLOW buyer through your link counts.' },
+    { title: 'Study groups for exam week', brief: 'Bring new study groups to Glowpath during exam week: show them the quiet spots still open after midnight near campus. Each first-time GLOW buyer through your link counts.' },
     { title: 'Library closing time', brief: 'Reach students who get sent home when the library closes at 11 and show them the nearest place that is still open and quiet. First-time GLOW buyers through your link count.' },
-    { title: 'First-years’ first late night', brief: 'Help first-years find their first late-night study spot in their first month. Three new GLOW holders through your link complete the campaign.' },
+    { title: 'First-years’ first late night', brief: 'Help first-years find their first late-night study spot in their first month. New GLOW holders through your link count.' },
     { title: 'Night-shift nursing students', brief: 'Nursing students study around shifts. Show them the 24-hour spots on Glowpath near the teaching hospital. New GLOW holders through your link count.' },
   ],
   fern: [
-    { title: 'Spring-term textbook swap', brief: 'Bring 3 new swappers to Fernbook before the spring term starts: students who still have last term’s books on the shelf. First-time FERN buyers through your link count.' },
-    { title: 'Engineering first-years', brief: 'First-year engineering lists are expensive. Show first-years how to swap for the set books by course code on Fernbook. Three new FERN holders through your link complete the campaign.' },
+    { title: 'Spring-term textbook swap', brief: 'Bring new swappers to Fernbook before the spring term starts: students who still have last term’s books on the shelf. First-time FERN buyers through your link count.' },
+    { title: 'Engineering first-years', brief: 'First-year engineering lists are expensive. Show first-years how to swap for the set books by course code on Fernbook. New FERN holders through your link count.' },
     { title: 'Move-out week', brief: 'During move-out week, reach students about to throw books away and get them listed on Fernbook instead. New FERN buyers through your link count.' },
   ],
   loop: [
-    { title: 'One player short on Thursday', brief: 'Bring 3 new players to Looproom’s Thursday evening games, the night most games end up one player short. First-time LOOP buyers through your link count.' },
+    { title: 'One player short on Thursday', brief: 'Bring new players to Looproom’s Thursday evening games, the night most games end up one player short. First-time LOOP buyers through your link count.' },
     { title: 'New-in-town footballers', brief: 'Reach people who just moved to the city and miss their weekly game. Show them the open pitches and waiting lists near them. New LOOP holders through your link count.' },
-    { title: 'Lunchtime five-a-side', brief: 'Office workers near the river pitches want a lunchtime game. Get 3 of them onto Looproom’s waiting list. First-time LOOP buyers through your link count.' },
+    { title: 'Lunchtime five-a-side', brief: 'Office workers near the river pitches want a lunchtime game. Get them onto Looproom’s waiting list. First-time LOOP buyers through your link count.' },
   ],
   kiln: [
-    { title: 'First wheel session', brief: 'Bring 3 first-time potters to Kilnday for an open wheel session at a community studio. First-time KILN buyers through your link count.' },
+    { title: 'First wheel session', brief: 'Bring first-time potters to Kilnday for an open wheel session at a community studio. First-time KILN buyers through your link count.' },
     { title: 'Weekend studio hours', brief: 'Reach people looking for something to do with their hands on a Sunday and show them open studio hours near them. New KILN holders through your link count.' },
-    { title: 'Glaze night regulars', brief: 'Studios run glaze nights that half-fill. Bring 3 new people who would come back every month. First-time KILN buyers through your link count.' },
+    { title: 'Glaze night regulars', brief: 'Studios run glaze nights that half-fill. Bring new people who would come back every month. First-time KILN buyers through your link count.' },
   ],
 };

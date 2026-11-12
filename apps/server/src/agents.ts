@@ -19,13 +19,16 @@ import { addWire, getState, loadBid, pendingApplicants, saveBid, saveVetting, se
 
 const MARGIN_MS = 4000; // block time vs our clock
 const FAN_BUY = parseNear('0.06');
-const BRIEF_BUDGET_MAX = parseNear('0.12');
-const BRIEF_BUDGET_MIN = parseNear('0.04');
+// The demo has to keep running through judging (to 2026-11-25) on finite treasuries and a finite audience: every
+// fan can be a first-time buyer of each startup once. With 24 fans and 4 startups that is 96 first buys; at 2 new
+// buyers per campaign and one brief every 8 hours (~3 a day) the remaining ones last about 13 days.
+const BRIEF_BUDGET_MAX = parseNear('0.05');
+const BRIEF_BUDGET_MIN = parseNear('0.01');
 /** the share of a treasury's free balance one brief may ask for */
-const BRIEF_SHARE_BPS = 3500n;
-const BRIEF_TARGET = 3;
-/** gap after any brief, and between two briefs of the same startup (the demo's treasuries and fans are finite) */
-const BRIEF_EVERY_MS = Number(process.env.BRIEF_EVERY_MIN ?? '45') * 60_000;
+const BRIEF_SHARE_BPS = 1000n;
+export const BRIEF_TARGET = Number(process.env.BRIEF_TARGET ?? '2');
+/** gap after any brief, and between two briefs of the same startup */
+export const BRIEF_EVERY_MS = Number(process.env.BRIEF_EVERY_MIN ?? '480') * 60_000;
 const BRIEF_SAME_STARTUP_MS = Number(process.env.BRIEF_SAME_STARTUP_MIN ?? '180') * 60_000;
 const ACTIVE = ['bidding', 'proposing', 'voting', 'funded', 'propose_failed'];
 const MAX_FANS = 40;
@@ -171,7 +174,7 @@ function canBuy(s: Snapshot, f: string): boolean {
 /** Fans who could still be first-time buyers of this startup today. */
 function fansReady(s: Snapshot, st: Startup): number {
   const used = new Set(getState<string[]>(`fans-${st.id}`, []));
-  const count = getState<number>('fan-count', FAN_COUNT);
+  const count = Math.max(getState<number>('fan-count', FAN_COUNT), FAN_COUNT);
   let n = 0;
   for (let i = 1; i <= count; i++) {
     const f = fanAccount(i);
@@ -182,7 +185,7 @@ function fansReady(s: Snapshot, st: Startup): number {
 
 async function nextFan(st: Startup, s: Snapshot): Promise<string | null> {
   const used = new Set(getState<string[]>(`fans-${st.id}`, []));
-  const count = getState<number>('fan-count', FAN_COUNT);
+  const count = Math.max(getState<number>('fan-count', FAN_COUNT), FAN_COUNT);
   for (let i = 1; i <= count; i++) {
     const f = fanAccount(i);
     if (used.has(f) || !hasKey(f)) continue;
@@ -289,7 +292,7 @@ async function founder(s: Snapshot): Promise<void> {
     const b = list[n % list.length];
     setState('last-brief', now);
     setState('last-brief-by', { ...lastBy, [st.id]: now });
-    const id = await act<number>(`${st.name} founder`, `posted brief "${b.title}": ${fmtNear(budget)} NEAR budget for ${BRIEF_TARGET} new holders`, () =>
+    const id = await act<number>(`${st.name} founder`, `posted brief "${b.title}": ${fmtNear(budget)} NEAR budget for ${BRIEF_TARGET} new holder${BRIEF_TARGET === 1 ? '' : 's'}`, () =>
       call<number>(config.operator, 'create_campaign', {
         startup: st.id, title: b.title, brief: b.brief, target: BRIEF_TARGET, budget: budget.toString(), commit_secs: 90, reveal_secs: 60, duration_secs: 3600,
       }, 30), 'brief');
