@@ -1,5 +1,7 @@
 import { MILESTONES, fmtNear, fmtTusd, threshold } from '@signalfire/core';
 import { StartupCard, StartupLogo } from './Discover.tsx';
+import { Count, useReveal } from './motion.tsx';
+import { SignalFire } from './SignalFire.tsx';
 import { Wire } from './Wire.tsx';
 import { Terms, useApp } from './ui.tsx';
 
@@ -20,7 +22,7 @@ function Beacon() {
         <span className="bc-title">Marketing treasuries</span>
         <span className="chip ok">live from testnet</span>
       </div>
-      <span className="bc-big">{fmtNear(t.feesIn, 3)}<small> NEAR in from trading fees</small></span>
+      <span className="bc-big"><Count value={fmtNear(t.feesIn, 3)} /><small> NEAR in from trading fees</small></span>
       <div className="bc-bar" aria-hidden="true">
         <span className="seg paid" style={{ width: w(paid) }} />
         <span className="seg committed" style={{ width: w(committed) }} />
@@ -109,9 +111,10 @@ export function Landing() {
   const live = s.startups.filter((x) => x.status === 'live');
   const held = (x: (typeof live)[number]): bigint => BigInt(x.available) + BigInt(x.committed);
   const featured = [...live].sort((a, b) => (held(b) > held(a) ? 1 : held(b) < held(a) ? -1 : 0)).slice(0, 4);
+  const rv = useReveal<HTMLDivElement>();
   const reached = s.campaigns.filter((c) => c.phase === 'done' || c.phase === 'expired').reduce((a, c) => a + c.results, 0);
   return (
-    <div className="landing">
+    <div className="landing" ref={rv}>
       <section className="hero">
         <div className="hero-text">
           <p className="eyebrow">Attention tokens on NEAR</p>
@@ -127,11 +130,12 @@ export function Landing() {
           <Terms />
         </div>
         <div className="hero-art">
+          <SignalFire />
           <Beacon />
         </div>
       </section>
 
-      <section className="featured" aria-label="Startups">
+      <section className="featured rv" aria-label="Startups">
         <div className="sec-head">
           <h2>Startups</h2>
           <button className="ghost small" onClick={() => go('/discover')}>View all {live.length}</button>
@@ -139,19 +143,19 @@ export function Landing() {
         <div className="s-grid">{featured.map((x) => <StartupCard key={x.id} s={x} />)}</div>
       </section>
 
-      <section className="mission" aria-label="Totals across all startups">
+      <section className="mission rv" aria-label="Totals across all startups">
         <p className="eyebrow">The rule</p>
         <h2>Trading pays for reaching customers, <em>not founders.</em></h2>
         <p className="lede">Totals across every startup on the hub, read live from NEAR testnet.</p>
         <div className="mission-nums">
-          <div><span className="n">{fmtNear(t.feesIn, 3)}</span><span className="l">NEAR into marketing treasuries</span></div>
-          <div><span className="n">{fmtNear(t.paid, 3)}</span><span className="l">NEAR paid to creators</span></div>
-          <div><span className="n">{reached}</span><span className="l">new buyers reached</span></div>
-          <div><span className="n">{t.costPerResult ? fmtNear(t.costPerResult, 4) : '—'}</span><span className="l">NEAR per new buyer</span></div>
+          <div><span className="n"><Count value={fmtNear(t.feesIn, 3)} /></span><span className="l">NEAR into marketing treasuries</span></div>
+          <div><span className="n"><Count value={fmtNear(t.paid, 3)} /></span><span className="l">NEAR paid to creators</span></div>
+          <div><span className="n"><Count value={String(reached)} /></span><span className="l">new buyers reached</span></div>
+          <div><span className="n">{t.costPerResult ? <Count value={fmtNear(t.costPerResult, 4)} /> : '—'}</span><span className="l">NEAR per new buyer</span></div>
         </div>
       </section>
 
-      <section className="story" aria-label="How it works">
+      <section className="story rv" aria-label="How it works">
         <h2>How it works</h2>
         <p className="lede">Three pieces, one contract: the token, the treasury it feeds, and the campaigns that spend it.</p>
         <div className="story-panel">
