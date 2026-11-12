@@ -45,7 +45,7 @@ function Curve({ trades, circulating }: { trades: Trade[]; circulating: string }
       {ticksY.map((p) => <g key={p}><line x1={padL} x2={W - padR} y1={y(p)} y2={y(p)} className="grid" /><text x={padL - 6} y={y(p) + 3} textAnchor="end" className="axis">{fmtP(p)}</text></g>)}
       {ticksX.map((v) => <text key={String(v)} x={x(v)} y={H - padB + 14} textAnchor={v === 0n ? 'start' : v === maxX ? 'end' : 'middle'} className="axis">{fmtTokens(v, 0)}</text>)}
       <path d={reserve} className="reserve" />
-      <line x1={x(0n)} y1={y(pLo)} x2={x(maxX)} y2={y(pHi)} className="pline" />
+      <line x1={x(0n)} y1={y(pLo)} x2={x(maxX)} y2={y(pHi)} className="pline draw" pathLength={1} />
       {trades.map((t) => {
         const v = BigInt(t.circulating_after);
         return <circle key={t.n} cx={x(v)} cy={y(near(priceAt(v)))} r={3.2} className={t.side === 'sell' ? 'sell' : 'buy'}><title>{`${t.side} ${fmtTokens(t.tokens)} for ${fmtNear(t.near)} NEAR, supply after ${fmtTokens(t.circulating_after, 0)}`}</title></circle>;
@@ -85,7 +85,7 @@ function Series({ trades, circulating }: { trades: Trade[]; circulating: string 
         {[lo + (hi - lo) * 0.1, (lo + hi) / 2, hi - (hi - lo) * 0.1].map((p) => <g key={p}><line x1={padL} x2={W - padR} y1={y(p)} y2={y(p)} className="grid" /><text x={padL - 6} y={y(p) + 3} textAnchor="end" className="axis">{fmtP(p)}</text></g>)}
         {clipped > 0 && <line x1={padL} x2={W - padR} y1={padT} y2={padT} className="clip" />}
         <path d={area} fill="url(#price-fill)" />
-        <path d={line} className="pline" />
+        <path d={line} className="pline draw" pathLength={1} />
         {pts.map((q, i) => {
           if (!q.t) return null;
           const out = q.p > hi;
