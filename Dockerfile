@@ -4,6 +4,7 @@ WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages/core/package.json packages/core/
+COPY packages/attest/package.json packages/attest/
 COPY apps/web/package.json apps/web/
 COPY apps/server/package.json apps/server/
 
@@ -16,6 +17,7 @@ RUN pnpm --filter @signalfire/web build
 FROM base AS prod
 RUN pnpm install --frozen-lockfile --prod --filter @signalfire/server...
 COPY packages/core/src packages/core/src
+COPY packages/attest/src packages/attest/src
 COPY apps/server/src apps/server/src
 COPY --from=build /app/apps/web/dist /app/web
 ENV NODE_ENV=production PORT=8080 WEB_DIST=/app/web DATA_DIR=/tmp/data
