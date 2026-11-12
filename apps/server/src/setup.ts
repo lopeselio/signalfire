@@ -14,7 +14,7 @@ import { YOCTO, fmtNear, parseNear } from '@signalfire/core';
 import { balanceOf, call, callOn, send, view } from './chain.ts';
 import { config, explorerTx, hasKey } from './config.ts';
 import { getConfig, getStartup, getWallet, ftBalance } from './hub.ts';
-import { CREATORS, FAN_COUNT, HOLDERS, IMPOSTOR, SCOUT, fanAccount } from './personas.ts';
+import { CREATORS, FAN_COUNT, IMPOSTOR, SCOUT, fanAccount, holdersOf } from './personas.ts';
 import { pendingApplicants, setPendingApplicants } from './store.ts';
 
 const OWNER = config.hub;
@@ -76,7 +76,7 @@ async function main(): Promise<void> {
     const r = await call(config.operator, 'launch_startup', {
       symbol: config.demo, name: 'Glowpath',
       pitch: 'Glowpath maps quiet late-night study spots for students. Its attention token funds campaigns that bring new students in.',
-      council: HOLDERS.map((h) => h.account),
+      council: holdersOf(config.demo).map((h) => h.account),
     }, 300, YOCTO);
     say(`launched ${config.demo}`, r.tx);
     s = await getStartup(config.demo);
@@ -86,7 +86,7 @@ async function main(): Promise<void> {
   // agents
   for (const c of CREATORS) await ensureAgent(c.account.split('.')[0], { balance: '0.25', wallet: '0.25', capTx: '0.05', capDay: '0.2' });
   await ensureAgent(SCOUT.account.split('.')[0], { balance: '0.25', wallet: '0.01', capTx: '0.02', capDay: '0.05' });
-  for (const h of HOLDERS) await ensureAgent(h.account.split('.')[0], { balance: '0.3', wallet: '0.4', capTx: '0.2', capDay: '0.5', dao: s.dao });
+  for (const h of holdersOf(config.demo)) await ensureAgent(h.account.split('.')[0], { balance: '0.3', wallet: '0.4', capTx: '0.2', capDay: '0.5', dao: s.dao });
   for (let i = 1; i <= FAN_COUNT; i++) await ensureAgent(fanAccount(i).split('.')[0], { balance: '0.09', wallet: '0.08', capTx: '0.07', capDay: '0.08' });
 
   // creators apply (the scout vets them in the agent loop)
@@ -113,7 +113,7 @@ async function main(): Promise<void> {
   }
 
   // holders buy their first GLOW
-  for (const h of HOLDERS) {
+  for (const h of holdersOf(config.demo)) {
     const bal = BigInt(await ftBalance(s.token, h.account));
     if (bal >= BigInt(s.constraints.min_holder_tokens)) continue;
     const r = await call(h.account, 'buy_with_wallet', { startup: s.id, amount: parseNear('0.15').toString(), min_tokens_out: '0', ref_code: null }, 60);
