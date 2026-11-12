@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { bidHash, fmtNear, isLookalike, parseNear, pitchHash, sha256Hex, unlocked } from '@signalfire/core';
 import { call, callOn, view } from './chain.ts';
+import { crankAgent } from './keyless.ts';
 import { config, hasKey } from './config.ts';
 import { ftBalance, getProposal, type Campaign, type Startup } from './hub.ts';
 import { ask, askPrivate, jsonFrom, nearAiEnabled, type Signed } from './nearai.ts';
@@ -284,7 +285,7 @@ async function campaignStep(s: Snapshot, c: Campaign, opts: TickOptions): Promis
       if (Date.now() - heldAt < 5 * 60_000) return;
       const out = await act<string>('Signalfire', `claimed milestone ${k} of #${c.id} for ${personaOf(c.winner ?? '')?.name ?? short(c.winner ?? '')}`, () =>
         call<string>(config.operator, 'claim_milestone', { campaign_id: c.id }, 120), 'payout', c.id);
-      if (out && out !== 'paid') {
+      if (out && !out.startsWith('paid')) {
         addWire({ who: 'spend policy', what: `held milestone ${k} of #${c.id}: ${out}`, kind: 'held', campaign: c.id });
         setState('held', { ...getState<Record<string, number>>('held', {}), [`${c.id}`]: Date.now() });
       }
@@ -343,6 +344,8 @@ export async function tick(opts: TickOptions = {}): Promise<void> {
       if (opts.only !== undefined && c.id !== opts.only && c.phase === 'funded') continue;
       await campaignStep(s, c, opts);
     }
+    // the keyless treasury agent: have approved payouts signed by NEAR's MPC network and broadcast them
+    if (hasKey(config.operator)) await crankAgent().catch((e: Error) => console.warn(`keyless agent: ${e.message}`));
     if (opts.autoBriefs ?? config.autoBriefs) await founder(s);
   } catch (e) {
     console.warn(`agents: ${(e as Error).message}`);
