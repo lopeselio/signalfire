@@ -27,9 +27,11 @@ use x25519_dalek::{PublicKey, StaticSecret};
 #[link_section = "outlayer.manifest"]
 static OUTLAYER_MANIFEST: [u8; include_bytes!("../manifest.json").len()] = *include_bytes!("../manifest.json");
 
+#[cfg(target_arch = "wasm32")]
 mod encryption_keys_host {
     wit_bindgen::generate!({ world: "encryption-keys-host", path: "wit" });
 }
+#[cfg(target_arch = "wasm32")]
 use encryption_keys_host::outlayer::encryption_keys::api as encryption_keys;
 
 const KEY_PATH: &str = "bids";
@@ -64,10 +66,18 @@ struct Opening {
     salt: String,
 }
 
+#[cfg(target_arch = "wasm32")]
 fn secret() -> Result<StaticSecret, String> {
     let seed = encryption_keys::mac(KEY_PATH, None, KEY_LABEL)?;
     let bytes: [u8; 32] = seed.try_into().map_err(|_| "the keystore's mac is not 32 bytes".to_string())?;
     Ok(StaticSecret::from(bytes))
+}
+
+/// Off the TEE (tests only) there is no keystore: a fixed seed stands in for the HMAC.
+#[cfg(not(target_arch = "wasm32"))]
+fn secret() -> Result<StaticSecret, String> {
+    let _ = (KEY_PATH, KEY_LABEL);
+    Ok(StaticSecret::from([7u8; 32]))
 }
 
 fn sha_hex(s: &str) -> String {
@@ -154,4 +164,37 @@ fn main() {
     let mut stdout = std::io::stdout();
     let _ = stdout.write_all(out.to_string().as_bytes());
     let _ = stdout.flush();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Sealed by packages/attest (sealBid) with ephemeral secret [9; 32] and nonce [5; 24] to the public key of the
+    // test secret [7; 32]: the TypeScript and Rust sides agree byte for byte.
+    const TS_SEALED: &str = include_str!("../test/sealed-vector.hex");
+
+    #[test]
+    fn opens_what_the_browser_sealed_and_scores_by_the_hubs_rule() {
+        let raw = format!(
+            r#"{{"op":"score","hub":"signalfire.testnet","campaign":7,"budget":"1000000000000000000000000","min_bid_bps":2000,"bids":[{{"creator":"nova.testnet","hash":"{}","rep":0,"ciphertext":"{}"}},{{"creator":"quill.testnet","hash":"00","rep":0,"ciphertext":"00"}}]}}"#,
+            sha_hex(&format!("signalfire|bid|7|nova.testnet|600000000000000000000000|{}|s1", "ab".repeat(32))),
+            TS_SEALED.trim()
+        );
+        let out = run(&raw).unwrap();
+        assert_eq!(out["winner"], "nova.testnet");
+        assert_eq!(out["price"], "600000000000000000000000");
+        assert_eq!(out["valid"], serde_json::json!([true, false]));
+        assert_eq!(out["input_hash"], sha_hex(&raw));
+        // the same ciphertext under another creator does not open
+        let other = raw.replacen("nova.testnet", "ember.testnet", 1);
+        assert_eq!(run(&other).unwrap()["valid"], serde_json::json!([false, false]));
+    }
+
+    #[test]
+    fn the_rule_matches_the_hub() {
+        assert!(credible(200, 1000, 2000) && !credible(199, 1000, 2000) && !credible(1001, 1000, 2000));
+        assert_eq!(score(1000, 3000), 769);
+        assert_eq!(score(1000, -2000), 1250);
+    }
 }
