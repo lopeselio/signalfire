@@ -11,7 +11,8 @@
     "verify": "tsx --env-file-if-exists=../../.env src/verify.ts",
     "e2e": "tsx --env-file-if-exists=../../.env src/e2e.ts",
     "setup": "tsx --env-file-if-exists=../../.env src/setup.ts",
-    "human-bid": "tsx --env-file-if-exists=../../.env src/human-bid.ts"
+    "human-bid": "tsx --env-file-if-exists=../../.env src/human-bid.ts",
+    "seed-demo": "tsx --env-file-if-exists=../../.env src/seed-demo.ts"
   },
   "dependencies": {
     "@better-auth/core": "1.7.18",
