@@ -78,7 +78,7 @@ fallback text, marked unsigned.
    the auction settles), and the payee allowlist, milestones and fee are fixed by the contract.
 8. **Dashboard (`/dashboard`).** Read live from the chain: totals, the startups table, cost per result for each
    completed campaign, creators' records, the hub's solvency (everything it owes vs its balance), and the thesis.
-8. **Watch a campaign happen.** With the server running and keys present, the founder agent posts a brief every few
+9. **Watch a campaign happen.** With the server running and keys present, the founder agent posts a brief every few
    minutes when nothing is running (`AUTO_BRIEFS=1`). Or run the whole loop yourself:
 
    ```
@@ -106,7 +106,7 @@ fallback text, marked unsigned.
    [attributed buy](https://testnet.nearblocks.io/txns/HoG1eC8Lu7tXUFgZqcNs7gkDdMUeFReuNexPqbfVDTTv),
    [milestone 1 in tUSD](https://testnet.nearblocks.io/txns/EagbQf51KhYUwCzGwepwWiKhvJ3K67rxvAz4mZa7fhaS),
    [milestone 3 + receipt NFT](https://testnet.nearblocks.io/txns/HqYnDaLEWdNXUenBBYy5vbGztXtiJodTL9JuJFPqG3Wv).
-9. **Check it yourself**, with no keys and without trusting our server:
+10. **Check it yourself**, with no keys and without trusting our server:
 
    ```
    pnpm verify 1 http://localhost:8861
