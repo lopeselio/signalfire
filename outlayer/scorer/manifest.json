@@ -1,0 +1,7 @@
+{
+  "display": { "name": "Signalfire sealed-bid scorer" },
+  "capabilities": { "network": [] },
+  "encryption_keys": [
+    { "path": "bids", "bind": "wasm", "caller": "predecessor" }
+  ]
+}

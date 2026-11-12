@@ -1,0 +1,26 @@
+[package]
+name = "signalfire-scorer"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Signalfire's sealed-bid scorer: runs inside an OutLayer TEE, opens encrypted bids with a key only it can derive, and returns the winner only"
+
+[[bin]]
+name = "signalfire-scorer"
+path = "src/main.rs"
+
+[dependencies]
+wit-bindgen = "0.36"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+hex = "0.4"
+sha2 = "0.10"
+hkdf = "0.12"
+x25519-dalek = { version = "2", default-features = false, features = ["static_secrets"] }
+chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
