@@ -2,8 +2,8 @@
 # Build the image in Azure Container Registry and run it on Azure Container Apps.
 #   scripts/deploy-azure.sh                # first run creates the resource group, registry, identity, environment
 #   SKIP_SETUP=1 scripts/deploy-azure.sh   # later runs: build + roll out only
-# Secrets come from .env (NEARAI_*, SESSION_SECRET) and ~/.near-credentials (the operator, the relayer and the
-# agents' function-call keys). The hub owner's full-access key is NOT shipped unless INCLUDE_OWNER=1 (it is only
+# Secrets come from .env (NEARAI_*, SESSION_SECRET) and ~/.near-credentials (the operator, the relayer, the Intents
+# desk and the agents' function-call keys). The hub owner's full-access key is NOT shipped unless INCLUDE_OWNER=1 (it is only
 # needed to open more fan accounts).
 # One replica only: the agent loop and sessions live in memory.
 set -euo pipefail
@@ -18,6 +18,8 @@ set -a; [ -f .env ] && . ./.env; set +a
 HUB=${CONTRACT_ID:-signalfire.testnet}
 OPERATOR=${OPERATOR_ID:-signalfire-ref.testnet}
 RELAYER=${RELAYER_ID:-signalfire-relay.testnet}
+DESK=${DESK_ID:-signalfire-desk.testnet}
+VERIFIER=${INTENTS_VERIFIER:-signalfire-intents.testnet}
 
 az extension add -n containerapp --upgrade -y -o none 2>/dev/null || true
 if [ -z "${SKIP_SETUP:-}" ]; then
@@ -41,17 +43,17 @@ IMAGE="$ACR.azurecr.io/signalfire:$TAG"
 # the operator's, relayer's and agents' keys, as one JSON secret ({"account" or "account#dao": "ed25519:…"})
 KEYS=$(node -e '
   const fs = require("fs"), os = require("os"), path = require("path");
-  const [hub, operator, relayer, owner] = process.argv.slice(1); // node -e: argv[1] is the first argument
+  const [hub, operator, relayer, owner, desk] = process.argv.slice(1); // node -e: argv[1] is the first argument
   const dir = path.join(os.homedir(), ".near-credentials", "testnet");
   const out = {};
   const add = (signer, file) => { try { out[signer] = JSON.parse(fs.readFileSync(path.join(dir, file), "utf8")).private_key; } catch {} };
-  add(operator, `${operator}.json`); add(relayer, `${relayer}.json`);
+  add(operator, `${operator}.json`); add(relayer, `${relayer}.json`); add(desk, `${desk}.json`);
   if (owner === "1") add(hub, `${hub}.json`);
   for (const f of fs.readdirSync(dir)) {
     const m = new RegExp(`^((creator|scout|holder|fan)-[a-z0-9-]+\\.${hub.replace(/\./g, "\\.")})(\\.dao)?\\.json$`).exec(f);
     if (m) add(m[3] ? `${m[1]}#dao` : m[1], f);
   }
-  process.stdout.write(JSON.stringify(out));' "$HUB" "$OPERATOR" "$RELAYER" "${INCLUDE_OWNER:-0}")
+  process.stdout.write(JSON.stringify(out));' "$HUB" "$OPERATOR" "$RELAYER" "${INCLUDE_OWNER:-0}" "$DESK")
 
 # the public URL people use: the wallet signs "Sign in to <host>" for it (Better Auth)
 FQDN_NOW=$(az containerapp show -g "$RG" -n "$APP" --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null || true)
@@ -60,7 +62,7 @@ PUBLIC_URL=${PUBLIC_URL:-${CUSTOM_NOW:+https://$CUSTOM_NOW}}
 PUBLIC_URL=${PUBLIC_URL:-${FQDN_NOW:+https://$FQDN_NOW}}
 
 az containerapp env show -g "$RG" -n "$ENV_NAME" -o none 2>/dev/null || az containerapp env create -g "$RG" -n "$ENV_NAME" -l "$LOC" -o none
-ENVS=(NEAR_NETWORK=testnet DATA_DIR=/data "CONTRACT_ID=$HUB" "OPERATOR_ID=$OPERATOR" "RELAYER_ID=$RELAYER" ${PUBLIC_URL:+"BETTER_AUTH_URL=$PUBLIC_URL"} "NEARAI_BASE_URL=${NEARAI_BASE_URL:-https://cloud-api.near.ai/v1}" "NEARAI_MODEL=${NEARAI_MODEL:-Qwen/Qwen3.6-35B-A3B-FP8}" NEAR_KEYS=secretref:near-keys NEARAI_API_KEY=secretref:nearai-key SESSION_SECRET=secretref:session-secret)
+ENVS=(NEAR_NETWORK=testnet DATA_DIR=/data "CONTRACT_ID=$HUB" "OPERATOR_ID=$OPERATOR" "RELAYER_ID=$RELAYER" "DESK_ID=$DESK" "INTENTS_VERIFIER=$VERIFIER" ${PUBLIC_URL:+"BETTER_AUTH_URL=$PUBLIC_URL"} "NEARAI_BASE_URL=${NEARAI_BASE_URL:-https://cloud-api.near.ai/v1}" "NEARAI_MODEL=${NEARAI_MODEL:-Qwen/Qwen3.6-35B-A3B-FP8}" NEAR_KEYS=secretref:near-keys NEARAI_API_KEY=secretref:nearai-key SESSION_SECRET=secretref:session-secret)
 if az containerapp show -g "$RG" -n "$APP" -o none 2>/dev/null; then
   az containerapp secret set -g "$RG" -n "$APP" --secrets "near-keys=$KEYS" "nearai-key=${NEARAI_API_KEY:-none}" "session-secret=${SESSION_SECRET:?set SESSION_SECRET in .env}" -o none
   az containerapp update -g "$RG" -n "$APP" --image "$IMAGE" --set-env-vars "${ENVS[@]}" -o none
