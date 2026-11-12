@@ -100,7 +100,22 @@ fallback text, marked unsigned.
    (no deposit: gasless). Nothing here needs a DAO proposal: funding a winner is already the holders' vote (filed when
    the auction settles), and the payee allowlist, milestones and fee are fixed by the contract.
 8. **Dashboard (`/dashboard`).** Read live from the chain: totals, the startups table, cost per result for each
-   completed campaign, creators' records, the hub's solvency (everything it owes vs its balance), and the thesis.
+   completed campaign, creators' records, the hub's solvency (everything it owes vs its balance), and **the thesis,
+   "Why agent-run marketing treasuries belong on NEAR"**, with its evidence computed from chain data: gas burnt per agent
+   action (from each transaction's receipts on an archival RPC) and for a whole 19-transaction campaign, where the fees
+   went (creators vs reserved vs free; founders 0), cost per new buyer by startup, how many agent accounts hold only
+   function-call keys, wallet spend vs caps, spend-policy outcomes, and DAO vote latency, followed by its limits.
+   Recompute it yourself with no keys: `pnpm thesis` (or `pnpm thesis --json`):
+
+   ```
+   1. What an agent action costs (gas burnt, read from each transaction's receipts on an archival RPC)
+      Creator seals a bid (bond from its wallet)     commit_bid       median 0.000278 NEAR  max 0.000280  (n=8)
+      Holder votes in the DAO                        act_proposal     median 0.000573 NEAR  max 0.000901  (n=8)
+      Milestone payout through the spend policy      claim_milestone  median 0.000797 NEAR  max 0.001253  (n=8)
+      one whole campaign (19 transactions): about 0.01003 NEAR of gas
+   4. What bounded the agents (audit log, access keys, wallets)
+      28/28 agent accounts hold function-call keys only (0 full-access keys among them)
+   ```
 9. **Watch a campaign happen.** With the server running and keys present, the founder agent posts a brief for one of
    the operator's startups (Glowpath, Fernbook, Looproom, Kilnday) when none is running: one campaign at a time, at
    least 45 minutes apart (`BRIEF_EVERY_MIN`), 3 hours per startup (`BRIEF_SAME_STARTUP_MIN`), sized to a third of
@@ -247,6 +262,7 @@ pnpm contract:test    # contracts/hub: 37 tests (the same shared vector, launch,
 pnpm typecheck
 pnpm e2e              # the whole loop on testnet (needs the operator's and agents' keys)
 pnpm verify <id> [url]  # re-check a campaign against the chain, no keys needed
+pnpm thesis [url] [--json]  # the thesis evidence, recomputed from public and archival RPC, no keys needed
 pnpm human-bid <account> [url]  # a person's sealed bid end to end (the account's own full-access key)
 pnpm intents-swap <account> [tUSD raw]  # cash tUSD out for NEAR through the NEAR Intents Verifier
 ```
