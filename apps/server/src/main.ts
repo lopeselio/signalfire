@@ -112,7 +112,16 @@ const reply = (x: Signed) => ({
   model: x.model, request: x.request, response: x.response, signedText: x.signedText ?? null, signature: x.signature ?? null, signingAddress: x.signingAddress ?? null,
   signingAlgo: x.signingAlgo ?? 'ecdsa', e2ee: x.e2ee ?? null, at: x.at,
 });
-let thesisCache: { at: number; p: Promise<Thesis> } | null = null;
+// The thesis evidence reads ~50 transactions from an archival RPC and a few hundred views: computed at boot and every
+// 10 minutes in the background, so the dashboard never waits on it.
+let thesisGood: Thesis | null = null;
+let thesisRun: Promise<Thesis> | null = null;
+function refreshThesis(): Promise<Thesis> {
+  thesisRun ??= computeThesis(getWire()).then((t) => { thesisGood = t; return t; }).finally(() => { thesisRun = null; });
+  return thesisRun;
+}
+setTimeout(() => void refreshThesis().catch((e: Error) => console.warn(`thesis: ${e.message}`)), 20_000).unref();
+setInterval(() => void refreshThesis().catch((e: Error) => console.warn(`thesis: ${e.message}`)), 600_000).unref();
 
 // ---------- routes ----------
 
@@ -128,8 +137,9 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (p === '/api/wire') return json(res, 200, getWire().slice(0, 80).map((w) => ({ ...w, what: w.what.replace(/"(E2E [^"]+)"/, (_, t: string) => `"${showTitle({ id: w.campaign ?? 0, title: t })}"`), url: w.tx ? explorerTx(w.tx) : null })));
     if (p === '/api/thesis') {
       // recomputed at most every 10 minutes (it reads ~50 transactions from an archival RPC)
-      if (!thesisCache || Date.now() - thesisCache.at > 600_000) thesisCache = { at: Date.now(), p: computeThesis(getWire()).catch((e) => { thesisCache = null; throw e; }) };
-      return json(res, 200, await thesisCache.p);
+      // the last good computation at once (refreshed in the background); the first request waits for the first one
+      if (thesisGood) return json(res, 200, thesisGood);
+      return json(res, 200, await refreshThesis());
     }
     if (p === '/api/audit') {
       const s = await snapshot();
