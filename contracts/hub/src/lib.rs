@@ -30,12 +30,14 @@ use std::collections::HashMap;
 pub mod curve;
 pub mod keyless;
 pub mod rules;
+pub mod sealed;
 #[cfg(test)]
 mod tests;
 
 use curve::*;
 use keyless::*;
 use rules::*;
+use sealed::*;
 
 const YOCTO: u128 = 1_000_000_000_000_000_000_000_000;
 pub const LAUNCH_DEPOSIT: u128 = YOCTO; // 1 NEAR: token + DAO accounts and their storage
@@ -63,6 +65,8 @@ const GAS_MPC_SIGN: Gas = Gas::from_tgas(60);
 const GAS_CB_AGENT_KEY: Gas = Gas::from_tgas(60);
 const GAS_CB_AGENT_SIGNED: Gas = Gas::from_tgas(15);
 const GAS_CB_FORWARDED: Gas = Gas::from_tgas(40);
+const GAS_OUTLAYER: Gas = Gas::from_tgas(50);
+const GAS_CB_SCORED: Gas = Gas::from_tgas(80);
 
 pub const TERMS: &str = "An attention token is NOT equity, NOT a share of revenue, profits or the treasury, and NOT a promise of anything. \
 Its trading fees can only fund marketing campaigns chosen by holders. Testnet only: no real money.";
@@ -903,6 +907,7 @@ impl Hub {
         require!(c.phase == "bidding" && now_ms() < c.commit_ends_ms, "bidding is closed");
         require!(c.bids.iter().all(|b| b.creator != me), "one bid per creator");
         require!(c.bids.len() < 20, "bid book full");
+        require!(load_book(campaign_id).is_none(), "this brief takes sealed bids only (commit_sealed_bid)");
         self.wallet_spend(&me, BID_BOND);
         let w = self.wallets.get_mut(&me).unwrap();
         w.locked = U128(w.locked.0 + BID_BOND);
@@ -919,6 +924,7 @@ impl Hub {
         let c = self.campaigns.get(campaign_id).unwrap_or_else(|| env::panic_str("no such campaign"));
         let now = now_ms();
         require!(c.phase == "bidding" && now >= c.commit_ends_ms && now < c.reveal_ends_ms, "not the reveal window");
+        require!(load_book(campaign_id).is_none(), "sealed bids are never revealed: OutLayer scores them");
         let budget = c.budget.0;
         let min_bps = self.startup(&c.startup).constraints.min_bid_bps;
         let expected = bid_hash(campaign_id, me.as_str(), price.0, &pitch_hash, &salt);
@@ -944,6 +950,7 @@ impl Hub {
     pub fn settle_auction(&mut self, campaign_id: u32) -> PromiseOrValue<Option<u64>> {
         let c = self.campaigns.get(campaign_id).unwrap_or_else(|| env::panic_str("no such campaign")).clone();
         require!(c.phase == "bidding" || c.phase == "propose_failed", "already settled");
+        require!(c.phase == "propose_failed" || load_book(campaign_id).is_none(), "this brief's sealed bids are scored by OutLayer: score_sealed");
         require!(now_ms() >= c.reveal_ends_ms, "the reveal window is still open");
         let startup = c.startup.clone();
         // unrevealed bonds go to the treasury
@@ -974,6 +981,13 @@ impl Hub {
                 best = Some(i);
             }
         }
+        self.award(campaign_id, best)
+    }
+
+    /// The auction's outcome: every bond is settled; the winner (by index in the bid book) gets the funding
+    /// proposal filed in the startup's DAO, or the brief ends with no credible bid.
+    fn award(&mut self, campaign_id: u32, best: Option<usize>) -> PromiseOrValue<Option<u64>> {
+        let startup = self.campaigns.get(campaign_id).unwrap().startup.clone();
         let cm = self.campaign_mut(campaign_id);
         for b in cm.bids.iter_mut() {
             b.bond_settled = true;
@@ -1495,6 +1509,231 @@ impl Hub {
 
     pub fn get_agent_action(&self, id: u32) -> Option<AgentAction> {
         load_action(id)
+    }
+
+    // ---------- sealed bids scored privately by OutLayer ----------
+
+    /// The scoring program (owner): its wasm URL and sha256. A new program needs a new bid key (scorer_publish_key).
+    pub fn scorer_set(&mut self, wasm_url: String, wasm_hash: String) {
+        self.only_owner();
+        require!(wasm_url.starts_with("https://") && wasm_url.len() <= 300, "wasm_url: https, at most 300 characters");
+        require!(wasm_hash.len() == 64 && is_hex(&wasm_hash), "wasm_hash: sha256 hex");
+        save_scorer(&Scorer {
+            outlayer: outlayer(), wasm_url, wasm_hash: wasm_hash.clone(), build_target: "wasm32-wasip2".into(), bid_key: None, key_ms: None,
+            key_input: None, key_output: None, set_ms: now_ms(),
+        });
+        self.log(None, None, "scorer_set", None, 0, "set", vec!["outlayer".into()], format!("wasm sha256 {wasm_hash}"));
+    }
+
+    fn outlayer_run(&self, sc: &Scorer, input: &str, gas: Gas) -> Promise {
+        let args = json!({
+            "source": { "WasmUrl": { "url": sc.wasm_url, "hash": sc.wasm_hash, "build_target": sc.build_target } },
+            "resource_limits": { "max_instructions": 2_000_000_000u64, "max_memory_mb": 128, "max_execution_seconds": 60 },
+            "input_data": input,
+            "response_format": "Json",
+            "payer_account_id": env::predecessor_account_id(),
+        });
+        Promise::new(sc.outlayer.clone()).function_call_weight("request_execution", serde_json::to_vec(&args).unwrap(), env::attached_deposit(), gas, near_sdk::GasWeight(1))
+    }
+
+    /// Anyone (attach at least 0.01 NEAR; OutLayer refunds what it doesn't use): have the scorer publish the key bids
+    /// are encrypted to. The key comes out of the TEE; nobody supplies it.
+    #[payable]
+    pub fn scorer_publish_key(&mut self) -> Promise {
+        let sc = load_scorer().unwrap_or_else(|| env::panic_str("no scorer set"));
+        require!(sc.bid_key.is_none(), "the key is published");
+        require!(env::attached_deposit().as_yoctonear() >= MIN_RUN_DEPOSIT, "attach at least 0.01 NEAR for OutLayer");
+        let input = json!({ "op": "public_key" }).to_string();
+        self.outlayer_run(&sc, &input, GAS_OUTLAYER)
+            .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_scorer_key(input))
+    }
+
+    #[private]
+    pub fn on_scorer_key(&mut self, input: String, #[callback_result] out: Result<Option<Value>, PromiseError>) -> Option<String> {
+        let mut sc = load_scorer()?;
+        let v = out.ok().flatten()?;
+        let key = v.get("public_key").and_then(|k| k.as_str()).filter(|k| k.len() == 64 && is_hex(k))?.to_string();
+        if v.get("op").and_then(|o| o.as_str()) != Some("public_key") {
+            return None;
+        }
+        sc.bid_key = Some(key.clone());
+        sc.key_ms = Some(now_ms());
+        sc.key_input = Some(input);
+        sc.key_output = Some(v.to_string());
+        save_scorer(&sc);
+        self.log(None, None, "scorer_key", None, 0, "set", vec!["outlayer".into()], format!("bid key {key} from the TEE run of wasm {}", sc.wasm_hash));
+        event("scorer_key", json!({ "bid_key": key, "wasm_hash": sc.wasm_hash }));
+        Some(key)
+    }
+
+    /// An admitted creator's sealed bid: the usual commitment `hash` and bond, plus the opening encrypted to the
+    /// scorer's key. It is never revealed: OutLayer scores the brief when bidding closes.
+    pub fn commit_sealed_bid(&mut self, campaign_id: u32, hash: String, ciphertext: String) {
+        let me = env::predecessor_account_id();
+        let cr = self.creators.get(&me).unwrap_or_else(|| env::panic_str("admitted creators only"));
+        require!(!cr.revoked, "creator revoked");
+        require!(is_hex32(&hash), "hash: 32-byte hex");
+        require!(is_hex(&ciphertext) && ciphertext.len() >= 2 * (32 + 24 + 16) && ciphertext.len() <= MAX_CIPHERTEXT_HEX, "ciphertext: hex, sealed to the scorer's key");
+        let sc = load_scorer().unwrap_or_else(|| env::panic_str("no scorer set"));
+        let key = sc.bid_key.clone().unwrap_or_else(|| env::panic_str("the scorer's key is not published yet"));
+        let c = self.campaigns.get(campaign_id).unwrap_or_else(|| env::panic_str("no such campaign"));
+        require!(c.phase == "bidding" && now_ms() < c.commit_ends_ms, "bidding is closed");
+        require!(c.bids.iter().all(|b| b.creator != me), "one bid per creator");
+        require!(c.bids.len() < 20, "bid book full");
+        let mut book = match load_book(campaign_id) {
+            Some(b) => b,
+            None => {
+                require!(c.bids.is_empty(), "this brief takes commit-reveal bids");
+                SealedBook {
+                    campaign: campaign_id, entries: vec![], status: "open".into(), attempts: 0, requested_ms: None, scored_ms: None,
+                    wasm_hash: sc.wasm_hash.clone(), bid_key: key.clone(), input: None, input_hash: None, output: None, output_hash: None, valid: vec![],
+                }
+            }
+        };
+        require!(book.bid_key == key, "the scorer's key changed: seal to the key this brief started with");
+        self.wallet_spend(&me, BID_BOND);
+        let w = self.wallets.get_mut(&me).unwrap();
+        w.locked = U128(w.locked.0 + BID_BOND);
+        book.entries.push(SealedEntry { creator: me.clone(), ciphertext });
+        save_book(&book);
+        let c = self.campaign_mut(campaign_id);
+        c.bids.push(Bid { creator: me.clone(), hash: hash.clone(), committed_ms: now_ms(), revealed: false, price: None, pitch_hash: None, credible: false, rep: 0, bond_settled: false });
+        event("bid_committed", json!({ "campaign": campaign_id, "creator": me, "hash": hash, "sealed_for": "outlayer" }));
+    }
+
+    /// Anyone, once bidding closes (attach at least 0.01 NEAR for OutLayer; the unused part comes back): run the
+    /// scorer on every ciphertext in an OutLayer TEE. Only its result for the winner comes back.
+    #[payable]
+    pub fn score_sealed(&mut self, campaign_id: u32) -> Promise {
+        require!(env::attached_deposit().as_yoctonear() >= MIN_RUN_DEPOSIT, "attach at least 0.01 NEAR for OutLayer");
+        let c = self.campaigns.get(campaign_id).unwrap_or_else(|| env::panic_str("no such campaign")).clone();
+        let mut book = load_book(campaign_id).unwrap_or_else(|| env::panic_str("this brief has no sealed bids"));
+        require!(c.phase == "bidding" && now_ms() >= c.commit_ends_ms, "bidding is still open");
+        let now = now_ms();
+        let retry = (book.status == "failed" || book.status == "scoring") && book.requested_ms.is_some_and(|t| now.saturating_sub(t) >= RESCORE_AFTER_MS);
+        require!(book.status == "open" || retry, "already being scored");
+        let sc = load_scorer().unwrap();
+        require!(sc.wasm_hash == book.wasm_hash && sc.bid_key.as_deref() == Some(book.bid_key.as_str()), "the scorer changed since these bids were sealed");
+        let min_bps = self.startup(&c.startup).constraints.min_bid_bps;
+        let bids: Vec<Value> = c.bids.iter().zip(book.entries.iter()).map(|(b, e)| {
+            let (completed, missed) = self.creators.get(&b.creator).map(|x| (x.completed, x.missed)).unwrap_or((0, 0));
+            json!({ "creator": b.creator, "hash": b.hash, "rep": rep_bps(completed, missed), "ciphertext": e.ciphertext })
+        }).collect();
+        let input = json!({ "op": "score", "hub": env::current_account_id(), "campaign": campaign_id, "budget": c.budget, "min_bid_bps": min_bps, "bids": bids }).to_string();
+        book.input_hash = Some(hex::encode(env::sha256_array(input.as_bytes())));
+        book.input = Some(input.clone());
+        book.status = "scoring".into();
+        book.attempts += 1;
+        book.requested_ms = Some(now);
+        save_book(&book);
+        self.outlayer_run(&sc, &input, GAS_OUTLAYER)
+            .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SCORED).on_scored(campaign_id))
+    }
+
+    /// OutLayer answered. Accept it only if it is the scorer's answer for exactly this input, and the winner's opening
+    /// matches the commitment onchain; then settle bonds and file the funding proposal, as a revealed auction would.
+    #[private]
+    pub fn on_scored(&mut self, campaign_id: u32, #[callback_result] out: Result<Option<Value>, PromiseError>) -> PromiseOrValue<Option<u64>> {
+        let Some(mut book) = load_book(campaign_id) else { return PromiseOrValue::Value(None) };
+        let c = self.campaigns.get(campaign_id).unwrap().clone();
+        let fail = |mut book: SealedBook, why: &str| {
+            book.status = "failed".into();
+            save_book(&book);
+            event("sealed_score_failed", json!({ "campaign": campaign_id, "why": why }));
+            PromiseOrValue::Value(None)
+        };
+        if book.status != "scoring" || c.phase != "bidding" {
+            return PromiseOrValue::Value(None);
+        }
+        let Some(v) = out.ok().flatten() else { return fail(book, "no output") };
+        let s = |k: &str| v.get(k).and_then(|x| x.as_str()).map(str::to_string);
+        if s("op").as_deref() != Some("score") || s("hub").as_deref() != Some(env::current_account_id().as_str()) || v.get("campaign").and_then(|x| x.as_u64()) != Some(campaign_id as u64)
+            || s("public_key").as_deref() != Some(book.bid_key.as_str()) || s("input_hash") != book.input_hash {
+            return fail(book, "not the scorer's answer for this input");
+        }
+        let valid: Vec<bool> = v.get("valid").and_then(|x| x.as_array()).map(|a| a.iter().map(|b| b.as_bool() == Some(true)).collect()).unwrap_or_default();
+        if valid.len() != c.bids.len() {
+            return fail(book, "wrong number of verdicts");
+        }
+        let budget = c.budget.0;
+        let min_bps = self.startup(&c.startup).constraints.min_bid_bps;
+        // the winner's opening, checked against its commitment and the credibility rule here
+        let mut best: Option<usize> = None;
+        if !v.get("winner").is_some_and(|w| w.is_null()) {
+            let i = v.get("index").and_then(|x| x.as_u64()).unwrap_or(u64::MAX) as usize;
+            let (Some(winner), Some(price), Some(pitch_hash), Some(salt)) = (s("winner"), s("price").and_then(|p| p.parse::<u128>().ok()), s("pitch_hash"), s("salt")) else {
+                return fail(book, "incomplete winner");
+            };
+            let ok = i < c.bids.len() && c.bids[i].creator.as_str() == winner && valid[i] && is_hex32(&pitch_hash) && salt.len() <= 128
+                && bid_hash(campaign_id, &winner, price, &pitch_hash, &salt) == c.bids[i].hash && credible(price, budget, min_bps);
+            if !ok {
+                return fail(book, "the winner's opening does not match its commitment");
+            }
+            let (completed, missed) = self.creators.get(&c.bids[i].creator).map(|x| (x.completed, x.missed)).unwrap_or((0, 0));
+            let b = &mut self.campaign_mut(campaign_id).bids[i];
+            b.revealed = true;
+            b.price = Some(U128(price));
+            b.pitch_hash = Some(pitch_hash);
+            b.credible = true;
+            b.rep = rep_bps(completed, missed);
+            best = Some(i);
+        }
+        // bonds: a ciphertext that opened and matched its commitment gets its bond back; anything else is forfeited
+        let startup = c.startup.clone();
+        let mut forfeited = 0u128;
+        for (i, b) in c.bids.iter().enumerate() {
+            if let Some(w) = self.wallets.get_mut(&b.creator) {
+                w.locked = U128(w.locked.0.saturating_sub(BID_BOND));
+                if valid[i] {
+                    w.balance = U128(w.balance.0 + BID_BOND);
+                }
+            }
+            if !valid[i] {
+                forfeited += BID_BOND;
+                self.log(Some(&startup), Some(campaign_id), "bond_forfeit", Some(&b.creator), BID_BOND, "to_treasury", vec!["outlayer".into()], "sealed bid did not open to its commitment".into());
+            }
+        }
+        if forfeited > 0 {
+            let st = self.startup_mut(&startup);
+            st.available = U128(st.available.0 + forfeited);
+            st.forfeits_in = U128(st.forfeits_in.0 + forfeited);
+        }
+        let output = v.to_string();
+        book.output_hash = Some(hex::encode(env::sha256_array(output.as_bytes())));
+        book.output = Some(output);
+        book.valid = valid;
+        book.status = "scored".into();
+        book.scored_ms = Some(now_ms());
+        save_book(&book);
+        event("sealed_scored", json!({ "campaign": campaign_id, "winner": best.map(|i| c.bids[i].creator.clone()), "valid": book.valid }));
+        self.award(campaign_id, best)
+    }
+
+    /// Anyone, if a sealed brief could not be scored by SEALED_GIVE_UP_MS after its reveal window: every bond comes back
+    /// and the brief ends without a winner. Nobody's bid is opened.
+    pub fn abandon_sealed(&mut self, campaign_id: u32) {
+        let c = self.campaigns.get(campaign_id).unwrap_or_else(|| env::panic_str("no such campaign")).clone();
+        let mut book = load_book(campaign_id).unwrap_or_else(|| env::panic_str("this brief has no sealed bids"));
+        require!(c.phase == "bidding" && book.status != "scored", "nothing to abandon");
+        require!(now_ms() > c.reveal_ends_ms + SEALED_GIVE_UP_MS, "OutLayer still has time");
+        for b in c.bids.iter() {
+            if let Some(w) = self.wallets.get_mut(&b.creator) {
+                w.locked = U128(w.locked.0.saturating_sub(BID_BOND));
+                w.balance = U128(w.balance.0 + BID_BOND);
+            }
+        }
+        book.status = "abandoned".into();
+        save_book(&book);
+        self.log(Some(&c.startup), Some(campaign_id), "sealed_abandoned", None, 0, "returned", vec!["outlayer".into()], "the TEE scoring did not answer: bonds returned, no winner".into());
+        let _ = self.award(campaign_id, None);
+    }
+
+    pub fn get_scorer(&self) -> Option<Scorer> {
+        load_scorer()
+    }
+
+    pub fn get_sealed(&self, campaign_id: u32) -> Option<SealedBook> {
+        load_book(campaign_id)
     }
 
     // ---------- views ----------
