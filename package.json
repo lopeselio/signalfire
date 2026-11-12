@@ -17,6 +17,7 @@
     "human-bid": "pnpm --filter @signalfire/server human-bid",
     "seed-demo": "pnpm --filter @signalfire/server seed-demo",
     "thesis": "pnpm --filter @signalfire/server thesis",
+    "cashout-check": "pnpm --filter @signalfire/server cashout-check",
     "intents-swap": "pnpm --filter @signalfire/server intents-swap",
     "contract:test": "cd contracts/hub && cargo test --locked",
     "contract:build": "cd contracts/hub && cargo near build non-reproducible-wasm --locked"

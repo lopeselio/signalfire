@@ -12,6 +12,7 @@ import { attestation, nearAiEnabled, type Signed } from './nearai.ts';
 import { CREATORS, HOLDERS, SCOUT } from './personas.ts';
 import { buildProof } from './proof.ts';
 import { computeThesis, type Thesis } from './thesis.ts';
+import { cashOutInfo, settleCashOut, type CashOutRequest } from './cashout.ts';
 import { latest as snapshot, type Snapshot } from './snapshot.ts';
 import { addWire, bidsFor, getWire, loadBid, loadVetting, pendingApplicants, saveBid, setPendingApplicants } from './store.ts';
 
@@ -216,6 +217,17 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       return json(res, 200, { ok: true, stored: !had });
     }
     const me = await accountFromHeaders(req.headers);
+    if (p === '/api/intents/info') {
+      const pk = url.searchParams.get('publicKey');
+      return json(res, 200, await cashOutInfo(me, pk && /^ed25519:[1-9A-HJ-NP-Za-km-z]{32,50}$/.test(pk) ? pk : null));
+    }
+    if (p === '/api/intents/cashout' && post) {
+      // a signed-in creator's signed cash-out intent: the desk co-signs and the Verifier settles (cashout.ts)
+      if (!me) return json(res, 401, { error: 'sign in first' });
+      const b = await body<CashOutRequest>(req, 8000);
+      if (![b.amount, b.message, b.nonce, b.recipient, b.publicKey, b.signature].every((x) => typeof x === 'string') || !/^\d{1,20}$/.test(b.amount)) return json(res, 400, { error: 'amount, message, nonce, recipient, publicKey, signature' });
+      try { return json(res, 200, await settleCashOut(me, b)); } catch (e) { return json(res, 409, { error: (e as Error).message }); }
+    }
     if (p === '/api/me') {
       if (!me) return json(res, 401, { error: 'not signed in' });
       const s = await snapshot();
