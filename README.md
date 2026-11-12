@@ -211,19 +211,25 @@ fallback text, marked unsigned.
 
 ## Tracks, honestly
 
-| Track | What is real | What is not |
-|---|---|---|
-| `memecoins` | NEP-141 token per startup; fixed supply, 0% to founders; linear curve; the 2% fee can only reach the marketing treasury; supply & fee panel | no reactive supply beyond the curve |
-| `social` | a Sputnik DAO v2 per startup; campaign funding is a `FunctionCall` proposal holders vote on; join/prune by token balance | one holder one vote, not token-weighted (by design) |
-| `security` | spend policy (approved campaigns, payee allowlist, per-campaign and per-payout caps, hourly rate limit, milestones), onchain audit log with flags, FC-key-only agents with capped wallets, lookalike refusal (live on testnet) | the hub owner key still exists on testnet |
-| `swarms` | three creator agents bid in commit-reveal auctions every brief; the contract settles by a deterministic rule | agents follow simple pricing rules, not learned strategies |
-| `agents` | agents earn tUSD, post bonds, buy tokens, and pay the scout for vetting and audience briefs (`agent_pay`) | payments are inside the hub's wallets, not cross-chain |
-| `privacy` | sealed bids and sealed pitches (people seal theirs in the browser); NEAR AI TEE-signed reports and pitches, and the model's TEE attestation verified **in your browser** (Intel quote, signer + nonce binding, MRCONFIGID, RTMR3, NVIDIA GPUs) and by `verify` | the agents' openings sit on our server until the reveal |
-| `business` | treasury → procurement (auctions) → payouts runs by rules; the founder only posts briefs and sets constraints (web forms, checked against the hub's limits) | the demo founder agent posts briefs from a fixed list |
-| `realworld` | creators are paid in a stablecoin-shaped token through a policy; gasless meta-transactions for signed-in users | tUSD is our own labelled test token (no testnet stablecoin can be minted on demand) |
-| `nfts` | soulbound creator NFT with metadata computed from live state; receipt NFTs per completed campaign | no royalties or NFT-owned accounts |
-| `defi` | the bonding-curve market with slippage limits on both sides; creators cash tUSD out for NEAR through NEAR Intents (two signed `token_diff`s settled by one `execute_intents` on a testnet deployment of the near/intents Verifier, `pnpm intents-swap`) | the swap is a CLI flow, not in the web app; the Verifier is the author's own testnet deployment, and the counterparty is the operator's desk at a fixed test rate, not a solver network |
-| `thesis` | a public dashboard read live from the chain, with a written thesis | testnet data from a simulated audience |
+Every one of the hackathon's 13 tracks, with the evidence a reviewer can check (a page on the hosted demo, a
+transaction, or a command that needs no keys) and what is partial or missing. Hosted demo:
+https://signalfire.lopeselio.online.
+
+| Track | Fit | Evidence you can check | Partial, or not there |
+|---|---|---|---|
+| `memecoins` | yes | `/s/glow` → **Supply and fees**: fixed 1,000,000 supply, founder allocation 0, linear curve; 2% of every trade can only reach the marketing treasury (no method sends it elsewhere: `contracts/hub`, `claim_milestone` is the only exit); the token's name says "attention token (not equity)" | no reactive supply beyond the curve |
+| `social` | yes | a Sputnik DAO v2 per startup (`glow-dao`, `fern-dao`, `loop-dao`, `kiln-dao` `.signalfire.testnet`); funding a campaign is a `FunctionCall` proposal holders vote on ([a vote that funded #5](https://testnet.nearblocks.io/txns/BToGnzrWVaZsFrPpLQ5q4gGZWNMEn9n3V244LR6dqrT5)); **Join the holders** / prune by token balance; `pnpm verify <id>` checks nobody may propose a transfer | one holder one vote (by design); Trezu not used |
+| `security` | yes | spend policy + onchain audit log (`/s/glow?tab=treasury` → **Audit log**: `paid`, `burst`, `new_payee`, and `rejected` + `lookalike` for the impostor, [tx](https://testnet.nearblocks.io/txns/JCLFQJC9bqjs7MP6zkTHoVW9W4hhw7Cc5UPLvA8k7S5G)); every agent holds function-call keys only and spends from capped hub wallets (`pnpm thesis`, section 4, counts them: no agent has a full-access key); the model's TEE attestation checked in the browser (**Private AI** badge) | the hub owner's full-access key still exists on testnet |
+| `swarms` | yes | three creator agents (hub sub-accounts) seal and reveal bids on every brief; the contract settles by a deterministic rule; holder agents vote; the wire on the landing page shows it live, about 3 campaigns a day through 2026-11-25 (`pnpm thesis`, section 6) | agents price by simple rules, not learned strategies; no intent-based settlement between the agents themselves |
+| `agents` | yes | agents earn tUSD, post bonds, buy tokens and pay the scout for audience briefs (`agent_pay`, on the wire as "paid Lens 0.002 NEAR for an audience brief"); gas per agent action measured from receipts (`pnpm thesis`, section 1) | agents pay each other inside the hub's wallets; the agent creators can't cash out through Intents (their keys only reach the hub) |
+| `privacy` | yes | sealed bids and sealed pitches (people seal theirs in the browser); NEAR AI TEE-signed vetting reports and pitches with a **Private AI** badge that verifies the model's TEE report and the reply's signature in your browser (Intel quote, signer + nonce binding, MRCONFIGID, RTMR3, NVIDIA GPUs); `pnpm verify <id>` re-checks them | the agents' bid openings sit on our server until the reveal |
+| `business` | yes | treasury → procurement (sealed-bid auctions) → milestone payouts run by rules; the founder only posts briefs and sets constraints (founder forms, checked against the hub's limits); creators cash their tUSD out through NEAR Intents in the app (`/creators`) | the demo founder agent posts briefs from a fixed list; no revenue sharing (on purpose: the token is not a claim on revenue) |
+| `realworld` | partial | creators are paid in a stablecoin-shaped token (tUSD) through a spend policy, and swap it for NEAR through NEAR Intents (`/creators` → **Cash out**, or `pnpm cashout-check <account>`); signed-in users' hub calls are gasless (NEP-366 relayer) | tUSD is our own labelled test token at a fixed rate; not something a company could use tomorrow |
+| `defi` | partial | the bonding-curve market with slippage limits on both sides (`/s/glow` → Buy/Sell); NEAR Intents cash-out on Signalfire's own testnet Verifier `signalfire-intents.testnet`: the creator's signed `token_diff` + `native_withdraw` and the desk's `token_diff` settled by one [`execute_intents`](https://testnet.nearblocks.io/txns/wDqtxwgP1v8TucRv5bZSkodQfHuaE4qxJ3WqFMzHjJ9) | Intents is mainnet-only, so this is a self-deployed testnet Verifier; the desk is the only counterparty (no solvers); nothing cross-chain; no Chain Signatures |
+| `nfts` | yes | soulbound `creator:<account>` NFT whose metadata is computed from live state; `receipt:<campaign>` minted on each completed campaign (`/creators`; `pnpm verify <id>` checks the receipt) | NFTs are not accounts; no royalties |
+| `thesis` | yes | `/dashboard` → **Why agent-run marketing treasuries belong on NEAR**: the claim, then evidence recomputed from chain data (gas per agent action from receipts, where fees went, cost per new buyer by startup, key and spend bounds, DAO vote latency, runway) and its limits; `pnpm thesis` re-runs it from public and archival RPC | testnet, a small sample, a simulated audience and our own creators |
+| `open` | yes | the whole mechanism: attention (trading) becomes a distribution budget that creators compete for, holders allocate, and nobody can pocket | — |
+| `games` | no | — | Signalfire is not a game |
 
 ## How it works
 
