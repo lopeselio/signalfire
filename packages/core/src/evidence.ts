@@ -173,7 +173,8 @@ const MAX: Record<Section, number> = { observed: 8, reading: 5, gaps: 6, check: 
 /** Advice, predictions and fundraising words: never allowed, in any section. */
 const ADVICE: RegExp[] = [
   /\b(should|must|recommend\w*|advis\w*|consider|worth)\b[^.]{0,60}\b(buy|buying|sell|selling|hold|holding|invest\w*|back|backing|ape)\b/i,
-  /\b(invest|invested|investing|investment|investments|investor|investors|returns?|roi|profit\w*|yields?|undervalued|overvalued|moon\w*|pump\w*|dump\w*|guarantee\w*|upside|downside|equity|dividends?|raise|raised|raising|fundrais\w*)\b/i,
+  /\b(invest|invested|investing|investment|investments|investor|investors|returns?|roi|profit\w*|yields?|undervalued|overvalued|moon\w*|pump\w*|dump\w*|guarantee\w*|upside|downside|equity|dividends?|fundrais\w*)\b/i,
+  /\b(rais(e|ed|es|ing)|seed|series [a-c])\b[^.]{0,20}\b(money|funds|capital|round)\b/i,
   /\b(ownership|stake|shares?)\b[^.]{0,30}\b(company|startup|token|treasury|revenue|business)\b/i,
   /\bprice target\b/i,
   /\b(will|going to|likely to|expected to|poised to|set to|bound to)\b[^.]{0,40}\b(rise|increase|grow|go up|climb|fall|drop|decline|succeed|fail|moon|double|outperform|appreciate)\b/i,
@@ -185,7 +186,7 @@ const HEDGE = /\b(likely|unlikely|probably|possibly|perhaps|suggests?|suggesting
 
 const clean = (s: string): string => s.replace(/[*`#]/g, '').replace(/\s+/g, ' ').trim().slice(0, 320);
 /** "E2 shows that the account …" → "The account …": the ids live in `cites`, not in the sentence. */
-const LEAD = /^(?:evidence\s+|source\s+)?\(?\[?E\d{1,3}\]?\)?(?:\s*(?:,|and)\s*\[?E\d{1,3}\]?)*\s+(?:shows|states|reports|confirms|notes|lists|records|says|gives|indicates)(?:\s+that)?\s+/i;
+const LEAD = /^(?:evidence\s+|source\s+)?\(?\[?E\d{1,3}\]?\)?(?:\s*(?:,|and)\s*\[?E\d{1,3}\]?)*\s+(?:shows|states|reports|confirms|notes|lists|records|says|gives|indicates|marks|has)(?:\s+that)?\s+/i;
 const unlead = (s: string): string => { const t = s.replace(LEAD, ''); return t === s ? s : t.charAt(0).toUpperCase() + t.slice(1); };
 const stripCites = (s: string): string => s.replace(/\s*\b(?:as cited in|cited in|in|from|see|per|source)\s+(?=[[(]?E\d)/gi, ' ').replace(/\[?\(?\bE\d{1,3}\b(?:\s*,\s*E\d{1,3}\b)*\)?\]?/g, ' ');
 
@@ -229,7 +230,7 @@ export function guardBrief(raw: unknown, items: EvidenceItem[]): { brief: Brief;
       if (!numbersCited(text, valid, byId)) { drop('a number that is not in the cited sources'); continue; }
       const line = { text: stripCites(text).replace(/\s+([.,;:])/g, '$1').replace(/\s+/g, ' ').trim(), cites: valid };
       const to: Section = section === 'observed' && HEDGE.test(text) ? 'reading' : section;
-      if (brief[to].length >= MAX[to]) { drop('over the section’s limit'); continue; }
+      if (brief[to].length >= MAX[to]) continue; // past the section's limit: not shown, not a violation
       brief[to].push(line);
     }
   }
