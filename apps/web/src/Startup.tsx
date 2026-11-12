@@ -5,6 +5,7 @@ import {
 import { api, acctUrl, type AuditEntry, type Campaign, type Startup, type Trade } from './api.ts';
 import { MyBid } from './Bid.tsx';
 import { PriceChart } from './Chart.tsx';
+import { EvidenceTab } from './Evidence.tsx';
 import { FounderForms } from './Founder.tsx';
 import { Wire } from './Wire.tsx';
 import { Acct, Chip, Near, SignInHint, TeeBadge, Terms, ago, flagKind, fmtLeft, useApp, useNow } from './ui.tsx';
@@ -21,7 +22,7 @@ const refFromUrl = (): number | null => {
 export function StartupPage({ id }: { id: string }) {
   const { state } = useApp();
   const s = state!.startups.find((x) => x.id === id);
-  const [tab, setTab] = useState<'market' | 'treasury'>(() => (new URLSearchParams(location.search).get('tab') === 'treasury' ? 'treasury' : 'market'));
+  const [tab, setTab] = useState<'market' | 'treasury' | 'evidence'>(() => { const t = new URLSearchParams(location.search).get('tab'); return t === 'treasury' || t === 'evidence' ? t : 'market'; });
   const [trades, setTrades] = useState<Trade[] | null>(null);
   useEffect(() => {
     let on = true;
@@ -48,8 +49,9 @@ export function StartupPage({ id }: { id: string }) {
       <div className="tabs" role="tablist">
         <button role="tab" aria-selected={tab === 'market'} className={tab === 'market' ? 'on' : ''} onClick={() => setTab('market')}>Market</button>
         <button role="tab" aria-selected={tab === 'treasury'} className={tab === 'treasury' ? 'on' : ''} onClick={() => setTab('treasury')}>Treasury and campaigns</button>
+        <button role="tab" aria-selected={tab === 'evidence'} className={tab === 'evidence' ? 'on' : ''} onClick={() => setTab('evidence')} data-tour="evidence-tab">Evidence</button>
       </div>
-      {tab === 'market' ? <Market s={s} trades={trades} /> : <Treasury s={s} />}
+      {tab === 'market' ? <Market s={s} trades={trades} /> : tab === 'treasury' ? <Treasury s={s} /> : <EvidenceTab s={s} />}
     </div>
   );
 }

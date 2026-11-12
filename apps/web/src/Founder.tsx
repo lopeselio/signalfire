@@ -3,6 +3,7 @@ import {
   MILESTONES, briefErrors, constraintErrors, fmtNear, fmtTokens, milestoneAmount, parseNear, parseTokens, threshold, type Constraints,
 } from '@signalfire/core';
 import type { Startup } from './api.ts';
+import { FounderLinks } from './Evidence.tsx';
 import { Near, useApp } from './ui.tsx';
 import { call } from './wallet.ts';
 
@@ -23,6 +24,7 @@ export function FounderForms({ s }: { s: Startup }) {
       <p className="muted small">You’re {s.name}’s founder. You can post briefs and set constraints; you can’t move the treasury. Funding a campaign is the holders’ decision: settling an auction files the DAO proposal by itself. The payee allowlist (only the winning, admitted creator), the 3 milestones and the 2% fee are fixed by the contract.</p>
       <BriefForm s={s} />
       <ConstraintsForm s={s} />
+      <FounderLinks s={s} />
     </section>
   );
 }
