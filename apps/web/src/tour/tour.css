@@ -1,14 +1,15 @@
 /* The onboarding: welcome, tour ring and card, Get started checklist, hints, notes. Uses style.css's variables.
-   Motion reads --tour-ease / --tour-dur, which fall back to the site's shared motion tokens when they exist. */
+   Motion reads --tour-ease / --tour-dur*, pointed at the site's motion tokens (style.css: --ease, --dur-1/2/3). */
 :root {
-  --tour-ease: var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
-  --tour-dur: var(--dur-med, 280ms);
-  --tour-dur-fast: var(--dur-fast, 160ms);
+  --tour-ease: var(--ease, cubic-bezier(0.2, 0.7, 0.1, 1));
+  --tour-dur-fast: var(--dur-1, 160ms);
+  --tour-dur: var(--dur-2, 320ms);
+  --tour-dur-slow: var(--dur-3, 640ms);
 }
 @property --p { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
 
 /* welcome */
-.modal.welcome { animation: tour-up var(--tour-dur) var(--tour-ease); max-width: 620px; padding: 26px 26px 18px; max-height: calc(100vh - 32px); overflow-y: auto; }
+.modal.welcome { max-width: 620px; padding: 26px 26px 18px; max-height: calc(100vh - 32px); overflow-y: auto; }
 .wl-brand { display: inline-flex; align-items: center; gap: 6px; font: 700 15px var(--display); letter-spacing: -0.02em; margin-bottom: 10px; }
 .welcome h2 { font-size: 24px; line-height: 1.15; }
 .wl-lede { color: var(--ash-2); }
@@ -26,9 +27,9 @@
 .tour-grow { flex: 1; }
 
 /* the tour: a ring that dims around the element (clicks pass through) and a card beside it */
-.tour-ring { position: fixed; z-index: 45; border: 2px solid var(--ember); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(25, 22, 17, 0.26); pointer-events: none; transition: top var(--tour-dur) var(--tour-ease), left var(--tour-dur) var(--tour-ease), width var(--tour-dur) var(--tour-ease), height var(--tour-dur) var(--tour-ease), border-color var(--tour-dur-fast); animation: tour-fade var(--tour-dur) var(--tour-ease); }
+.tour-ring { position: fixed; z-index: 45; border: 2px solid var(--ember); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(25, 22, 17, 0.26); pointer-events: none; transition: top var(--tour-dur-slow) var(--tour-ease), left var(--tour-dur-slow) var(--tour-ease), width var(--tour-dur-slow) var(--tour-ease), height var(--tour-dur-slow) var(--tour-ease), border-color var(--tour-dur-fast); animation: tour-fade var(--tour-dur) var(--tour-ease); }
 .tour-ring.via { border-style: dashed; }
-.tour-card { animation: tour-in var(--tour-dur) var(--tour-ease); transition: top var(--tour-dur) var(--tour-ease), left var(--tour-dur) var(--tour-ease), right var(--tour-dur) var(--tour-ease), bottom var(--tour-dur) var(--tour-ease); position: fixed; z-index: 55; width: 340px; max-height: calc(100vh - 96px); overflow-y: auto; background: var(--night-2); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 12px; box-shadow: 0 24px 48px -16px rgba(25, 22, 17, 0.35); font-size: 14px; }
+.tour-card { animation: pop var(--tour-dur) var(--tour-ease) both; transition: top var(--tour-dur) var(--tour-ease), left var(--tour-dur) var(--tour-ease), right var(--tour-dur) var(--tour-ease), bottom var(--tour-dur) var(--tour-ease); position: fixed; z-index: 55; width: 340px; max-height: calc(100vh - 96px); overflow-y: auto; background: var(--night-2); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 12px; box-shadow: 0 24px 48px -16px rgba(25, 22, 17, 0.35); font-size: 14px; }
 .tour-card.sheet { left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 46vh; border-radius: 14px; }
 .tour-card h3 { margin: 6px 0 6px; font-size: 16px; }
 .tour-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -56,7 +57,7 @@
 .gs-pill { position: fixed; left: 16px; bottom: 16px; z-index: 40; display: inline-flex; align-items: center; gap: 8px; background: var(--ash); color: var(--night-2); border-radius: 999px; padding: 8px 14px 8px 10px; font-weight: 600; font-size: 13px; box-shadow: var(--shadow); }
 .gs-pill:hover { background: #2c2720; }
 .gs-n { font-weight: 500; opacity: 0.8; }
-.gs-ring { width: 16px; height: 16px; border-radius: 50%; background: conic-gradient(var(--ember) var(--p), rgba(255, 255, 255, 0.22) 0); transition: --p 600ms var(--tour-ease); }
+.gs-ring { width: 16px; height: 16px; border-radius: 50%; background: conic-gradient(var(--ember) var(--p), rgba(255, 255, 255, 0.22) 0); transition: --p var(--tour-dur-slow) var(--tour-ease); }
 .gs-pill.all .gs-ring { background: var(--ok); }
 .gs-panel { animation: tour-up var(--tour-dur) var(--tour-ease); transform-origin: bottom left; position: fixed; left: 16px; bottom: 60px; z-index: 41; width: 360px; max-height: calc(100vh - 140px); overflow-y: auto; background: var(--night-2); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; box-shadow: 0 24px 48px -16px rgba(25, 22, 17, 0.35); }
 .gs-head { display: flex; justify-content: space-between; align-items: center; }
@@ -112,7 +113,7 @@
 @media (max-width: 980px) { .how-paths { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 720px) {
   .wl-paths, .how-paths { grid-template-columns: 1fr; }
-  .modal.welcome { animation: tour-up var(--tour-dur) var(--tour-ease); padding: 20px 16px 12px; }
+  .modal.welcome { padding: 20px 16px 12px; }
   .welcome h2 { font-size: 20px; }
   .gs-pill { left: 12px; bottom: 12px; }
   .gs-panel { left: 8px; right: 8px; bottom: 56px; width: auto; max-height: 70vh; }

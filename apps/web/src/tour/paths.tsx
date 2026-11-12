@@ -79,6 +79,10 @@ const explore: Path = {
   blurb: 'A guided look at a live startup, its treasury, a campaign, the creators and the evidence. No wallet needed.',
   steps: [
     {
+      id: 'x-fire', title: 'The signal fire', route: () => '/', target: '[data-tour="fire"]', cost: FREE,
+      body: () => <>It burns higher the more happens onchain: its height follows the agents’ and people’s actions in the last 24 hours, a buy through a creator’s link throws sparks, and a milestone payout flares it. Everything below it is read live from NEAR testnet.</>,
+    },
+    {
       id: 'x-beacon', title: 'Where every trading fee goes', route: () => '/', target: '[data-tour="beacon"]', cost: FREE,
       body: () => <>2% of every trade of every attention token lands in that startup’s <strong>marketing treasury</strong>, a ledger inside the hub contract. This card adds them up: free to fund campaigns, reserved for funded ones, paid to creators, and <strong>paid to founders: 0</strong>. No method in the contract can send it to them.</>,
     },
