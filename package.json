@@ -4,7 +4,9 @@
   "type": "module",
   "license": "MIT",
   "packageManager": "pnpm@11.26.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "pnpm -r --parallel --filter ./apps/* dev",
     "build": "pnpm --filter @signalfire/web build",
@@ -20,7 +22,8 @@
     "cashout-check": "pnpm --filter @signalfire/server cashout-check",
     "intents-swap": "pnpm --filter @signalfire/server intents-swap",
     "contract:test": "cd contracts/hub && cargo test --locked",
-    "contract:build": "cd contracts/hub && cargo near build non-reproducible-wasm --locked"
+    "contract:build": "cd contracts/hub && cargo near build non-reproducible-wasm --locked",
+    "private-apply": "pnpm --filter @signalfire/server private-apply"
   },
   "devDependencies": {
     "typescript": "5.9.3",
