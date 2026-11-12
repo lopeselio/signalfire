@@ -15,6 +15,15 @@
   --ok: #1d7f55;
   --bad: #c2372a;
   --warn: #9a6400;
+  /* motion: one easing, three durations (motion.tsx and the tour use the same) */
+  --ease: cubic-bezier(0.2, 0.7, 0.1, 1);
+  --dur-1: 160ms;
+  --dur-2: 320ms;
+  --dur-3: 640ms;
+  --fire-1: #ffe9bd;
+  --fire-2: #ff8f1f;
+  --fire-3: #c8370a;
+  --coal: #17120d;
   --shadow: 0 1px 2px rgba(25, 22, 17, 0.05), 0 6px 20px -8px rgba(25, 22, 17, 0.12);
   --display: 'Geist', ui-sans-serif, system-ui, sans-serif;
   --body: 'Geist', ui-sans-serif, system-ui, sans-serif;
@@ -49,7 +58,9 @@ small { font-size: 0.78em; }
 .row.end { justify-content: flex-end; }
 
 /* buttons */
-button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid transparent; padding: 9px 16px; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid transparent; padding: 9px 16px; transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease); }
+button:active:not(:disabled) { transform: scale(0.97); }
+.primary:hover:not(:disabled) { box-shadow: 0 6px 16px -8px rgba(232, 89, 12, 0.7); }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 .primary { background: var(--ember); color: #fff; font-weight: 600; }
 .primary:hover:not(:disabled) { background: var(--ember-2); }
@@ -98,8 +109,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 24px 72px; }
 .hero h1 { font-size: clamp(38px, 5.8vw, 70px); line-height: 1.0; letter-spacing: -0.04em; max-width: 14ch; }
 .hero .lede { font-size: 18px; }
 .hero-art {
-  border-radius: 22px; padding: 34px 28px; position: relative;
-  background: radial-gradient(rgba(255, 255, 255, 0.28) 1px, transparent 1.4px) 0 0 / 14px 14px, linear-gradient(150deg, #f07a2c, var(--ember) 55%, #d24c06);
+  border-radius: 22px; padding: 14px 22px 22px; position: relative; overflow: hidden;
+  /* night on the ridge: the one dark panel on the page, so the fire can glow */
+  background: linear-gradient(180deg, #221a12, var(--coal) 70%);
 }
 .terms { border-left: 3px solid var(--ember); background: var(--ember-wash); padding: 10px 14px; border-radius: 0 10px 10px 0; font-size: 13px; color: var(--ash-2); margin: 18px 0 0; max-width: 62ch; }
 .terms strong { color: var(--ash); }
@@ -413,7 +425,8 @@ blockquote { margin: 8px 0 0; padding-left: 12px; border-left: 2px solid var(--l
   .me-bal { display: none; }
   main { padding: 22px 16px 56px; }
   .hero h1 { font-size: 38px; }
-  .hero-art { padding: 18px 14px; border-radius: 18px; }
+  .hero-art { padding: 8px 14px 14px; border-radius: 18px; }
+  .sf-stage { height: 200px; }
   .featured, .mission, .story { margin-bottom: 52px; }
   .mission { padding: 36px 16px; }
   .story-panel { padding: 22px 14px; }
@@ -427,7 +440,54 @@ blockquote { margin: 8px 0 0; padding-left: 12px; border-left: 2px solid var(--l
   .tbl-wrap .tbl { min-width: 560px; }
   .d-launch { margin-left: 0; }
 }
+/* ---------- the signal fire ---------- */
+.signalfire { position: relative; color: #f3e7d6; margin-bottom: 10px; }
+.sf-stage { position: relative; height: 250px; background: radial-gradient(60% 70% at 50% 78%, rgba(255, 122, 30, calc(0.1 + 0.22 * var(--heat, 0.4))), transparent 70%); transition: background var(--dur-3) var(--ease); }
+.sf-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.sf-still { position: absolute; left: 50%; bottom: 14px; height: calc(90px + 110px * var(--heat, 0.4)); transform: translateX(-50%); filter: drop-shadow(0 0 26px rgba(255, 130, 30, 0.55)); }
+.sf-bowl { position: absolute; left: 50%; bottom: 8px; width: 132px; height: 10px; transform: translateX(-50%); border-radius: 3px 3px 10px 10px; background: linear-gradient(#5a4632, #2b2118); box-shadow: 0 0 34px 8px rgba(255, 120, 30, calc(0.15 + 0.3 * var(--heat, 0.4))); }
+.sf-cap { display: flex; gap: 9px; align-items: baseline; margin: 6px 0 2px; font-size: 13px; line-height: 1.4; }
+.sf-cap .live { flex: none; transform: translateY(-1px); }
+.sf-cap strong { font-weight: 600; }
+.sf-last { color: #b9a892; overflow-wrap: anywhere; }
+.sf-key { margin: 0 0 12px; font-size: 12px; color: #9a8a76; }
+
+/* a startup card's flame: as tall as its treasury against the largest one */
+.s-big-n { display: flex; align-items: baseline; gap: 4px; }
+.s-flame { margin-left: auto; align-self: flex-end; transform-origin: 50% 100%; transform: scale(var(--k, 1)); overflow: visible; }
+.s-flame .f-out { fill: var(--ember); opacity: 0.85; transform-origin: 50% 100%; animation: flick 2.6s var(--ease) infinite alternate; }
+.s-flame .f-in { fill: var(--fire-1); transform-origin: 50% 100%; animation: flick 1.7s var(--ease) infinite alternate-reverse; }
+.s-flame:not(.lit) .f-out { fill: #e9a070; }
+.s-flame.lit { filter: drop-shadow(0 0 6px rgba(232, 89, 12, 0.55)); }
+@keyframes flick { from { transform: scale(1, 0.94) skewX(-2deg); } to { transform: scale(0.96, 1.05) skewX(2.5deg); } }
+
+/* ---------- transitions ---------- */
+main > * { animation: page-in var(--dur-2) var(--ease) both; }
+@keyframes page-in { from { opacity: 0; transform: translateY(10px); } }
+.rv { opacity: 0; transform: translateY(18px); transition: opacity var(--dur-3) var(--ease), transform var(--dur-3) var(--ease); }
+.rv.in { opacity: 1; transform: none; }
+.rv .s-card, .rv .pc, .rv .mission-nums > div { opacity: 0; transform: translateY(12px); transition: opacity var(--dur-3) var(--ease), transform var(--dur-3) var(--ease), box-shadow var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease); }
+.rv.in .s-card, .rv.in .pc, .rv.in .mission-nums > div { opacity: 1; transform: none; }
+.rv.in .s-card:hover { transform: translateY(-2px); }
+.rv.in :is(.s-card, .pc, .mission-nums > div):nth-child(2) { transition-delay: 70ms; }
+.rv.in :is(.s-card, .pc, .mission-nums > div):nth-child(3) { transition-delay: 140ms; }
+.rv.in :is(.s-card, .pc, .mission-nums > div):nth-child(4) { transition-delay: 210ms; }
+.grid-market, .grid-treasury, .c-body, .c-detail { animation: page-in var(--dur-2) var(--ease) both; }
+.tabs button, .nav a, .pill, .s-go, .acct { transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease); }
+.modal { animation: pop var(--dur-2) var(--ease) both; }
+.modal-bg { animation: fade var(--dur-2) var(--ease) both; }
+.toast { animation: page-in var(--dur-2) var(--ease) both; }
+@keyframes pop { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
+@keyframes fade { from { opacity: 0; } }
+.wire li { animation: fade var(--dur-3) var(--ease) both; }
+.chart .draw { stroke-dasharray: 1; animation: draw 900ms var(--ease) both; }
+@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.chart circle { animation: fade var(--dur-3) var(--ease) 500ms both; }
+.chart .reserve { animation: fade var(--dur-3) var(--ease) 300ms both; }
+.bc-bar .seg, .supply-bar span, .pc-bar span { transition: width var(--dur-3) var(--ease); }
+
 @media (prefers-reduced-motion: reduce) {
+  .rv, .rv .s-card, .rv .pc, .rv .mission-nums > div { opacity: 1; transform: none; }
   * { animation: none !important; transition: none !important; }
 }
 
