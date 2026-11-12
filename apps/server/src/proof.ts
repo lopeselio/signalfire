@@ -1,13 +1,22 @@
 import { config, explorerTx } from './config.ts';
 import { getAudit, getCampaign, getProposal, getStartup } from './hub.ts';
 import type { Signed } from './nearai.ts';
-import { bidsFor, getWire, loadVetting } from './store.ts';
+import { bidsFor, getWire, loadVetting, type Vetting } from './store.ts';
+import type { PrivateVerdict } from './verdict.ts';
 
 // A campaign's proof bundle: what the chain only holds hashes of (bid openings, pitches, vetting reports)
 // plus their NEAR AI proofs. `pnpm verify` checks it against the chain, which it reads itself.
 
 export interface ProofBid { creator: string; price: string; salt: string; pitch: string; pitchHash: string; proof: Signed | null; author?: 'creator' | 'agent' }
-export interface ProofVetting { account: string; report: string; reportHash: string; proof: Signed | null }
+export interface ProofVetting {
+  account: string; report: string; reportHash: string; proof: Signed | null;
+  /** a private application: the encrypted call, its verdict and the commitment to the applicant's details */
+  privateProof?: Signed; privateVerdict?: PrivateVerdict; privateCommitment?: string;
+}
+export const vettingProof = (v: Vetting): ProofVetting => ({
+  account: v.account, report: v.report, reportHash: v.reportHash, proof: v.proof.model === 'none' ? null : v.proof,
+  ...(v.privateProof ? { privateProof: v.privateProof, privateVerdict: v.privateVerdict, privateCommitment: v.privateCommitment } : {}),
+});
 export interface ProofBundle {
   campaign: number;
   hub: string;
@@ -31,7 +40,7 @@ export async function buildProof(id: number): Promise<ProofBundle | null> {
   const vetting = c.bids
     .map((b) => loadVetting(b.creator))
     .filter((v): v is NonNullable<typeof v> => !!v)
-    .map((v) => ({ account: v.account, report: v.report, reportHash: v.reportHash, proof: v.proof.model === 'none' ? null : v.proof }));
+    .map(vettingProof);
   const txs = getWire()
     .filter((w) => w.campaign === id && w.tx)
     .reverse()
