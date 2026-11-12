@@ -1,5 +1,5 @@
 import { BRIEF_EVERY_MS, BRIEF_TARGET } from './agents.ts';
-import { accessKeys, view } from './chain.ts';
+import { view } from './chain.ts';
 import { config } from './config.ts';
 import { getAudit, getCampaigns, getProposal, getStartups, getWallet, type Campaign } from './hub.ts';
 import { CREATORS, FAN_COUNT, HOLDERS, SCOUT, fanAccount } from './personas.ts';
@@ -27,12 +27,30 @@ export interface Thesis {
   startups: { id: string; name: string; feesInNear: string; paidNear: string; campaignsDone: number; newBuyers: number; costPerBuyerNear: string | null }[];
   bounds: {
     payoutAttempts: number; paid: number; held: number; admissionsRefused: number; flags: Record<string, number>;
-    agents: number; agentsFcOnly: number; fullAccessKeys: number;
+    agents: number; agentsFcOnly: number; fullAccessKeys: number; agentsUnread: number;
     walletsCapDayNear: string; walletsSpentNear: string; fanSpentMaxNear: string; fanCapDayNear: string;
   };
   latency: { campaigns: number; voteMedianS: number | null; briefToFundedMedianS: number | null; briefToPaidMedianS: number | null };
   runway: { firstBuysLeft: number; perCampaign: number; campaignsLeft: number; hoursBetweenBriefs: number; lastsUntil: string; treasuriesFreeNear: string };
   limits: string[];
+}
+
+/** A read retried with backoff (public RPCs rate-limit bursts); null only if it keeps failing. */
+async function retry<T>(f: () => Promise<T>, tries = 5): Promise<T | null> {
+  for (let k = 0; k < tries; k++) {
+    try { return await f(); } catch { await new Promise((r) => setTimeout(r, 700 * (k + 1))); }
+  }
+  return null;
+}
+
+/** map with at most `n` calls in flight */
+async function mapLimit<T, R>(xs: T[], n: number, f: (x: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(xs.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(n, xs.length) }, async () => {
+    while (next < xs.length) { const i = next++; out[i] = await f(xs[i]); }
+  }));
+  return out;
 }
 
 const median = (xs: number[]): number | null => {
@@ -64,6 +82,19 @@ const ACTIONS: { kind: string; match: RegExp; action: string; method: string }[]
   { kind: 'payout', match: /claimed milestone/, action: 'Milestone payout through the spend policy', method: 'claim_milestone' },
 ];
 
+let rr = 0;
+/** An account's access keys over JSON-RPC, rotating endpoints (the shared provider is busy with the agents' reads). */
+async function keyList(accountId: string): Promise<{ access_key: { permission: unknown } }[]> {
+  const urls = [...ARCHIVALS, 'https://test.rpc.fastnear.com', config.rpcUrl];
+  const r = await fetch(urls[rr++ % urls.length], {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'query', params: { request_type: 'view_access_key_list', finality: 'final', account_id: accountId } }),
+  });
+  const j = (await r.json()) as { result?: { keys: { access_key: { permission: unknown } }[] } };
+  if (!j.result) throw new Error(`HTTP ${r.status}`);
+  return j.result.keys;
+}
+
 async function burnt(hash: string, sender: string): Promise<bigint | null> {
   const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tx', params: { tx_hash: hash, sender_account_id: sender, wait_until: 'NONE' } });
   // archival endpoints rate-limit bursts: back off and alternate between two of them
@@ -87,11 +118,10 @@ async function actionCosts(wire: WireTx[], per: number): Promise<ActionCost[]> {
   for (const a of ACTIONS) {
     const sample = wire.filter((w) => w.kind === a.kind && w.tx && a.match.test(w.what) && !/refused/.test(w.what)).slice(0, per);
     const costs: bigint[] = [];
-    for (const w of sample) {
-      const s = signerOf(w);
-      if (!s) continue;
-      const b = await burnt(w.tx!, s);
-      if (b !== null) costs.push(b);
+    // up to 4 receipts at a time per action (archival endpoints rate-limit bursts)
+    for (let k = 0; k < sample.length; k += 4) {
+      const got = await Promise.all(sample.slice(k, k + 4).map((w) => { const s = signerOf(w); return s ? burnt(w.tx!, s) : Promise.resolve(null); }));
+      for (const b of got) if (b !== null) costs.push(b);
     }
     if (!costs.length) continue;
     const sorted = [...costs].sort((x, y) => (x < y ? -1 : x > y ? 1 : 0));
@@ -137,15 +167,17 @@ export async function computeThesis(wire: WireTx[], opts: { perAction?: number }
   const fans = Array.from({ length: FAN_COUNT }, (_, i) => fanAccount(i + 1));
   const agents = [...CREATORS.map((c) => c.account), SCOUT.account, ...HOLDERS.map((h) => h.account), ...fans];
   let fcOnly = 0, full = 0, capDay = 0n, spent = 0n, fanSpentMax = 0n, fanCap = 0n, counted = 0;
-  for (const a of agents) {
-    const keys = await accessKeys(a).catch(() => null);
+  // accessKeys() answers [] when the RPC fails, and every agent has at least one key: an empty list is a failed read
+  const keysOf = (a: string) => retry(async () => { const k = await keyList(a); if (!k.length) throw new Error('no keys read'); return k; }, 6);
+  const reads = await mapLimit(agents, 4, async (a) => [a, await keysOf(a), await retry(() => getWallet(a))] as const);
+  const fanWallets = new Map(reads.filter(([a]) => a.startsWith('fan-')).map(([a, , w]) => [a, w]));
+  for (const [a, keys, w] of reads) {
     if (keys && keys.length) {
       counted++;
       const fa = keys.filter((k) => k.access_key.permission === 'FullAccess').length;
       full += fa;
       if (fa === 0) fcOnly++;
     }
-    const w = await getWallet(a).catch(() => null);
     if (w) {
       capDay += BigInt(w.cap_day);
       spent += BigInt(w.spent_total);
@@ -171,12 +203,10 @@ export async function computeThesis(wire: WireTx[], opts: { perAction?: number }
   // how long the demo keeps going: every fan can be a first-time buyer of each startup once (and only while its
   // capped wallet can pay), and the founder agent posts one brief every BRIEF_EVERY_MS
   let firstBuysLeft = 0;
+  const able = fans.filter((f) => { const w = fanWallets.get(f); return !!w && BigInt(w.balance) >= 60_000_000_000_000_000_000_000n; });
   for (const s of startups.filter((x) => x.status === 'live')) {
-    for (const f of fans) {
-      const w = await getWallet(f).catch(() => null);
-      if (!w || BigInt(w.balance) < 60_000_000_000_000_000_000_000n) continue;
-      if (!(await view<boolean>('is_buyer', { startup: s.id, account: f }).catch(() => true))) firstBuysLeft++;
-    }
+    const bought = await mapLimit(able, 4, (f) => retry(() => view<boolean>('is_buyer', { startup: s.id, account: f })).then((b) => b ?? true));
+    firstBuysLeft += bought.filter((b) => !b).length;
   }
   const campaignsLeft = Math.floor(firstBuysLeft / BRIEF_TARGET);
   const hours = BRIEF_EVERY_MS / 3_600_000;
@@ -200,7 +230,7 @@ export async function computeThesis(wire: WireTx[], opts: { perAction?: number }
       payoutAttempts: payouts.length, paid: payouts.filter((e) => e.outcome === 'paid').length,
       held: payouts.filter((e) => e.outcome !== 'paid').length,
       admissionsRefused: audit.filter((e) => e.action === 'vet' && e.outcome === 'rejected').length,
-      flags, agents: counted, agentsFcOnly: fcOnly, fullAccessKeys: full,
+      flags, agents: counted, agentsFcOnly: fcOnly, fullAccessKeys: full, agentsUnread: agents.length - counted,
       walletsCapDayNear: near(capDay, 2), walletsSpentNear: near(spent, 3), fanSpentMaxNear: near(fanSpentMax, 3), fanCapDayNear: near(fanCap, 2),
     },
     runway: {

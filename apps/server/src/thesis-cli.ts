@@ -20,7 +20,7 @@ for (const s of t.startups) console.log(`   ${s.name.padEnd(10)} fees in ${s.fee
 console.log('\n4. What bounded the agents (audit log, access keys, wallets)');
 const b = t.bounds;
 console.log(`   payout attempts ${b.payoutAttempts}: paid ${b.paid}, held by the policy ${b.held}; admissions refused ${b.admissionsRefused}; flags ${JSON.stringify(b.flags)}`);
-console.log(`   ${b.agentsFcOnly}/${b.agents} agent accounts hold function-call keys only (${b.fullAccessKeys} full-access keys among them)`);
+console.log(`   ${b.agentsFcOnly}/${b.agents} agent accounts hold function-call keys only (${b.fullAccessKeys} full-access keys among them)${b.agentsUnread ? `; ${b.agentsUnread} couldn't be read from the RPC this time` : ''}`);
 console.log(`   agent wallets: ${b.walletsSpentNear} NEAR spent in total under ${b.walletsCapDayNear} NEAR/day of caps; the busiest fan spent ${b.fanSpentMaxNear} NEAR over its life, never more than ${b.fanCapDayNear} NEAR in a day (its cap)`);
 console.log('\n5. How long it takes (hub timestamps, DAO proposal submission time)');
 const l = t.latency;
