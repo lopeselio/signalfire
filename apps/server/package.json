@@ -15,7 +15,8 @@
     "seed-demo": "tsx --env-file-if-exists=../../.env src/seed-demo.ts",
     "thesis": "tsx --env-file-if-exists=../../.env src/thesis-cli.ts",
     "cashout-check": "tsx --env-file-if-exists=../../.env src/cashout-check.ts",
-    "intents-swap": "tsx --env-file-if-exists=../../.env src/intents-swap.ts"
+    "intents-swap": "tsx --env-file-if-exists=../../.env src/intents-swap.ts",
+    "private-apply": "tsx --env-file-if-exists=../../.env src/private-apply.ts"
   },
   "dependencies": {
     "@better-auth/core": "1.7.18",
