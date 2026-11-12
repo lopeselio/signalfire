@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@noble/ciphers": "2.0.1",
     "@noble/curves": "2.0.1",
     "@noble/hashes": "2.0.1",
     "@phala/dcap-qvl": "0.7.0",
