@@ -140,7 +140,7 @@ export function useFounderAudit(enabled: boolean): AuditEntry[] | null {
     let on = true;
     const load = (): void => { api<AuditEntry[]>('/audit').then((r) => on && setRows(r)).catch(() => undefined); };
     load();
-    const t = setInterval(load, 20000);
+    const t = setInterval(load, 10000);
     return () => { on = false; clearInterval(t); };
   }, [enabled]);
   return rows;
