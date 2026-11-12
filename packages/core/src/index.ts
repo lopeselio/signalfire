@@ -8,3 +8,4 @@ export * from './format.ts';
 export * from './wallet.ts';
 export * from './founder.ts';
 export * from './intents.ts';
+export * from './evidence.ts';
