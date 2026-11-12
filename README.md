@@ -68,6 +68,22 @@ fallback text, marked unsigned.
    so `pnpm verify` checks your bid like the agents'. The panel walks committed → revealed → won/lost, then the
    settle result (DAO vote, milestones, tUSD paid). Same thing from a terminal, with a test account's own key:
    `pnpm human-bid <account> <url>`.
+
+   A person's bid on testnet (`sf-pat.signalfire-ref.testnet`, an ordinary account signing with its own key, campaign
+   #2): [funded wallet](https://testnet.nearblocks.io/txns/CBYmeWcGJAnq2pRZ5v3JBMsfxfQXiypY3RNEWKxbhLB5),
+   [applied](https://testnet.nearblocks.io/txns/G8NYoVmjFVjCKx4RFtMGrfgQ74Uj6eVmAkiE8wP544Ss),
+   [brief](https://testnet.nearblocks.io/txns/A2Wh6mRPYkSBujRvWKKBXpJfhavHF9EAQeFnCA7iy9xW),
+   [sealed bid](https://testnet.nearblocks.io/txns/GQJv4V3vqmw2qipb88jErHfm5s4FwLd9ki6pbmx1i23L),
+   [reveal](https://testnet.nearblocks.io/txns/7HwoopQ33pitM23U5wJDHZhdYHCK7wgcKWgeqYRX8NnT) (then the opening was
+   published to the hosted server), [settle](https://testnet.nearblocks.io/txns/8uvPnLBApeALCjR5Fqjcv1cNaY6K1CGivvpBjbbEXnfV),
+   then the agents' part, run with `pnpm e2e --campaign 2`: holder votes ([Ada](https://testnet.nearblocks.io/txns/453BDsNE9JuSGxyoQrmr72zgt1usXatpBi4Zp69R1Ard),
+   [Bo](https://testnet.nearblocks.io/txns/8jK7DxYpPo8ZbfPCE5wpxb7EHRixky8CNGuSXykt82ds)),
+   [attributed buy](https://testnet.nearblocks.io/txns/9cpLzjEpBos886pPFT2oUFsWNdJZby47YnZrkbGEdPKZ),
+   milestones [1](https://testnet.nearblocks.io/txns/AQcDsBR9cYFtSKyFjT1bxmamrtu2H5G7xKLBsdHHRCgn),
+   [2](https://testnet.nearblocks.io/txns/BZBnnDNSg1YTW41LpavFGfenxgNVbSmiLHsnXFRmpBF3),
+   [3 + receipt NFT](https://testnet.nearblocks.io/txns/FiFcPYnyRQ1bEG59vSRDeVPu3JZ93jd5cYKFUE9gx728).
+   `pnpm verify 2 https://signalfire.lopeselio.online` → `✓ sf-pat.signalfire-ref.testnet: the opening matches the
+   sealed commitment` … `✓ 22 checks passed, 0 failed`.
 7. **Run your own startup.** Signed in, **Launch** (`/launch`) creates a token and a DAO with you as founder. On its
    Treasury tab the founder sees **Founder's desk**: **Post a campaign brief** (title, goal, new buyers wanted,
    budget within both the campaign cap and the treasury's free NEAR, bidding and reveal windows, deadline after
@@ -135,7 +151,7 @@ fallback text, marked unsigned.
 | `security` | spend policy (approved campaigns, payee allowlist, per-campaign and per-payout caps, hourly rate limit, milestones), onchain audit log with flags, FC-key-only agents with capped wallets, lookalike refusal (live on testnet) | the hub owner key still exists on testnet |
 | `swarms` | three creator agents bid in commit-reveal auctions every brief; the contract settles by a deterministic rule | agents follow simple pricing rules, not learned strategies |
 | `agents` | agents earn tUSD, post bonds, buy tokens, and pay the scout for vetting and audience briefs (`agent_pay`) | payments are inside the hub's wallets, not cross-chain |
-| `privacy` | sealed bids and sealed pitches; NEAR AI TEE-signed reports and pitches, kept as proofs and checked by `verify` | openings sit on our server until the reveal |
+| `privacy` | sealed bids and sealed pitches (people seal theirs in the browser); NEAR AI TEE-signed reports and pitches, kept as proofs and checked by `verify` | the agents' openings sit on our server until the reveal |
 | `business` | treasury → procurement (auctions) → payouts runs by rules; the founder only posts briefs and sets constraints (web forms, checked against the hub's limits) | the demo founder agent posts briefs from a fixed list |
 | `realworld` | creators are paid in a stablecoin-shaped token through a policy; gasless meta-transactions for signed-in users | tUSD is our own labelled test token (no testnet stablecoin can be minted on demand) |
 | `nfts` | soulbound creator NFT with metadata computed from live state; receipt NFTs per completed campaign | no royalties or NFT-owned accounts |
