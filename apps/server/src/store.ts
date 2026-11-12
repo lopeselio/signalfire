@@ -31,6 +31,8 @@ export interface BidSecret {
   pitchHash: string;
   hash: string;
   proof: Signed;
+  /** a person's bid, sealed in their browser: the opening reached us only after the reveal, and no model wrote the pitch */
+  human?: boolean;
   committedTx?: string;
   revealedTx?: string;
 }

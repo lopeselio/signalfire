@@ -6,7 +6,7 @@ import { bidsFor, getWire, loadVetting } from './store.ts';
 // A campaign's proof bundle: what the chain only holds hashes of (bid openings, pitches, vetting reports)
 // plus their NEAR AI proofs. `pnpm verify` checks it against the chain, which it reads itself.
 
-export interface ProofBid { creator: string; price: string; salt: string; pitch: string; pitchHash: string; proof: Signed | null }
+export interface ProofBid { creator: string; price: string; salt: string; pitch: string; pitchHash: string; proof: Signed | null; author?: 'creator' | 'agent' }
 export interface ProofVetting { account: string; report: string; reportHash: string; proof: Signed | null }
 export interface ProofBundle {
   campaign: number;
@@ -27,7 +27,7 @@ export async function buildProof(id: number): Promise<ProofBundle | null> {
   const revealed = new Set(c.bids.filter((b) => b.revealed).map((b) => b.creator));
   const bids = bidsFor(id)
     .filter((b) => revealed.has(b.creator))
-    .map((b) => ({ creator: b.creator, price: b.price, salt: b.salt, pitch: b.pitch, pitchHash: b.pitchHash, proof: b.proof.signature ? b.proof : b.proof.model === 'none' ? null : b.proof }));
+    .map((b) => ({ creator: b.creator, price: b.price, salt: b.salt, pitch: b.pitch, pitchHash: b.pitchHash, proof: b.proof.signature ? b.proof : b.proof.model === 'none' ? null : b.proof, author: b.human ? 'creator' as const : 'agent' as const }));
   const vetting = c.bids
     .map((b) => loadVetting(b.creator))
     .filter((v): v is NonNullable<typeof v> => !!v)
