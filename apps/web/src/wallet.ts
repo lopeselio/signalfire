@@ -84,3 +84,11 @@ function failure(outcome: unknown): string | undefined {
   const m = /panicked at[^"]*?: ?([^"\\]+)|Smart contract panicked: ([^"\\]+)/.exec(JSON.stringify(outcome ?? ''));
   return m?.[1] ?? m?.[2];
 }
+
+/** Signs a NEP-413 message in the wallet (a NEAR Intents cash-out). The wallet shows the message before signing. */
+export async function signMessage(message: string, recipient: string, nonce: Uint8Array): Promise<{ accountId: string; publicKey: string; signature: string }> {
+  await ensureWallet();
+  const r = await authClient().near.getNearClient().signMessage({ message, recipient, nonce });
+  if (!r?.signature || !r.publicKey) throw new Error('the wallet didn’t sign the message');
+  return { accountId: r.accountId, publicKey: r.publicKey, signature: r.signature };
+}
