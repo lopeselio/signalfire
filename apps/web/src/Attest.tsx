@@ -8,22 +8,23 @@ import { api } from './api.ts';
 // only the GPU evidence goes through our server, because NVIDIA refuses browsers; NVIDIA's answer is signed,
 // so it is checked here too. One attestation per model per page load; each reply's signature is checked against it.
 
-export type ReplySource = { kind: 'vetting'; account: string } | { kind: 'pitch'; campaign: number; creator: string };
+export type ReplySource = { kind: 'vetting' | 'private'; account: string } | { kind: 'pitch'; campaign: number; creator: string };
 
-const lib = () => import('@signalfire/attest');
+export const lib = () => import('@signalfire/attest');
 const runs = new Map<string, Promise<ModelVerification>>();
 const nras = async (payloadJson: string): Promise<unknown> => {
   const res = await fetch('/api/nras', { method: 'POST', headers: { 'content-type': 'application/json' }, body: payloadJson });
   if (!res.ok) throw new Error(`relay HTTP ${res.status}`);
   return res.json();
 };
-function attest(model: string, fresh = false): Promise<ModelVerification> {
-  if (fresh || !runs.has(model)) {
-    const p = lib().then((a) => a.attestModel(model, { nras }));
-    p.catch(() => runs.delete(model));
-    runs.set(model, p);
+export function attest(model: string, fresh = false, algo: 'ecdsa' | 'ed25519' = 'ecdsa'): Promise<ModelVerification> {
+  const k = `${model}|${algo}`;
+  if (fresh || !runs.has(k)) {
+    const p = lib().then((a) => a.attestModel(model, { nras, algo }));
+    p.catch(() => runs.delete(k));
+    runs.set(k, p);
   }
-  return runs.get(model)!;
+  return runs.get(k)!;
 }
 
 interface Result { verification: ModelVerification | null; error: string | null; reply: SignedReply | null; replyChecks: Check[] }
@@ -35,13 +36,13 @@ function useCheck(src: ReplySource, model: string) {
   useEffect(() => {
     let live = true;
     setRes(null);
-    const path = src.kind === 'vetting' ? `/reply/vetting/${src.account}` : `/reply/pitch/${src.campaign}/${src.creator}`;
+    const path = src.kind === 'pitch' ? `/reply/pitch/${src.campaign}/${src.creator}` : `/reply/${src.kind}/${src.account}`;
     void (async () => {
       const a = await lib();
       const reply = await api<SignedReply>(path).catch(() => null);
       let verification: ModelVerification | null = null;
       let error: string | null = null;
-      try { verification = await attest(reply?.model ?? model, n > 0); } catch (e) { error = (e as Error).message; }
+      try { verification = await attest(reply?.model ?? model, n > 0, reply?.signingAlgo === 'ed25519' ? 'ed25519' : 'ecdsa'); } catch (e) { error = (e as Error).message; }
       if (live) setRes({ verification, error, reply, replyChecks: reply ? a.replyChecks(reply, verification) : [{ id: 'reply', label: 'The signed reply is published', ok: false }] });
     })();
     return () => { live = false; };
@@ -90,6 +91,7 @@ function Details({ what, res, status, again, close }: { what: string; res: Resul
         <button type="button" className="ghost small" onClick={close} aria-label="Close">Close</button>
       </header>
       <p className="small">
+        {res?.reply?.signingAlgo === 'ed25519' && <>The request was <strong>end-to-end encrypted</strong> to the model’s attested Ed25519 key, so the check below uses that key’s report. </>}
         This {what} was written by <strong>{res?.reply?.model ?? v?.model ?? 'the model'}</strong> on NEAR AI Cloud. Your browser just checked it
         itself: it picked a fresh nonce, fetched the model’s attestation from <code>cloud-api.near.ai</code>, verified the Intel TDX quote
         and NVIDIA’s GPU verdict, and checked the {what}’s signature against the attested key. Our server only relayed the GPU evidence to

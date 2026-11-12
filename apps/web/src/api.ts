@@ -49,7 +49,7 @@ export interface Me {
 export interface Nft { token_id: string; owner_id: string; metadata: { title?: string | null; description?: string | null; extra?: string | null } | null }
 export interface CreatorDetail {
   creator: CreatorRec | null; nfts: Nft[];
-  vetting: { report: string; reportHash: string; model: string; signed: boolean; signingAddress: string | null; at: number } | null;
+  vetting: { report: string; reportHash: string; model: string; signed: boolean; signingAddress: string | null; at: number; privateCommitment: string | null; privateVerdict: { fit: number; private_details: string; concern: string } | null; privateDropped: boolean } | null;
   campaigns: { id: number; title: string; phase: string; won: boolean; price: string; results: number }[];
 }
 
