@@ -1,7 +1,7 @@
 import { evidenceHash, evidencePrompt, plainBrief, ruleFlags, type Brief, type Dropped, type EvidenceItem, type Flag } from '@signalfire/core';
 import { ask, nearAiEnabled, type Signed } from '../nearai.ts';
 import { gather } from './gather.ts';
-import { SYSTEM, briefFrom } from './parse.ts';
+import { RESPONSE_FORMAT, SYSTEM, briefFrom } from './parse.ts';
 import { loadBrief, saveBrief } from './store.ts';
 
 // The AI research brief: the TEE model on NEAR AI Cloud reads only the gathered evidence (each item under its id) and
@@ -46,7 +46,7 @@ async function write(id: string, trigger: BriefRecord['trigger']): Promise<Brief
   let dropped: Dropped[] = [];
   let parsed = false;
   if (nearAiEnabled()) {
-    const r = await ask(`brief:${id}`, SYSTEM, user, '', 1200, 90_000, 0.2);
+    const r = await ask(`brief:${id}`, SYSTEM, user, '', 1500, 90_000, 0.3, { response_format: RESPONSE_FORMAT });
     if (r.model !== 'none' && r.response) {
       proof = r;
       const b = briefFrom(r.response, evidence);
