@@ -16,7 +16,7 @@ Each finished campaign mints a **receipt NFT** to the creator.
 Built for NEAR HACKATHON (Nov 2026). Design: [DESIGN.md](DESIGN.md).
 The author's other submission is the **NEAR Arcade**: nine onchain games
 ([github.com/lopeselio/near-arcade](https://github.com/lopeselio/near-arcade), https://arcade.lopeselio.online);
-see [Other submission](#other-submission).
+see [Disclosures](#disclosures).
 
 - Hub contract (testnet): [`signalfire.testnet`](https://testnet.nearblocks.io/address/signalfire.testnet)
 - Demo startup **Glowpath (GLOW)**: token [`glow.signalfire.testnet`](https://testnet.nearblocks.io/address/glow.signalfire.testnet), DAO [`glow-dao.signalfire.testnet`](https://testnet.nearblocks.io/address/glow-dao.signalfire.testnet)
@@ -445,13 +445,6 @@ pnpm verify-brief <startup> [url]  # a startup's founder-link proofs and AI rese
 - **Inspiration.** The idea is adapted from the Solana Foundation's request for startups "Attention tokens for startup distribution", rebuilt natively on NEAR (NEP-141 global FT, Sputnik DAO v2 via global contracts, function-call-key agents, NEAR AI Cloud TEE models, NEP-171, NEP-366). No code from any Solana project.
 - **Other submission.** The same author also submitted the **NEAR Arcade** ([github.com/lopeselio/near-arcade](https://github.com/lopeselio/near-arcade)), a separate, independent project (a set of games). Signalfire shares no contract, rules or server with it; it reuses the author's own patterns for wallet sign-in (Better Auth + better-near-auth), NEAR AI proofs, Sputnik DAO setup and Azure deployment.
 - **Libraries:** React, Vite, three.js (the signal fire, loaded on demand), better-auth and better-near-auth, near-api-js, near-kit, @noble/hashes, @noble/curves, @phala/dcap-qvl (Intel TDX quotes), jose (NVIDIA attestation JWTs), near-sdk and near-contract-standards (Rust). Onchain: NEAR's global FT and Sputnik DAO v2 contracts, and the NEAR Intents Verifier ([near/intents](https://github.com/near/intents), MIT), Signalfire's own testnet instance at `signalfire-intents.testnet`.
-
-## Other submission
-
-Under the hackathon's rule on multiple entries (Q-015), the author's other submission is the
-**[NEAR Arcade](https://github.com/lopeselio/near-arcade)** (https://arcade.lopeselio.online): nine onchain games,
-each with its own repo, NEAR testnet contract and `pnpm verify`. Signalfire is a separate project and shares no
-contracts or accounts with them.
 
 ## License
 
