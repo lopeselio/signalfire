@@ -27,6 +27,12 @@ const host = new URL(base).host;
 // 1. sign in, as a wallet would
 let cookie = '';
 async function post<T>(path: string, body: unknown): Promise<T> {
+  // the hosted ingress answers 502/503 now and then: try again
+  for (let i = 0; ; i++) {
+    try { return await postOnce<T>(path, body); } catch (e) { if (i >= 5 || !/: 50\d$/.test((e as Error).message)) throw e; await sleep(3000); }
+  }
+}
+async function postOnce<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', origin, cookie }, body: JSON.stringify(body) });
   const set = res.headers.getSetCookie?.() ?? [];
   if (set.length) cookie = [...new Map([...cookie.split('; ').filter(Boolean), ...set.map((c) => c.split(';')[0])].map((c) => [c.split('=')[0], c])).values()].join('; ');
@@ -35,10 +41,19 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return data;
 }
 const near = new Near({ network: 'testnet', privateKey: privateKey(who) as `ed25519:${string}`, defaultSignerId: who });
-const { nonce } = await post<{ nonce: string }>('/api/ba/near/nonce', { accountId: who, networkId: 'testnet' });
-const message = `Sign in to ${host}`;
-const signedMessage = await near.signMessage({ message, recipient: host, nonce: Uint8Array.from(Buffer.from(nonce, 'hex')) }, { signerId: who });
-await post('/api/ba/near/verify', { signedMessage, message, recipient: host, nonce, accountId: who });
+// the server checks the account and its key over public RPC, which rate-limits: try the whole sign-in again
+for (let i = 0; ; i++) {
+  try {
+    const { nonce } = await post<{ nonce: string }>('/api/ba/near/nonce', { accountId: who, networkId: 'testnet' });
+    const message = `Sign in to ${host}`;
+    const signedMessage = await near.signMessage({ message, recipient: host, nonce: Uint8Array.from(Buffer.from(nonce, 'hex')) }, { signerId: who });
+    await post('/api/ba/near/verify', { signedMessage, message, recipient: host, nonce, accountId: who });
+    break;
+  } catch (e) {
+    if (i >= 8) throw e;
+    await sleep(5000);
+  }
+}
 log(`${who}: signed in to ${host}`);
 
 if (await view<unknown>('get_creator', { account: who }).catch(() => null)) { log(`${who} is already an admitted creator`); process.exit(0); }
