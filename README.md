@@ -173,28 +173,41 @@ fallback text, marked unsigned.
    It fetches only the proof bundle (bid openings, pitches, reports, signatures) from the server and reads the hub,
    the DAO and the NFTs over public RPC itself. The model's attestation comes from NEAR AI Cloud, Intel's collateral
    from Phala's PCCS, and NVIDIA's verdict from NRAS, all directly.
-11. **Cash out tUSD through NEAR Intents** (a script; needs the creator's and the operator's keys):
-    `pnpm intents-swap <creator account> [tUSD raw]`. The creator swaps its tUSD earnings for NEAR with the operator's
-    desk, which quotes the hub's fixed test rate (1 NEAR = 3 tUSD, `nearForTusd` in `packages/core`). Both deposit into
-    the NEAR Intents Verifier (our testnet deployment of [near/intents](https://github.com/near/intents),
-    `bazaar-intents.testnet`, shared with the author's other project), each to its own identity (the implicit account
-    of its key); each signs one NEP-413 `token_diff` (creator: −tUSD +wNEAR, desk: +tUSD −wNEAR) plus an
-    `ft_withdraw`; one `execute_intents` checks both signatures and that the diffs cancel, then pays both sides out.
-    No treasury money is involved: it's the creator's own tUSD and the operator's own NEAR. Live run (the 0.045 tUSD
-    `sf-pat` earned on campaign #2):
+11. **Cash out tUSD through NEAR Intents, in the web app.** Signed in as a creator who earned tUSD, open
+    **Creators**: the **Cash out your tUSD through NEAR Intents** panel shows your tUSD and the NEAR you'd receive at
+    the hub's fixed test rate (1 NEAR = 3 tUSD, `nearForTusd` in `packages/core`). Click **Cash out**:
+    1. your wallet confirms an `ft_transfer_call` that deposits the tUSD into the Verifier for your own account;
+    2. your wallet signs one NEP-413 intent for the Verifier: `token_diff` (−tUSD, +wNEAR) and `native_withdraw`
+       (that NEAR, to you). The first time, it also confirms `add_public_key` so the Verifier knows your wallet's key;
+    3. the server checks the signed message is exactly that cash-out (`checkCashOut` in `packages/core`: your account,
+       your amount, paid to you, the Verifier as recipient, due within 15 minutes). The desk
+       (`signalfire-desk.testnet`) signs its side (+tUSD −wNEAR), and one `execute_intents` settles both or neither.
+       You see the NEAR arrive and a link to the transaction, and the wire logs it.
+
+    **Where the Verifier is.** NEAR Intents (`intents.near`) is mainnet-only; there is no Intents deployment on testnet.
+    Signalfire deploys its own instance of the open-source [near/intents](https://github.com/near/intents) Verifier
+    on testnet at [`signalfire-intents.testnet`](https://testnet.nearblocks.io/address/signalfire-intents.testnet)
+    ([deploy + init](https://testnet.nearblocks.io/txns/8Lp695ngaMm5XseinFv7yZpKLUVfdphpFcdVxeCA6dxN): fee 0, wNEAR =
+    `wrap.testnet`, code hash `3Trdk9S3GqVygezZjjshYP7r8GWisgaob1bFTaqZd9au`). It is not shared with any other project.
+    The desk is the only counterparty (no solver network), and no treasury money is involved: it's the creator's own
+    tUSD and the desk's own NEAR.
+
+    Same flow from a terminal, with a test account's own key (the calls and the signed message are the web app's):
+    `pnpm cashout-check <account>`. Live run:
 
     ```
-    [  23s] sf-pat.signalfire-ref.testnet deposited 0.045 tUSD into the Verifier
-    [  24s] in the Verifier: creator 45000 raw tUSD, desk 0.015 wNEAR
-    [  25s] both sides signed (NEP-413, salt e70c3e74); simulating
-    [  28s] the Verifier settled the swap: execute_intents
-    [  31s] sf-pat.signalfire-ref.testnet unwrapped 0.015 NEAR
+    signalfire-ref.testnet: 0.045 tUSD in the wallet, 0 already in the Verifier; cashing out 0.045 tUSD for 0.015 NEAR
+    deposited 0.045 tUSD into the Verifier for signalfire-ref.testnet
+    registered ed25519:CukLEEWGW7… with the Verifier
+    signed the cash-out intent (NEP-413, salt 8ce9d84c)
+    the Verifier settled the cash-out: execute_intents
+    signalfire-ref.testnet's NEAR: 5.313918 → 5.328918 (+0.015 NEAR from the desk, less gas)
     ```
 
-    [desk's wNEAR deposit](https://testnet.nearblocks.io/txns/GpB9FTV3DraPy2cgymw893WSS3LPommuBGQqg89aC4E7),
-    [creator's tUSD deposit](https://testnet.nearblocks.io/txns/DSePgQaPQj2iTdpNrXi4VpbNmRq4HVpZUr4QL8NScPfZ),
-    [`execute_intents`](https://testnet.nearblocks.io/txns/3LNPBDdr9Yoa5JaxyXayt1C4izbJs4Szkj9GUkkUt9J4),
-    [unwrap](https://testnet.nearblocks.io/txns/eQMjnSmLTff95bGyM3ZRZYbhXkXRF8CwtAMMvX2KcWT).
+    [deposit](https://testnet.nearblocks.io/txns/7TJtS3QNB95g4grYhdzuDMhQLN62ppRjqG6A59dU7yfE),
+    [`add_public_key`](https://testnet.nearblocks.io/txns/8gKy1pqx9pkkzbroxXtLa9vxN8hcMZ948qbroLxEh7wm),
+    [`execute_intents`](https://testnet.nearblocks.io/txns/wDqtxwgP1v8TucRv5bZSkodQfHuaE4qxJ3WqFMzHjJ9).
+    `pnpm intents-swap <account>` is the earlier variant where both sides sign with implicit-account identities.
 
 ## Tracks, honestly
 
@@ -266,7 +279,8 @@ pnpm e2e              # the whole loop on testnet (needs the operator's and agen
 pnpm verify <id> [url]  # re-check a campaign against the chain, no keys needed
 pnpm thesis [url] [--json]  # the thesis evidence, recomputed from public and archival RPC, no keys needed
 pnpm human-bid <account> [url]  # a person's sealed bid end to end (the account's own full-access key)
-pnpm intents-swap <account> [tUSD raw]  # cash tUSD out for NEAR through the NEAR Intents Verifier
+pnpm cashout-check <account> [tUSD raw]  # the web app's NEAR Intents cash-out, from a terminal with the account's key
+pnpm intents-swap <account> [tUSD raw]  # cash tUSD out for NEAR through the NEAR Intents Verifier (implicit identities)
 ```
 
 ## Deploying
@@ -282,7 +296,7 @@ pnpm intents-swap <account> [tUSD raw]  # cash tUSD out for NEAR through the NEA
 
 - **Inspiration.** The idea is adapted from the Solana Foundation's request for startups "Attention tokens for startup distribution", rebuilt natively on NEAR (NEP-141 global FT, Sputnik DAO v2 via global contracts, function-call-key agents, NEAR AI Cloud TEE models, NEP-171, NEP-366). No code from any Solana project.
 - **Other submission.** The same author also submitted the **NEAR Arcade** ([github.com/lopeselio/near-arcade](https://github.com/lopeselio/near-arcade)), a separate, independent project (a set of games). Signalfire shares no contract, rules or server with it; it reuses the author's own patterns for wallet sign-in (Better Auth + better-near-auth), NEAR AI proofs, Sputnik DAO setup and Azure deployment.
-- **Libraries:** React, Vite, better-auth and better-near-auth, near-api-js, near-kit, @noble/hashes, @noble/curves, @phala/dcap-qvl (Intel TDX quotes), jose (NVIDIA attestation JWTs), near-sdk and near-contract-standards (Rust). Onchain: NEAR's global FT and Sputnik DAO v2 contracts, and the NEAR Intents Verifier ([near/intents](https://github.com/near/intents), MIT) as deployed by the author at `bazaar-intents.testnet`.
+- **Libraries:** React, Vite, better-auth and better-near-auth, near-api-js, near-kit, @noble/hashes, @noble/curves, @phala/dcap-qvl (Intel TDX quotes), jose (NVIDIA attestation JWTs), near-sdk and near-contract-standards (Rust). Onchain: NEAR's global FT and Sputnik DAO v2 contracts, and the NEAR Intents Verifier ([near/intents](https://github.com/near/intents), MIT), Signalfire's own testnet instance at `signalfire-intents.testnet`.
 
 ## License
 
