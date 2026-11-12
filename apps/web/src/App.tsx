@@ -3,6 +3,7 @@ import { fmtTokens } from '@signalfire/core';
 import { api, txUrl, type Me, type State } from './api.ts';
 import { Creators } from './Creators.tsx';
 import { Dashboard } from './Dashboard.tsx';
+import { Discover } from './Discover.tsx';
 import { Landing } from './Landing.tsx';
 import { Launch } from './Launch.tsx';
 import { Onboarding, seenOnboarding } from './Onboarding.tsx';
@@ -10,14 +11,15 @@ import { StartupPage } from './Startup.tsx';
 import { Ctx, Flame, shortAcct, type AppCtx } from './ui.tsx';
 import { signIn as walletSignIn, signOut } from './wallet.ts';
 
-// The shell: routing by path (/, /s/:id, /creators, /dashboard, /launch), the header, polling and toasts.
+// The shell: routing by path (/, /discover, /s/:id, /creators, /dashboard, /launch), the header, polling and toasts.
 
-type Route = { page: 'home' } | { page: 'startup'; id: string } | { page: 'creators' } | { page: 'dashboard' } | { page: 'launch' };
+type Route = { page: 'home' } | { page: 'startup'; id: string } | { page: 'creators' } | { page: 'discover' } | { page: 'dashboard' } | { page: 'launch' };
 function parse(): Route {
   const p = location.pathname;
   const m = /^\/s\/([a-z0-9]{2,8})\/?$/.exec(p);
   if (m) return { page: 'startup', id: m[1] };
   if (p.startsWith('/creators')) return { page: 'creators' };
+  if (p.startsWith('/discover')) return { page: 'discover' };
   if (p.startsWith('/dashboard')) return { page: 'dashboard' };
   if (p.startsWith('/launch')) return { page: 'launch' };
   return { page: 'home' };
@@ -105,7 +107,7 @@ export function App() {
           <a href="/" className="brand" onClick={(e) => { e.preventDefault(); go('/'); }}><Flame /> Signalfire</a>
           <span className="testnet" title="Everything here runs on NEAR testnet. No real money.">testnet</span>
           <nav className={`nav${menu ? ' open' : ''}`}>
-            {link(`/s/${demo}`, demo.toUpperCase(), route.page === 'startup')}
+            {link('/discover', 'Discover', route.page === 'discover' || route.page === 'startup')}
             {link('/creators', 'Creators', route.page === 'creators')}
             {link('/dashboard', 'Dashboard', route.page === 'dashboard')}
             {account && link('/launch', 'Launch', route.page === 'launch')}
@@ -132,6 +134,7 @@ export function App() {
         {!state && stateError && <div className="error-box">Couldn’t reach the Signalfire server ({stateError}). It retries every 5 seconds.</div>}
         {state && route.page === 'home' && <Landing />}
         {state && route.page === 'startup' && <StartupPage id={route.id} />}
+        {state && route.page === 'discover' && <Discover />}
         {state && route.page === 'creators' && <Creators />}
         {state && route.page === 'dashboard' && <Dashboard />}
         {state && route.page === 'launch' && <Launch />}
