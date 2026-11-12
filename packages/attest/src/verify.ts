@@ -10,8 +10,10 @@ import type { AttestationReport, Candidate, Check, ModelAttestation, ModelVerifi
 export const NEARAI_API = 'https://cloud-api.near.ai';
 export const newNonce = (): string => hex(randomBytes(32));
 
-export async function fetchReport(model: string, nonce: string): Promise<AttestationReport> {
-  const url = `${NEARAI_API}/v1/attestation/report?model=${encodeURIComponent(model)}&signing_algo=ecdsa&nonce=${nonce}`;
+export type SigningAlgo = 'ecdsa' | 'ed25519';
+
+export async function fetchReport(model: string, nonce: string, algo: SigningAlgo = 'ecdsa'): Promise<AttestationReport> {
+  const url = `${NEARAI_API}/v1/attestation/report?model=${encodeURIComponent(model)}&signing_algo=${algo}&nonce=${nonce}`;
   const res = await fetch(url, { headers: { accept: 'application/json', 'x-no-aliasing': 'true' } });
   if (!res.ok) throw new Error(`attestation report: HTTP ${res.status}`);
   return (await res.json()) as AttestationReport;
@@ -22,6 +24,8 @@ export interface VerifyOptions {
   /** collateral to use instead of fetching it (tests) */
   collateral?: (quoteHex: string) => Promise<Collateral>;
   nowSecs?: number;
+  /** ecdsa (reply signatures) or ed25519 (the key end-to-end encrypted requests are sealed to) */
+  algo?: SigningAlgo;
   /** skip the NVIDIA call (tests) */
   skipGpu?: boolean;
 }
@@ -29,7 +33,9 @@ export interface VerifyOptions {
 export async function verifyCandidate(a: ModelAttestation, model: string, nonce: string, o: VerifyOptions = {}): Promise<Candidate> {
   const checks: Check[] = [
     { id: 'report.model', label: `The report is for ${model}`, ok: a.model_name === model },
-    { id: 'report.algo', label: 'Signing algorithm is ECDSA (secp256k1)', ok: a.signing_algo === 'ecdsa' },
+    (o.algo ?? 'ecdsa') === 'ecdsa'
+      ? { id: 'report.algo', label: 'Signing algorithm is ECDSA (secp256k1)', ok: a.signing_algo === 'ecdsa' }
+      : { id: 'report.algo', label: 'Signing algorithm is Ed25519 (its key is the one requests are encrypted to)', ok: a.signing_algo === 'ed25519' && (a as { signing_public_key?: string }).signing_public_key?.toLowerCase() === a.signing_address.toLowerCase().replace(/^0x/, '') },
   ];
   const measurements: Candidate['measurements'] = {};
   try {
@@ -61,5 +67,5 @@ export async function verifyReport(report: AttestationReport, model: string, non
 /** Picks a fresh nonce, fetches the model's report from NEAR AI Cloud and verifies every candidate. */
 export async function attestModel(model: string, o: VerifyOptions = {}): Promise<ModelVerification> {
   const nonce = newNonce();
-  return verifyReport(await fetchReport(model, nonce), model, nonce, o);
+  return verifyReport(await fetchReport(model, nonce, o.algo), model, nonce, o);
 }

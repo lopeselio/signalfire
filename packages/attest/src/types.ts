@@ -72,4 +72,6 @@ export interface SignedReply {
   signedText?: string;
   signature?: string;
   signingAddress?: string;
+  /** 'ed25519' for end-to-end encrypted requests; ecdsa otherwise */
+  signingAlgo?: string;
 }

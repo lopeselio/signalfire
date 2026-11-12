@@ -1,3 +1,4 @@
+import { ed25519 } from '@noble/curves/ed25519.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { bytesToHex, concatBytes, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js';
@@ -23,11 +24,17 @@ export function replyChecks(r: SignedReply, v: ModelVerification | null): Check[
   if (!r.signature || !r.signedText || !r.signingAddress) return [{ id: 'reply.signed', label: 'The reply carries a TEE signature', ok: false, detail: 'unsigned (written without NEAR AI)' }];
   const want = `${r.model}:${sha256Hex(r.request)}:${sha256Hex(r.response)}`;
   let who = '';
-  try { who = recoverAddress(r.signedText, r.signature); } catch { /* fails below */ }
-  const matches = v ? v.candidates.filter((c) => c.ok && c.signingAddress.toLowerCase() === who) : [];
+  if (r.signingAlgo === 'ed25519') {
+    // Ed25519: the signing address is the public key itself; check the signature against it
+    const pub = r.signingAddress.toLowerCase().replace(/^0x/, '');
+    try { if (ed25519.verify(hexToBytes(r.signature.replace(/^0x/, '')), utf8ToBytes(r.signedText), hexToBytes(pub))) who = pub; } catch { /* fails below */ }
+  } else {
+    try { who = recoverAddress(r.signedText, r.signature); } catch { /* fails below */ }
+  }
+  const matches = v ? v.candidates.filter((c) => c.ok && c.signingAddress.toLowerCase().replace(/^0x/, '') === who.replace(/^0x/, '')) : [];
   return [
     { id: 'reply.payload', label: 'The signature covers this exact request and reply (their sha256 hashes)', ok: r.signedText === want },
-    { id: 'reply.signer', label: 'The signature recovers to the model’s signing address', ok: who !== '' && who === r.signingAddress.toLowerCase(), detail: who || undefined },
+    { id: 'reply.signer', label: r.signingAlgo === 'ed25519' ? 'The Ed25519 signature checks against the model’s signing key' : 'The signature recovers to the model’s signing address', ok: who !== '' && who.replace(/^0x/, '') === r.signingAddress.toLowerCase().replace(/^0x/, ''), detail: who || undefined },
     { id: 'reply.attested', label: 'That address belongs to exactly one TEE report verified above', ok: matches.length === 1, detail: v ? `${matches.length} match(es)` : 'no verified report' },
   ];
 }
