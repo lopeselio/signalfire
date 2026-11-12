@@ -8,7 +8,7 @@ import { api } from './api.ts';
 // only the GPU evidence goes through our server, because NVIDIA refuses browsers; NVIDIA's answer is signed,
 // so it is checked here too. One attestation per model per page load; each reply's signature is checked against it.
 
-export type ReplySource = { kind: 'vetting' | 'private'; account: string } | { kind: 'pitch'; campaign: number; creator: string };
+export type ReplySource = { kind: 'vetting' | 'private'; account: string } | { kind: 'pitch'; campaign: number; creator: string } | { kind: 'brief'; startup: string };
 
 export const lib = () => import('@signalfire/attest');
 const runs = new Map<string, Promise<ModelVerification>>();
@@ -36,7 +36,7 @@ function useCheck(src: ReplySource, model: string) {
   useEffect(() => {
     let live = true;
     setRes(null);
-    const path = src.kind === 'pitch' ? `/reply/pitch/${src.campaign}/${src.creator}` : `/reply/${src.kind}/${src.account}`;
+    const path = src.kind === 'pitch' ? `/reply/pitch/${src.campaign}/${src.creator}` : src.kind === 'brief' ? `/reply/brief/${src.startup}` : `/reply/${src.kind}/${src.account}`;
     void (async () => {
       const a = await lib();
       const reply = await api<SignedReply>(path).catch(() => null);
@@ -46,7 +46,7 @@ function useCheck(src: ReplySource, model: string) {
       if (live) setRes({ verification, error, reply, replyChecks: reply ? a.replyChecks(reply, verification) : [{ id: 'reply', label: 'The signed reply is published', ok: false }] });
     })();
     return () => { live = false; };
-  }, [src.kind, (src as { account?: string }).account, (src as { campaign?: number }).campaign, (src as { creator?: string }).creator, model, n]);
+  }, [src.kind, (src as { account?: string }).account, (src as { campaign?: number }).campaign, (src as { creator?: string }).creator, (src as { startup?: string }).startup, model, n]);
   const status: Status = !res ? 'checking' : res.verification?.ok && res.replyChecks.every((c) => c.ok) ? 'ok' : 'bad';
   return { res, status, again: () => setN((x) => x + 1) };
 }
