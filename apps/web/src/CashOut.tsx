@@ -61,7 +61,7 @@ export function CashOut() {
   };
 
   return (
-    <section className="panel cashout">
+    <section className="panel cashout" data-tour="cashout">
       <h2>Cash out your tUSD through NEAR Intents</h2>
       <p className="small">
         Campaign payouts arrive as tUSD (a labelled test stablecoin). Swap them for NEAR at the hub’s fixed test rate,
