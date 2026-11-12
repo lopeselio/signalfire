@@ -57,9 +57,20 @@ fallback text, marked unsigned.
    state), receipt NFTs (`receipt:0`, `receipt:1`), tUSD earned, wallet caps, and the scout's vetting report with its
    TEE badge. Signed in, **Become a creator** funds your hub wallet, applies (the scout's 0.01 NEAR fee goes into
    escrow), and the scout vets you within a minute.
-6. **Dashboard (`/dashboard`).** Read live from the chain: totals, the startups table, cost per result for each
+6. **Bid as a person.** Once admitted, open `/s/glow`, tab **Treasury and campaigns**: every campaign taking bids shows
+   **Your sealed bid**. Type a price (the panel shows the credible range and your reputation-weighted score) and a
+   pitch, click **Seal bid**: your browser draws a random salt, computes
+   `sha256("signalfire|bid|<campaign>|<you>|<price>|<pitch_hash>|<salt>")` with `packages/core` (the agents' code),
+   keeps the opening in localStorage, and sends only the hash with `commit_bid` (no deposit, so gasless through the
+   relayer; the 0.02 NEAR bond comes from your Signalfire wallet). **Download the opening** keeps a copy; a browser
+   without it can import the file. In the reveal window, **Reveal my bid** sends `reveal_bid` and publishes the
+   opening (`POST /api/opening`, accepted only if the chain shows the bid revealed and it hashes to the commitment),
+   so `pnpm verify` checks your bid like the agents'. The panel walks committed → revealed → won/lost, then the
+   settle result (DAO vote, milestones, tUSD paid). Same thing from a terminal, with a test account's own key:
+   `pnpm human-bid <account> <url>`.
+7. **Dashboard (`/dashboard`).** Read live from the chain: totals, the startups table, cost per result for each
    completed campaign, creators' records, the hub's solvency (everything it owes vs its balance), and the thesis.
-7. **Watch a campaign happen.** With the server running and keys present, the founder agent posts a brief every few
+8. **Watch a campaign happen.** With the server running and keys present, the founder agent posts a brief every few
    minutes when nothing is running (`AUTO_BRIEFS=1`). Or run the whole loop yourself:
 
    ```
@@ -87,7 +98,7 @@ fallback text, marked unsigned.
    [attributed buy](https://testnet.nearblocks.io/txns/HoG1eC8Lu7tXUFgZqcNs7gkDdMUeFReuNexPqbfVDTTv),
    [milestone 1 in tUSD](https://testnet.nearblocks.io/txns/EagbQf51KhYUwCzGwepwWiKhvJ3K67rxvAz4mZa7fhaS),
    [milestone 3 + receipt NFT](https://testnet.nearblocks.io/txns/HqYnDaLEWdNXUenBBYy5vbGztXtiJodTL9JuJFPqG3Wv).
-8. **Check it yourself**, with no keys and without trusting our server:
+9. **Check it yourself**, with no keys and without trusting our server:
 
    ```
    pnpm verify 1 http://localhost:8861
@@ -160,13 +171,14 @@ contracts/hub     Rust near-sdk 5.29: launchpad, curve market, treasuries, spend
 ## Tests
 
 ```bash
-pnpm test             # packages/core: 22 tests (curve, hashes, scoring, milestones, policy, lookalikes; the shared vector)
+pnpm test             # packages/core: 28 tests (curve, hashes, sealed openings, scoring, milestones, policy, wallets, lookalikes; the shared vector)
 pnpm contract:test    # contracts/hub: 36 tests (the same shared vector, launch, trades and unwinds, wallets and caps,
                       # vetting and lookalikes, auctions, DAO-only funding, attribution, milestones, held payouts,
                       # failed transfers, expiry, soulbound and dynamic NFTs, solvency)
 pnpm typecheck
 pnpm e2e              # the whole loop on testnet (needs the operator's and agents' keys)
 pnpm verify <id> [url]  # re-check a campaign against the chain, no keys needed
+pnpm human-bid <account> [url]  # a person's sealed bid end to end (the account's own full-access key)
 ```
 
 ## Deploying
