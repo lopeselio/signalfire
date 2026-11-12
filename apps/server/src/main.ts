@@ -2,9 +2,9 @@ import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 import { fmtTusd, openingMatches, pitchHash, priceAt } from '@signalfire/core';
-import { BRIEF_EVERY_MS, BRIEF_SAME_STARTUP_MS, outlayerRuns, startAgents } from './agents.ts';
+import { BRIEF_EVERY_MS, BRIEF_SAME_STARTUP_MS, outlayerRequestId, outlayerRuns, startAgents } from './agents.ts';
 import { BA_PATH, accountFromHeaders, authHandler } from './ba.ts';
-import { view } from './chain.ts';
+import { rpc, view } from './chain.ts';
 import { config, explorerTx, hasKey } from './config.ts';
 import { evidenceRoute } from './evidence/routes.ts';
 import { ftBalance } from './hub.ts';
@@ -16,7 +16,7 @@ import { buildProof, vettingProof } from './proof.ts';
 import { computeThesis, type Thesis } from './thesis.ts';
 import { cashOutInfo, settleCashOut, type CashOutRequest } from './cashout.ts';
 import { latest as snapshot, type Snapshot } from './snapshot.ts';
-import { addWire, bidsFor, getState, getWire, loadBid, loadVetting, pendingApplicants, saveBid, savePrivateApp, setPendingApplicants } from './store.ts';
+import { addWire, bidsFor, getState, getWire, loadBid, loadVetting, pendingApplicants, saveBid, savePrivateApp, setPendingApplicants, setState } from './store.ts';
 
 // ---------- tiny HTTP helpers ----------
 
@@ -209,6 +209,23 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       if (near) return json(res, 200, await view('quote_buy', { startup, near, account: account || null }));
       if (tokens) return json(res, 200, await view('quote_sell', { startup, tokens }));
       return json(res, 400, { error: 'near or tokens' });
+    }
+    m = /^\/api\/campaign\/(\d{1,6})\/sealed-run$/.exec(p);
+    if (m && post) {
+      // anyone who cranked score_sealed themselves tells us the transaction; we read it from the chain, check it is
+      // the hub's score_sealed for this campaign, and keep OutLayer's request id from its logs (for the attestation)
+      const id = Number(m[1]);
+      const { tx, signer } = await body<{ tx?: string; signer?: string }>(req, 500);
+      if (typeof tx !== 'string' || !/^[1-9A-HJ-NP-Za-km-z]{43,44}$/.test(tx) || typeof signer !== 'string' || !/^[a-z0-9._-]{2,64}$/.test(signer)) return json(res, 400, { error: 'tx, signer' });
+      const t = await rpc<{ transaction: { receiver_id: string; actions: { FunctionCall?: { method_name: string; args: string } }[] }; receipts_outcome: { outcome: { logs: string[] } }[] }>('tx', { tx_hash: tx, sender_account_id: signer, wait_until: 'FINAL' });
+      const fc = t.transaction.actions[0]?.FunctionCall;
+      const args = fc ? JSON.parse(Buffer.from(fc.args, 'base64').toString('utf8')) as { campaign_id?: number } : {};
+      if (t.transaction.receiver_id !== config.hub || fc?.method_name !== 'score_sealed' || args.campaign_id !== id) return json(res, 400, { error: 'not a score_sealed call for this campaign' });
+      const requestId = outlayerRequestId(t.receipts_outcome.flatMap((r) => r.outcome.logs));
+      if (requestId === null) return json(res, 400, { error: 'no OutLayer request in that transaction' });
+      const runs = outlayerRuns();
+      if (!(runs[id] ?? []).some((r) => r.tx === tx)) setState('outlayer-runs', { ...runs, [id]: [...(runs[id] ?? []), { requestId, tx, at: Date.now() }] });
+      return json(res, 200, { ok: true, requestId });
     }
     m = /^\/api\/campaign\/(\d{1,6})\/sealed$/.exec(p);
     if (m) {

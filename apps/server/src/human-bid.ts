@@ -10,10 +10,11 @@
 // Then: pnpm verify <campaign> <baseUrl>.
 import { randomBytes } from 'node:crypto';
 import { BID_BOND, VET_FEE, fmtNear, parseNear, sealBid } from '@signalfire/core';
+import { sealBid as sealForScorer } from '@signalfire/attest';
 import { vet } from './agents.ts';
 import { call, view } from './chain.ts';
 import type { Campaign } from './hub.ts';
-import { explorerTx, hasKey } from './config.ts';
+import { config, explorerTx, hasKey } from './config.ts';
 import { getCampaign, getCampaigns, getStartup, getWallet } from './hub.ts';
 import { invalidate, snapshot } from './snapshot.ts';
 import { SCOUT } from './personas.ts';
@@ -66,19 +67,42 @@ const budget = BigInt(open.budget);
 log(`joining campaign #${id} "${open.title}" for ${st.name}: ${fmtNear(budget)} NEAR for ${open.target} new holders`);
 const price = (budget * BigInt(st.constraints.min_bid_bps + 500)) / 10_000n;
 const opening = sealBid(id, who, price, `Pat will post a hand-written note about ${st.name} on three campus boards and a small Discord, with the link.`, randomBytes(32).toString('hex'));
-const commit = await call(who, 'commit_bid', { campaign_id: id, hash: opening.hash }, 30);
-log(`${who}: sealed a bid (hash ${opening.hash.slice(0, 16)}…; price and pitch kept locally)`, commit.tx);
-
-// 3. the reveal
+// a brief scored by OutLayer takes bids encrypted for the TEE (no reveal); any other brief is commit-reveal
+const book = await view<{ bid_key: string } | null>('get_sealed', { campaign_id: id }).catch(() => null);
+const scorer = await view<{ bid_key: string | null } | null>('get_scorer', {}).catch(() => null);
+const teeKey = book?.bid_key ?? (open.bids.length === 0 ? scorer?.bid_key ?? null : null);
 let c = (await getCampaign(id))!;
-while (Date.now() < c.commit_ends_ms + 4000) await sleep(2000);
-const rev = await call(who, 'reveal_bid', { campaign_id: id, price: opening.price, pitch_hash: opening.pitchHash, salt: opening.salt }, 30);
-log(`${who}: revealed ${fmtNear(price)} NEAR`, rev.tx);
-for (let k = 0; k < 6; k++) {
-  const res = await fetch(`${base}/api/opening`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ campaign: id, creator: who, price: opening.price, pitch: opening.pitch, salt: opening.salt }) });
-  if (res.ok) { log(`published the opening to ${base}: ${JSON.stringify(await res.json())}`); break; }
-  log(`opening not accepted yet (${res.status}: ${(await res.json() as { error?: string }).error}); retrying`);
-  await sleep(3000);
+if (teeKey) {
+  const ciphertext = sealForScorer(teeKey, config.hub, id, who, { price: opening.price, pitch_hash: opening.pitchHash, salt: opening.salt });
+  const commit = await call(who, 'commit_sealed_bid', { campaign_id: id, hash: opening.hash, ciphertext }, 30);
+  log(`${who}: sealed a bid for the TEE (hash ${opening.hash.slice(0, 16)}…; the price is encrypted to the scorer's key ${teeKey.slice(0, 12)}… and is never revealed)`, commit.tx);
+  // 3. no reveal: OutLayer scores the brief when bidding closes (the server's loop asks; after a minute we ask ourselves)
+  while (Date.now() < c.commit_ends_ms + 60_000 && (await getCampaign(id))!.phase === 'bidding') await sleep(5000);
+  if ((await getCampaign(id))!.phase === 'bidding') {
+    const r = await call(who, 'score_sealed', { campaign_id: id }, 300, parseNear('0.02'));
+    log(`${who}: asked OutLayer to score the sealed bids (anyone may)`, r.tx);
+    await fetch(`${base}/api/campaign/${id}/sealed-run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tx: r.tx, signer: who }) }).catch(() => undefined);
+  }
+  for (let k = 0; k < 30 && (await getCampaign(id))!.phase === 'bidding'; k++) await sleep(5000);
+  if ((await getCampaign(id))!.winner === who) {
+    // the TEE opened the winning bid: publish the pitch text behind its pitch_hash
+    const res = await fetch(`${base}/api/opening`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ campaign: id, creator: who, price: opening.price, pitch: opening.pitch, salt: opening.salt }) });
+    log(`published the winning opening to ${base}: ${res.status}`);
+  }
+} else {
+  const commit = await call(who, 'commit_bid', { campaign_id: id, hash: opening.hash }, 30);
+  log(`${who}: sealed a bid (hash ${opening.hash.slice(0, 16)}…; price and pitch kept locally)`, commit.tx);
+  
+  // 3. the reveal
+  while (Date.now() < c.commit_ends_ms + 4000) await sleep(2000);
+  const rev = await call(who, 'reveal_bid', { campaign_id: id, price: opening.price, pitch_hash: opening.pitchHash, salt: opening.salt }, 30);
+  log(`${who}: revealed ${fmtNear(price)} NEAR`, rev.tx);
+  for (let k = 0; k < 6; k++) {
+    const res = await fetch(`${base}/api/opening`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ campaign: id, creator: who, price: opening.price, pitch: opening.pitch, salt: opening.salt }) });
+    if (res.ok) { log(`published the opening to ${base}: ${JSON.stringify(await res.json())}`); break; }
+    log(`opening not accepted yet (${res.status}: ${(await res.json() as { error?: string }).error}); retrying`);
+    await sleep(3000);
+  }
 }
 
 // 4. the settle and the result
