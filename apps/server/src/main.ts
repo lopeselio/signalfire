@@ -6,6 +6,7 @@ import { startAgents } from './agents.ts';
 import { BA_PATH, accountFromHeaders, authHandler } from './ba.ts';
 import { view } from './chain.ts';
 import { config, explorerTx, hasKey } from './config.ts';
+import { evidenceRoute } from './evidence/routes.ts';
 import { ftBalance } from './hub.ts';
 import { NRAS_URL } from '@signalfire/attest';
 import { attestation, modelE2eeKey, nearAiEnabled, type Signed } from './nearai.ts';
@@ -123,6 +124,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (p === BA_PATH || p.startsWith(`${BA_PATH}/`)) { await authHandler(req, res); return; }
     if (p === '/api/health') return json(res, 200, { ok: true, version: process.env.APP_VERSION ?? 'dev' });
     if (p === '/api/state') return json(res, 200, publicState(await snapshot()));
+    if ((p.startsWith('/api/evidence') || p.startsWith('/api/reply/brief/')) && (await evidenceRoute(req, res, p, () => accountFromHeaders(req.headers)))) return;
     if (p === '/api/wire') return json(res, 200, getWire().slice(0, 80).map((w) => ({ ...w, what: w.what.replace(/"(E2E [^"]+)"/, (_, t: string) => `"${showTitle({ id: w.campaign ?? 0, title: t })}"`), url: w.tx ? explorerTx(w.tx) : null })));
     if (p === '/api/thesis') {
       // recomputed at most every 10 minutes (it reads ~50 transactions from an archival RPC)
