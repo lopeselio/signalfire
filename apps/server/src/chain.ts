@@ -158,4 +158,28 @@ export async function accessKeys(accountId: string): Promise<{ public_key: strin
   } catch { return []; }
 }
 
+/** A raw JSON-RPC call with failover across the public RPCs (block, view_access_key, send_tx, tx status…). */
+export function rpc<T>(method: string, params: unknown): Promise<T> {
+  return slot(async () => {
+    let last: unknown;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const url = RPCS[attempt % RPCS.length];
+      try {
+        const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, signal: AbortSignal.timeout(30_000), body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) });
+        const j = (await res.json()) as { result?: T & { error?: string }; error?: { data?: unknown; message?: string; cause?: { name?: string } } };
+        if (j.result !== undefined && !(j.result as { error?: string }).error) return j.result as T;
+        const msg = JSON.stringify(j.error ?? (j.result as { error?: string })?.error ?? res.status);
+        // a definite answer (an invalid transaction, an unknown key or account): don't retry it elsewhere
+        if (/InvalidTransaction|InvalidNonce|Expired|UNKNOWN_ACCESS_KEY|UNKNOWN_ACCOUNT|does not exist|INVALID_TRANSACTION/i.test(msg)) throw Object.assign(new Error(`${method}: ${msg.slice(0, 200)}`), { refused: true });
+        last = new Error(`${method}: ${msg.slice(0, 200)}`);
+      } catch (e) {
+        if ((e as { refused?: boolean }).refused) throw e;
+        last = e;
+      }
+      await sleep(400 * (attempt + 1));
+    }
+    throw last;
+  });
+}
+
 export { provider };
