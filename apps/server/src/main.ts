@@ -11,6 +11,7 @@ import { NRAS_URL } from '@signalfire/attest';
 import { attestation, nearAiEnabled, type Signed } from './nearai.ts';
 import { CREATORS, HOLDERS, SCOUT } from './personas.ts';
 import { buildProof } from './proof.ts';
+import { computeThesis, type Thesis } from './thesis.ts';
 import { latest as snapshot, type Snapshot } from './snapshot.ts';
 import { addWire, bidsFor, getWire, loadBid, loadVetting, pendingApplicants, saveBid, setPendingApplicants } from './store.ts';
 
@@ -106,6 +107,7 @@ function publicState(s: Snapshot) {
 }
 
 const reply = (x: Signed) => ({ model: x.model, request: x.request, response: x.response, signedText: x.signedText ?? null, signature: x.signature ?? null, signingAddress: x.signingAddress ?? null, at: x.at });
+let thesisCache: { at: number; p: Promise<Thesis> } | null = null;
 
 // ---------- routes ----------
 
@@ -118,6 +120,11 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (p === '/api/health') return json(res, 200, { ok: true, version: process.env.APP_VERSION ?? 'dev' });
     if (p === '/api/state') return json(res, 200, publicState(await snapshot()));
     if (p === '/api/wire') return json(res, 200, getWire().slice(0, 80).map((w) => ({ ...w, what: w.what.replace(/"(E2E [^"]+)"/, (_, t: string) => `"${showTitle({ id: w.campaign ?? 0, title: t })}"`), url: w.tx ? explorerTx(w.tx) : null })));
+    if (p === '/api/thesis') {
+      // recomputed at most every 10 minutes (it reads ~50 transactions from an archival RPC)
+      if (!thesisCache || Date.now() - thesisCache.at > 600_000) thesisCache = { at: Date.now(), p: computeThesis(getWire()).catch((e) => { thesisCache = null; throw e; }) };
+      return json(res, 200, await thesisCache.p);
+    }
     if (p === '/api/audit') {
       const s = await snapshot();
       return json(res, 200, [...s.audit].reverse().map(showAudit));
