@@ -6,14 +6,14 @@ import { Dashboard } from './Dashboard.tsx';
 import { Discover } from './Discover.tsx';
 import { Landing } from './Landing.tsx';
 import { Launch } from './Launch.tsx';
-import { Onboarding, seenOnboarding } from './Onboarding.tsx';
+import { HowItWorks, Onboarding, seenOnboarding } from './tour/Onboarding.tsx';
 import { StartupPage } from './Startup.tsx';
 import { Ctx, Flame, shortAcct, type AppCtx } from './ui.tsx';
 import { signIn as walletSignIn, signOut } from './wallet.ts';
 
-// The shell: routing by path (/, /discover, /s/:id, /creators, /dashboard, /launch), the header, polling and toasts.
+// The shell: routing by path (/, /discover, /s/:id, /creators, /dashboard, /launch, /how), the header, polling and toasts.
 
-type Route = { page: 'home' } | { page: 'startup'; id: string } | { page: 'creators' } | { page: 'discover' } | { page: 'dashboard' } | { page: 'launch' };
+type Route = { page: 'home' } | { page: 'startup'; id: string } | { page: 'creators' } | { page: 'discover' } | { page: 'dashboard' } | { page: 'launch' } | { page: 'how' };
 function parse(): Route {
   const p = location.pathname;
   const m = /^\/s\/([a-z0-9]{2,8})\/?$/.exec(p);
@@ -22,6 +22,7 @@ function parse(): Route {
   if (p.startsWith('/discover')) return { page: 'discover' };
   if (p.startsWith('/dashboard')) return { page: 'dashboard' };
   if (p.startsWith('/launch')) return { page: 'launch' };
+  if (p.startsWith('/how')) return { page: 'how' };
   return { page: 'home' };
 }
 
@@ -68,7 +69,7 @@ export function App() {
     history.pushState(null, '', path);
     setRoute(parse());
     setMenu(false);
-    window.scrollTo({ top: 0 });
+    if (!location.hash) window.scrollTo({ top: 0 });
   }, []);
 
   const signIn = useCallback(async () => {
@@ -111,9 +112,10 @@ export function App() {
             {link('/creators', 'Creators', route.page === 'creators')}
             {link('/dashboard', 'Dashboard', route.page === 'dashboard')}
             {account && link('/launch', 'Launch', route.page === 'launch')}
+            {link('/how', 'How it works', route.page === 'how')}
           </nav>
           <div className="who">
-            <button className="ghost round" onClick={() => setHelp(true)} aria-label="How Signalfire works">?</button>
+            <button className="ghost round" data-tour="help" onClick={() => setHelp(true)} aria-label="Get started: pick your path">?</button>
             {account ? (
               <span className="me">
                 <span className="me-acct" title={account}>{shortAcct(account)}</span>
@@ -121,7 +123,7 @@ export function App() {
                 <button className="ghost small" onClick={() => void signOut().then(() => { setAccount(null); setMe(null); })}>Sign out</button>
               </span>
             ) : (
-              <button className="primary small" onClick={() => void signIn()}>Sign in</button>
+              <button className="primary small" data-tour="sign-in" onClick={() => void signIn()}>Sign in</button>
             )}
             <button className="ghost round burger" onClick={() => setMenu((m) => !m)} aria-label="Menu" aria-expanded={menu}>
               <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.6" /></svg>
@@ -138,11 +140,12 @@ export function App() {
         {state && route.page === 'creators' && <Creators />}
         {state && route.page === 'dashboard' && <Dashboard />}
         {state && route.page === 'launch' && <Launch />}
+        {state && route.page === 'how' && <HowItWorks />}
       </main>
       <footer className="foot">
         <p>Signalfire runs on NEAR testnet. The hub contract is <a href={`https://testnet.nearblocks.io/address/${state?.hub ?? 'signalfire.testnet'}`} target="_blank" rel="noreferrer">{state?.hub ?? 'signalfire.testnet'}</a>. Attention tokens are not equity and not a claim on revenue.</p>
       </footer>
-      {help && <Onboarding onClose={() => setHelp(false)} />}
+      <Onboarding open={help} onOpen={() => setHelp(true)} onClose={() => setHelp(false)} />
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => (
           <div key={t.id} className={`toast ${t.kind}`}>

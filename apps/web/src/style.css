@@ -395,12 +395,6 @@ blockquote { margin: 8px 0 0; padding-left: 12px; border-left: 2px solid var(--l
 /* overlays */
 .modal-bg { position: fixed; inset: 0; background: rgba(25, 22, 17, 0.42); backdrop-filter: blur(3px); display: grid; place-items: center; z-index: 50; padding: 16px; }
 .modal { background: var(--night-2); border: 1px solid var(--line); border-radius: 18px; padding: 26px; max-width: 480px; width: 100%; box-shadow: 0 30px 60px -20px rgba(25, 22, 17, 0.35); }
-.onboard h2 { font-size: 26px; }
-.onboard p { color: var(--ash-2); }
-.ob-n { color: var(--smoke); font-size: 13px; margin-bottom: 6px; }
-.ob-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 14px; }
-.ob-steps span { height: 3px; background: var(--night-3); border-radius: 2px; }
-.ob-steps span.on { background: var(--ember); }
 .toasts { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 60; max-width: min(420px, calc(100vw - 32px)); }
 .toast { background: var(--night-2); border: 1px solid var(--line); border-left: 3px solid var(--smoke); border-radius: 10px; padding: 10px 14px; font-size: 13.5px; overflow-wrap: anywhere; box-shadow: var(--shadow); }
 .toast.ok { border-left-color: var(--ok); }
