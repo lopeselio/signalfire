@@ -2,8 +2,9 @@
 //   pnpm human-bid <account> [baseUrl]        e.g. pnpm human-bid sf-bidder.signalfire-ref.testnet https://signalfire.lopeselio.online
 // <account> is an ordinary account with a full-access key in ~/.near-credentials (not a hub-made agent).
 // 1. it funds its Signalfire wallet and applies; the scout (its key, run here) vets it if needed
-// 2. the founder (operator) posts a brief; the person seals price + pitch with sealBid() and a random salt,
-//    keeps the opening, and sends only the hash (commit_bid)
+// 2. it joins a brief that is already open for bids (posted by a founder; it waits up to WAIT_MIN minutes for the
+//    server's founder agent to post one and never posts one itself); the person seals price + pitch with sealBid()
+//    and a random salt, keeps the opening, and sends only the hash (commit_bid)
 // 3. in the reveal window it reveals (reveal_bid) and posts the opening to <baseUrl>/api/opening
 // 4. it waits for the settle (the server's agent loop, or it cranks settle_auction itself) and prints the result.
 // Then: pnpm verify <campaign> <baseUrl>.
@@ -11,8 +12,9 @@ import { randomBytes } from 'node:crypto';
 import { BID_BOND, VET_FEE, fmtNear, parseNear, sealBid } from '@signalfire/core';
 import { vet } from './agents.ts';
 import { call, view } from './chain.ts';
-import { config, explorerTx, hasKey } from './config.ts';
-import { getCampaign, getStartup, getWallet } from './hub.ts';
+import type { Campaign } from './hub.ts';
+import { explorerTx, hasKey } from './config.ts';
+import { getCampaign, getCampaigns, getStartup, getWallet } from './hub.ts';
 import { invalidate, snapshot } from './snapshot.ts';
 import { SCOUT } from './personas.ts';
 import { pendingApplicants, setPendingApplicants } from './store.ts';
@@ -22,7 +24,7 @@ if (!who) { console.error('usage: pnpm human-bid <account> [baseUrl]'); process.
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const t0 = Date.now();
 const log = (s: string, tx?: string): void => console.log(`[${String(Math.round((Date.now() - t0) / 1000)).padStart(4)}s] ${s}${tx ? `\n        ${explorerTx(tx)}` : ''}`);
-const budget = parseNear(process.env.BUDGET ?? '0.06');
+const waitMs = Number(process.env.WAIT_MIN ?? '60') * 60_000;
 
 // 1. a wallet and admission
 const isCreator = async (): Promise<boolean> => !!(await view<unknown>('get_creator', { account: who }).catch(() => null));
@@ -50,16 +52,20 @@ if (!w || BigInt(w.balance) < BID_BOND) {
   log(`${who}: topped the wallet up for the bond`, r.tx);
 }
 
-// 2. a brief from the founder, then the sealed bid
-const st = (await getStartup(config.demo))!;
-const brief = await call<number>(config.operator, 'create_campaign', {
-  startup: st.id, title: 'A person bids', brief: 'Bring one student who has never held GLOW to buy a little through your link.',
-  target: 1, budget: budget.toString(), commit_secs: 120, reveal_secs: 90, duration_secs: 1800,
-}, 30);
-const id = brief.value;
-log(`founder posted campaign #${id}: ${fmtNear(budget)} NEAR for 1 new holder`, brief.tx);
+// 2. an open brief, then the sealed bid
+let open: Campaign | undefined;
+for (const until = Date.now() + waitMs; !open && Date.now() < until;) {
+  const all = await getCampaigns().catch(() => [] as Campaign[]);
+  open = all.find((x) => x.phase === 'bidding' && x.commit_ends_ms - Date.now() > 20_000 && !x.bids.some((b) => b.creator === who));
+  if (!open) { log('no brief is open for bids right now; waiting for a founder to post one'); await sleep(30_000); }
+}
+if (!open) throw new Error(`no brief opened within ${waitMs / 60_000} minutes`);
+const id = open.id;
+const st = (await getStartup(open.startup))!;
+const budget = BigInt(open.budget);
+log(`joining campaign #${id} "${open.title}" for ${st.name}: ${fmtNear(budget)} NEAR for ${open.target} new holders`);
 const price = (budget * BigInt(st.constraints.min_bid_bps + 500)) / 10_000n;
-const opening = sealBid(id, who, price, 'Pat will post a hand-written review of the best late-night study spot on three campus boards, with the link.', randomBytes(32).toString('hex'));
+const opening = sealBid(id, who, price, `Pat will post a hand-written note about ${st.name} on three campus boards and a small Discord, with the link.`, randomBytes(32).toString('hex'));
 const commit = await call(who, 'commit_bid', { campaign_id: id, hash: opening.hash }, 30);
 log(`${who}: sealed a bid (hash ${opening.hash.slice(0, 16)}…; price and pitch kept locally)`, commit.tx);
 
