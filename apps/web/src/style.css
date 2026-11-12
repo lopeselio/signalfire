@@ -479,7 +479,7 @@ main > * { animation: page-in var(--dur-2) var(--ease) both; }
 .toast { animation: page-in var(--dur-2) var(--ease) both; }
 @keyframes pop { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
 @keyframes fade { from { opacity: 0; } }
-.wire li { animation: fade var(--dur-3) var(--ease) both; }
+.wire li:first-child { animation: fade var(--dur-3) var(--ease) both; }
 .chart .draw { stroke-dasharray: 1; animation: draw 900ms var(--ease) both; }
 @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 .chart circle { animation: fade var(--dur-3) var(--ease) 500ms both; }
