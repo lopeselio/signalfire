@@ -13,6 +13,7 @@
     "setup": "tsx --env-file-if-exists=../../.env src/setup.ts",
     "human-bid": "tsx --env-file-if-exists=../../.env src/human-bid.ts",
     "seed-demo": "tsx --env-file-if-exists=../../.env src/seed-demo.ts",
+    "thesis": "tsx --env-file-if-exists=../../.env src/thesis-cli.ts",
     "intents-swap": "tsx --env-file-if-exists=../../.env src/intents-swap.ts"
   },
   "dependencies": {
