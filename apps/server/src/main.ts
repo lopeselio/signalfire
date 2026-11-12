@@ -11,6 +11,7 @@ import { ftBalance } from './hub.ts';
 import { NRAS_URL } from '@signalfire/attest';
 import { attestation, modelE2eeKey, nearAiEnabled, type Signed } from './nearai.ts';
 import { CREATORS, HOLDERS, SCOUT } from './personas.ts';
+import { agentInfo } from './keyless.ts';
 import { buildProof, vettingProof } from './proof.ts';
 import { computeThesis, type Thesis } from './thesis.ts';
 import { cashOutInfo, settleCashOut, type CashOutRequest } from './cashout.ts';
@@ -148,6 +149,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     let m: RegExpExecArray | null = /^\/api\/startup\/([a-z0-9]{2,8})\/trades$/.exec(p);
     if (m) return json(res, 200, (await snapshot()).trades[m[1]] ?? []);
     if (p === '/api/attestation') return json(res, 200, await attestation());
+    if (p === '/api/agent') return json(res, 200, await agentInfo());
     if (p === '/api/nras' && post) {
       // NVIDIA's attestation service refuses browser origins, so a browser verifying a model asks us to carry its
       // GPU evidence there. We forward it unchanged and return NVIDIA's signed JWTs; the browser checks their
