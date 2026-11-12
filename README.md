@@ -68,7 +68,15 @@ fallback text, marked unsigned.
    so `pnpm verify` checks your bid like the agents'. The panel walks committed → revealed → won/lost, then the
    settle result (DAO vote, milestones, tUSD paid). Same thing from a terminal, with a test account's own key:
    `pnpm human-bid <account> <url>`.
-7. **Dashboard (`/dashboard`).** Read live from the chain: totals, the startups table, cost per result for each
+7. **Run your own startup.** Signed in, **Launch** (`/launch`) creates a token and a DAO with you as founder. On its
+   Treasury tab the founder sees **Founder's desk**: **Post a campaign brief** (title, goal, new buyers wanted,
+   budget within both the campaign cap and the treasury's free NEAR, bidding and reveal windows, deadline after
+   funding; the 3 milestones and what each pays are previewed) and **Treasury constraints** (campaign cap, per-payout
+   cap, payouts per hour, credible-bid floor, holder minimum). Both forms check the hub's own limits with
+   `packages/core` (`briefErrors`, `constraintErrors`) before the wallet signs `create_campaign` / `set_constraints`
+   (no deposit: gasless). Nothing here needs a DAO proposal: funding a winner is already the holders' vote (filed when
+   the auction settles), and the payee allowlist, milestones and fee are fixed by the contract.
+8. **Dashboard (`/dashboard`).** Read live from the chain: totals, the startups table, cost per result for each
    completed campaign, creators' records, the hub's solvency (everything it owes vs its balance), and the thesis.
 8. **Watch a campaign happen.** With the server running and keys present, the founder agent posts a brief every few
    minutes when nothing is running (`AUTO_BRIEFS=1`). Or run the whole loop yourself:
@@ -125,7 +133,7 @@ fallback text, marked unsigned.
 | `swarms` | three creator agents bid in commit-reveal auctions every brief; the contract settles by a deterministic rule | agents follow simple pricing rules, not learned strategies |
 | `agents` | agents earn tUSD, post bonds, buy tokens, and pay the scout for vetting and audience briefs (`agent_pay`) | payments are inside the hub's wallets, not cross-chain |
 | `privacy` | sealed bids and sealed pitches; NEAR AI TEE-signed reports and pitches, kept as proofs and checked by `verify` | openings sit on our server until the reveal |
-| `business` | treasury → procurement (auctions) → payouts runs by rules; the founder only sets constraints | the founder agent posts briefs from a fixed list |
+| `business` | treasury → procurement (auctions) → payouts runs by rules; the founder only posts briefs and sets constraints (web forms, checked against the hub's limits) | the demo founder agent posts briefs from a fixed list |
 | `realworld` | creators are paid in a stablecoin-shaped token through a policy; gasless meta-transactions for signed-in users | tUSD is our own labelled test token (no testnet stablecoin can be minted on demand) |
 | `nfts` | soulbound creator NFT with metadata computed from live state; receipt NFTs per completed campaign | no royalties or NFT-owned accounts |
 | `defi` | the bonding-curve market with slippage limits on both sides | **no NEAR Intents settlement** (we chose not to ship a half integration) |
@@ -171,8 +179,8 @@ contracts/hub     Rust near-sdk 5.29: launchpad, curve market, treasuries, spend
 ## Tests
 
 ```bash
-pnpm test             # packages/core: 28 tests (curve, hashes, sealed openings, scoring, milestones, policy, wallets, lookalikes; the shared vector)
-pnpm contract:test    # contracts/hub: 36 tests (the same shared vector, launch, trades and unwinds, wallets and caps,
+pnpm test             # packages/core: 34 tests (curve, hashes, sealed openings, scoring, milestones, policy, wallets, founder limits, lookalikes; the shared vector)
+pnpm contract:test    # contracts/hub: 37 tests (the same shared vector, launch, trades and unwinds, wallets and caps,
                       # vetting and lookalikes, auctions, DAO-only funding, attribution, milestones, held payouts,
                       # failed transfers, expiry, soulbound and dynamic NFTs, solvency)
 pnpm typecheck
