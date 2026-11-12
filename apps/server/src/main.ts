@@ -7,7 +7,8 @@ import { BA_PATH, accountFromHeaders, authHandler } from './ba.ts';
 import { view } from './chain.ts';
 import { config, explorerTx, hasKey } from './config.ts';
 import { ftBalance } from './hub.ts';
-import { attestation, nearAiEnabled } from './nearai.ts';
+import { NRAS_URL } from '@signalfire/attest';
+import { attestation, nearAiEnabled, type Signed } from './nearai.ts';
 import { CREATORS, HOLDERS, SCOUT } from './personas.ts';
 import { buildProof } from './proof.ts';
 import { latest as snapshot, type Snapshot } from './snapshot.ts';
@@ -104,6 +105,8 @@ function publicState(s: Snapshot) {
   };
 }
 
+const reply = (x: Signed) => ({ model: x.model, request: x.request, response: x.response, signedText: x.signedText ?? null, signature: x.signature ?? null, signingAddress: x.signingAddress ?? null, at: x.at });
+
 // ---------- routes ----------
 
 async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -119,9 +122,32 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       const s = await snapshot();
       return json(res, 200, [...s.audit].reverse().map(showAudit));
     }
-    let m = /^\/api\/startup\/([a-z0-9]{2,8})\/trades$/.exec(p);
+    let m: RegExpExecArray | null = /^\/api\/startup\/([a-z0-9]{2,8})\/trades$/.exec(p);
     if (m) return json(res, 200, (await snapshot()).trades[m[1]] ?? []);
     if (p === '/api/attestation') return json(res, 200, await attestation());
+    if (p === '/api/nras' && post) {
+      // NVIDIA's attestation service refuses browser origins, so a browser verifying a model asks us to carry its
+      // GPU evidence there. We forward it unchanged and return NVIDIA's signed JWTs; the browser checks their
+      // signatures against NVIDIA's keys and its own nonce, so a relayed answer can't be forged.
+      const payload = await body<unknown>(req, 400_000);
+      const r = await fetch(NRAS_URL, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(payload), signal: AbortSignal.timeout(30_000) });
+      return json(res, r.ok ? 200 : 502, r.ok ? await r.json() : { error: `NRAS HTTP ${r.status}` });
+    }
+    m = /^\/api\/reply\/vetting\/([a-z0-9._-]{2,64})$/.exec(p);
+    if (m) {
+      // a vetting report's exact NEAR AI request, reply and TEE signature, so a browser can check the signature
+      const v = loadVetting(m[1]);
+      return v && v.proof.model !== 'none' ? json(res, 200, reply(v.proof)) : json(res, 404, { error: 'no signed report' });
+    }
+    m = /^\/api\/reply\/pitch\/(\d{1,6})\/([a-z0-9._-]{2,64})$/.exec(p);
+    if (m) {
+      // a pitch's NEAR AI proof: sealed until the chain shows the bid revealed, like the pitch itself
+      const id = Number(m[1]);
+      const c = (await snapshot()).campaigns.find((x) => x.id === id);
+      const b = loadBid(id, m[2]);
+      if (!c?.bids.some((x) => x.creator === m![2] && x.revealed) || !b || b.human || b.proof.model === 'none') return json(res, 404, { error: 'no revealed, signed pitch' });
+      return json(res, 200, reply(b.proof));
+    }
     if (p === '/api/quote') {
       const startup = url.searchParams.get('startup') ?? '';
       const near = url.searchParams.get('near');
