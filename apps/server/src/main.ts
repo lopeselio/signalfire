@@ -8,13 +8,13 @@ import { view } from './chain.ts';
 import { config, explorerTx, hasKey } from './config.ts';
 import { ftBalance } from './hub.ts';
 import { NRAS_URL } from '@signalfire/attest';
-import { attestation, nearAiEnabled, type Signed } from './nearai.ts';
+import { attestation, modelE2eeKey, nearAiEnabled, type Signed } from './nearai.ts';
 import { CREATORS, HOLDERS, SCOUT } from './personas.ts';
-import { buildProof } from './proof.ts';
+import { buildProof, vettingProof } from './proof.ts';
 import { computeThesis, type Thesis } from './thesis.ts';
 import { cashOutInfo, settleCashOut, type CashOutRequest } from './cashout.ts';
 import { latest as snapshot, type Snapshot } from './snapshot.ts';
-import { addWire, bidsFor, getWire, loadBid, loadVetting, pendingApplicants, saveBid, setPendingApplicants } from './store.ts';
+import { addWire, bidsFor, getWire, loadBid, loadVetting, pendingApplicants, saveBid, savePrivateApp, setPendingApplicants } from './store.ts';
 
 // ---------- tiny HTTP helpers ----------
 
@@ -107,7 +107,10 @@ function publicState(s: Snapshot) {
   };
 }
 
-const reply = (x: Signed) => ({ model: x.model, request: x.request, response: x.response, signedText: x.signedText ?? null, signature: x.signature ?? null, signingAddress: x.signingAddress ?? null, at: x.at });
+const reply = (x: Signed) => ({
+  model: x.model, request: x.request, response: x.response, signedText: x.signedText ?? null, signature: x.signature ?? null, signingAddress: x.signingAddress ?? null,
+  signingAlgo: x.signingAlgo ?? 'ecdsa', e2ee: x.e2ee ?? null, at: x.at,
+});
 let thesisCache: { at: number; p: Promise<Thesis> } | null = null;
 
 // ---------- routes ----------
@@ -147,6 +150,13 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       const v = loadVetting(m[1]);
       return v && v.proof.model !== 'none' ? json(res, 200, reply(v.proof)) : json(res, 404, { error: 'no signed report' });
     }
+    m = /^\/api\/reply\/private\/([a-z0-9._-]{2,64})$/.exec(p);
+    if (m) {
+      // a private application's end-to-end encrypted call: the request is ciphertext (only the TEE could read the
+      // details), the reply opens with the published one-off client key and is a score and fixed phrases only
+      const v = loadVetting(m[1]);
+      return v?.privateProof ? json(res, 200, reply(v.privateProof)) : json(res, 404, { error: 'no private application' });
+    }
     m = /^\/api\/reply\/pitch\/(\d{1,6})\/([a-z0-9._-]{2,64})$/.exec(p);
     if (m) {
       // a pitch's NEAR AI proof: sealed until the chain shows the bid revealed, like the pitch itself
@@ -183,6 +193,12 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
         txs: getWire().filter((w) => w.campaign === id && w.tx).map((w) => ({ ...w, url: explorerTx(w.tx!) })),
       });
     }
+    m = /^\/api\/creator\/([a-z0-9._-]{2,64})\/proof$/.exec(p);
+    if (m) {
+      const v = loadVetting(m[1]);
+      if (!v) return json(res, 404, { error: 'no vetting report' });
+      return json(res, 200, { hub: config.hub, ...vettingProof(v) });
+    }
     m = /^\/api\/creator\/([a-z0-9._-]{2,64})$/.exec(p);
     if (m) {
       const account = m[1];
@@ -192,7 +208,10 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       const nfts = await view('nft_tokens_for_owner', { account_id: account, from_index: null, limit: 50 }).catch(() => []);
       return json(res, 200, {
         creator: c, nfts,
-        vetting: v ? { report: v.report, reportHash: v.reportHash, model: v.proof.model, signed: !!v.proof.signature, signingAddress: v.proof.signingAddress ?? null, at: v.at } : null,
+        vetting: v ? {
+          report: v.report, reportHash: v.reportHash, model: v.proof.model, signed: !!v.proof.signature, signingAddress: v.proof.signingAddress ?? null, at: v.at,
+          privateCommitment: v.privateCommitment ?? null, privateVerdict: v.privateVerdict ?? null, privateDropped: !!v.privateDropped,
+        } : null,
         campaigns: s.campaigns.filter((x) => x.bids.some((b) => b.creator === account)).map((x) => ({ id: x.id, title: showTitle(x), phase: x.phase, won: x.winner === account, price: x.price, results: x.results })),
       });
     }
@@ -240,6 +259,23 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
         application: await view('get_application', { account: me }).catch(() => null),
         tusd: s.config.tusd ? await ftBalance(s.config.tusd, me) : '0',
       });
+    }
+    if (p === '/api/e2ee-key') {
+      // the model key this server would seal to; browsers verify the model's attestation themselves and must match it
+      if (!nearAiEnabled()) return json(res, 503, { error: 'NEAR AI is off on this server' });
+      return json(res, 200, { model: config.nearAi.model, key: await modelE2eeKey() });
+    }
+    if (p === '/api/private-application' && post) {
+      // A signed-in applicant's private details, sealed in their browser to the model's attested Ed25519 key. We
+      // can't open it; it waits on disk only until the scout's call, then it's deleted.
+      if (!me) return json(res, 401, { error: 'sign in first' });
+      const o = await body<{ sealed?: string; modelPub?: string; commitment?: string }>(req, 12_000);
+      if (typeof o.sealed !== 'string' || !/^[0-9a-f]{146,8000}$/.test(o.sealed)) return json(res, 400, { error: 'sealed: hex ciphertext' });
+      if (typeof o.commitment !== 'string' || !/^[0-9a-f]{64}$/.test(o.commitment)) return json(res, 400, { error: 'commitment: 64 hex' });
+      if (typeof o.modelPub !== 'string' || o.modelPub !== await modelE2eeKey()) return json(res, 409, { error: 'sealed to a key that is not the model\'s current attested key; reload and try again' });
+      if ((await snapshot()).creators.some((c) => c.creator.account === me)) return json(res, 409, { error: 'already admitted' });
+      savePrivateApp({ account: me, sealed: o.sealed, modelPub: o.modelPub, commitment: o.commitment, at: Date.now() });
+      return json(res, 200, { ok: true });
     }
     if (p === '/api/applied' && post) {
       // a signed-in person applied as a creator from their wallet: put them in the scout's queue
