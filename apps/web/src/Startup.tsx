@@ -5,6 +5,7 @@ import {
 import { api, acctUrl, type AuditEntry, type Campaign, type Startup, type Trade } from './api.ts';
 import { MyBid } from './Bid.tsx';
 import { PriceChart } from './Chart.tsx';
+import { FounderForms } from './Founder.tsx';
 import { Wire } from './Wire.tsx';
 import { Acct, Chip, Near, SignInHint, TeeBadge, Terms, ago, flagKind, fmtLeft, useApp, useNow } from './ui.tsx';
 import { call } from './wallet.ts';
@@ -234,7 +235,7 @@ function Treasury({ s }: { s: Startup }) {
         </section>
         <section className="panel">
           <h2>Founder’s constraints</h2>
-          <p className="muted small">The founder’s only lever. The contract enforces hard limits on each.</p>
+          <p className="muted small">The founder’s only lever. The contract enforces hard limits on each.{account === s.founder && ' Edit them in the Founder’s desk.'}</p>
           <dl className="facts">
             <div><dt>Largest campaign budget</dt><dd><Near y={c.campaign_cap} d={2} /></dd></div>
             <div><dt>Largest single payout</dt><dd><Near y={c.max_payout} d={2} /></dd></div>
@@ -255,6 +256,7 @@ function Treasury({ s }: { s: Startup }) {
         </section>
       </div>
       <div className="col-main">
+        <FounderForms s={s} />
         <section className="panel">
           <h2>Campaigns</h2>
           {campaigns.length === 0 && <p className="muted">No campaigns yet. When the treasury has fees in it, the founder posts a brief and creators start bidding.</p>}
