@@ -2,6 +2,7 @@ import { DOES_NOT_PROVE, attestModel, openReply, replyChecks, type ModelVerifica
 import {
   MIN_ATTRIB, bidHash, cost, credible, fmtTusd, milestoneAmount, pickWinner, pitchHash, sha256Hex, threshold, tusdFor,
 } from '@signalfire/core';
+import { implicitOf, txHashOf } from './b58.ts';
 import type { ProofBundle } from './proof.ts';
 import { parseVerdict, privateLines, type PrivateVerdict } from './verdict.ts';
 
@@ -27,6 +28,37 @@ async function viewOn<T>(account: string, method: string, args: object): Promise
     } catch { /* next RPC */ }
   }
   throw new Error(`could not read ${method} from ${account}`);
+}
+
+async function rpcCall<T>(method: string, params: unknown): Promise<T> {
+  let last = '';
+  for (let i = 0; i < 6; i++) {
+    try {
+      const j = (await (await fetch(RPCS[i % RPCS.length], { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) })).json()) as { result?: T; error?: unknown };
+      if (j.result !== undefined) return j.result;
+      last = JSON.stringify(j.error).slice(0, 160);
+    } catch (e) { last = (e as Error).message; }
+    await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+  }
+  throw new Error(`${method}: ${last}`);
+}
+
+interface AgentDesk { account: string; public_key: string; signer: string; path: string; domain_id: number }
+interface AgentAction { id: number; campaign: number; milestone: number; receiver: string; tusd: string; status: string; tx_hash: string | null; audit_n: number }
+
+/** The keyless agent: its key is the one the MPC network derives for the hub, and it is the account's only key. */
+async function checkAgentIdentity(hub: string, check: (c: boolean, y: string, n: string) => void): Promise<AgentDesk | null> {
+  const desk = await viewOn<AgentDesk | null>(hub, 'get_agent', {}).catch(() => null);
+  if (!desk) return null;
+  const derived = await viewOn<string>(desk.signer, 'derived_public_key', { path: desk.path, predecessor: hub, domain_id: desk.domain_id });
+  check(derived === desk.public_key && implicitOf(derived) === desk.account,
+    `keyless agent ${desk.account.slice(0, 12)}…: its key is the one ${desk.signer} derives for ${hub} and path "${desk.path}" (Ed25519), and the account is that key's implicit account`,
+    `the keyless agent's key or account is not the MPC-derived one (${derived} vs ${desk.public_key})`);
+  const keys = await rpcCall<{ keys: { public_key: string }[] }>('query', { request_type: 'view_access_key_list', finality: 'final', account_id: desk.account });
+  check(keys.keys.length === 1 && keys.keys[0].public_key === desk.public_key,
+    'the keyless agent has exactly one access key, the MPC-derived one: no person or server holds a key to it',
+    `the keyless agent has other keys: ${keys.keys.map((k) => k.public_key).join(', ')}`);
+  return desk;
 }
 
 interface ChainBid { creator: string; hash: string; revealed: boolean; price: string | null; pitch_hash: string | null; credible: boolean; rep: number }
@@ -109,6 +141,34 @@ export async function verifyCampaign(id: number, bundle: ProofBundle, log: (s: s
     tusd += tusdFor(amt);
     check(amt === milestoneAmount(BigInt(c.price), k) && e.account === c.winner, `milestone ${k}: ${e.amount} yoctoNEAR to the winner [flags: ${e.flags.join(', ') || 'none'}]`, `milestone ${k} paid the wrong amount or payee`);
   });
+  const viaAgent = paid.filter((e) => e.flags.includes('keyless_agent'));
+  if (viaAgent.length) {
+    const desk = await checkAgentIdentity(hub, check);
+    const actions = await viewOn<AgentAction[]>(hub, 'get_agent_actions', { limit: 100 });
+    for (const e of viaAgent) {
+      const a = actions.find((x) => x.audit_n === e.n);
+      if (!a || !desk) { bad(`audit entry ${e.n} names the keyless agent but has no agent action`); continue; }
+      if (a.status === 'fallback') { ok(`milestone ${a.milestone}: the agent didn't deliver in time; the hub paid from its own desk (action ${a.id} closed, a late delivery would be refunded)`); continue; }
+      check(a.status === 'paid' && !!a.tx_hash, `milestone ${a.milestone}: keyless agent action ${a.id} is paid`, `milestone ${a.milestone}: keyless agent action ${a.id} is ${a.status}`);
+      if (!a.tx_hash) continue;
+      const hash = txHashOf(a.tx_hash);
+      try {
+        const t = await rpcCall<{ transaction: { signer_id: string; public_key: string; receiver_id: string; actions: { FunctionCall?: { method_name: string; args: string } }[] }; status: { SuccessValue?: string; Failure?: unknown }; receipts_outcome: { outcome: { logs: string[] } }[] }>('tx', { tx_hash: hash, sender_account_id: desk.account, wait_until: 'NONE' });
+        const fc = t.transaction.actions[0]?.FunctionCall;
+        const args = fc ? JSON.parse(Buffer.from(fc.args, 'base64').toString('utf8')) as { receiver_id: string; amount: string; msg: string } : null;
+        check(t.transaction.signer_id === desk.account && t.transaction.public_key === desk.public_key && t.transaction.receiver_id === `tusd.${hub}` && fc?.method_name === 'ft_transfer_call'
+          && args?.receiver_id === hub && args.amount === a.tusd && args.msg === `agent-payout:${a.id}`,
+          `milestone ${a.milestone}: tx ${hash.slice(0, 10)}… was signed by the agent's MPC key and sends exactly ${a.tusd} tUSD (raw) to the hub for action ${a.id}`,
+          `milestone ${a.milestone}: tx ${hash} is not the agent's payout for action ${a.id}`);
+        const forwarded = t.receipts_outcome.flatMap((r) => r.outcome.logs).some((l) => {
+          if (!l.startsWith('EVENT_JSON:')) return false;
+          const ev = JSON.parse(l.slice(11)) as { event: string; data: { old_owner_id: string; new_owner_id: string; amount: string }[] };
+          return ev.event === 'ft_transfer' && ev.data.some((d) => d.old_owner_id === hub && d.new_owner_id === a.receiver && d.amount === a.tusd);
+        });
+        check(forwarded && 'SuccessValue' in t.status, `milestone ${a.milestone}: the hub checked the delivery and forwarded it to ${a.receiver} in the same transaction`, `milestone ${a.milestone}: no forward to the creator in tx ${hash}`);
+      } catch (err) { bad(`milestone ${a.milestone}: could not read the agent's tx ${hash} (${(err as Error).message})`); }
+    }
+  }
   if (c.milestones_paid > 0) check(c.results >= threshold(c.target, c.milestones_paid), `the results (${c.results}) reach milestone ${c.milestones_paid}'s threshold (${threshold(c.target, c.milestones_paid)})`, 'paid ahead of the results');
   check(sum === BigInt(c.paid) && sum <= BigInt(c.price), 'payouts add up to what the campaign paid, within the price', 'payouts do not add up');
   check(tusd === BigInt(c.paid_tusd), `${fmtTusd(tusd)} tUSD paid at the fixed test rate (1 NEAR = 3 tUSD)`, 'tUSD amounts disagree');
