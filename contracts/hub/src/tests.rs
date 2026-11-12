@@ -673,3 +673,193 @@ fn constraint_edges_match_core() {
     assert!(accepts(Constraints { min_holder_tokens: U128(SUPPLY / 100), ..d.clone() }));
     assert!(!accepts(Constraints { min_holder_tokens: U128(SUPPLY / 100 + 1), ..d }));
 }
+
+// ---------- the keyless treasury agent (Chain Signatures) ----------
+
+/// From near-api-js 7.4 (createTransaction + encodeTransaction) for the same inputs: the contract builds the
+/// same bytes a wallet would sign.
+const VEC_PK: &str = "ed25519:GmaDrppBC7P5ARKV8g3djiwP89vz1jLK23V2GBjuAEGB";
+const VEC_ACCOUNT: &str = "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c";
+const VEC_BLOCK: &str = "cGfHiC6Kgg3FpFZvgwGcswsCRtp4aBP2fzuXRQPizuN";
+const VEC_ARGS: &str = r#"{"receiver_id":"signalfire.testnet","amount":"217360","msg":"agent-payout:0"}"#;
+const VEC_TX: &str = "400000006561346136633633653239633532306162656635353037623133326563356639393534373736616562656265376239323432316565613639313434366432326300ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c2a0000000000000017000000747573642e7369676e616c666972652e746573746e6574090909090909090909090909090909090909090909090909090909090909090901000000021000000066745f7472616e736665725f63616c6c4d0000007b2272656365697665725f6964223a227369676e616c666972652e746573746e6574222c22616d6f756e74223a22323137333630222c226d7367223a226167656e742d7061796f75743a30227d0080f420e6b5000001000000000000000000000000000000";
+const VEC_HASH: &str = "efebba41eefc7cc014ea06c21b6eceb3ba584e66aad2ffb94f305afedb758a5d";
+
+#[test]
+fn keyless_tx_bytes_match_near_api_js() {
+    let pk = ed25519_bytes(VEC_PK).unwrap();
+    assert_eq!(implicit_account(&pk).as_str(), VEC_ACCOUNT);
+    let bh = block_hash_bytes(VEC_BLOCK).unwrap();
+    let tx = function_call_tx(VEC_ACCOUNT, &pk, 42, "tusd.signalfire.testnet", &bh, "ft_transfer_call", VEC_ARGS.as_bytes(), 200_000_000_000_000, 1);
+    assert_eq!(hex::encode(&tx), VEC_TX);
+    ctx(HUB, 0);
+    assert_eq!(hex::encode(env::sha256_array(&tx)), VEC_HASH);
+    assert_eq!(parse_payout_msg(&payout_msg(7)), Some(7));
+    assert_eq!(parse_payout_msg("agent-payout:x"), None);
+}
+
+/// "The MPC network": the Ed25519 key it would derive, held by the test only.
+fn mpc_key() -> ed25519_dalek::SigningKey {
+    ed25519_dalek::SigningKey::from_bytes(&[7u8; 32])
+}
+fn mpc_pk() -> String {
+    format!("ed25519:{}", bs58::encode(mpc_key().verifying_key().to_bytes()).into_string())
+}
+const AGENT_TUSD: u128 = 1_000 * 1_000_000;
+
+/// A funded campaign with one result per milestone threshold reached, and the agent set up.
+fn with_agent() -> (Hub, u32, AccountId) {
+    let mut h = launched();
+    let id = funded(&mut h, 3);
+    ctx(HUB, NEAR / 2);
+    let _ = h.agent_setup(U128(AGENT_TUSD));
+    ctx_with(HUB, 0, vec![PromiseResult::Successful(format!("\"{}\"", mpc_pk()).into_bytes())]);
+    let _ = h.on_agent_key(U128(AGENT_TUSD), U128(NEAR / 2), Ok(mpc_pk()));
+    ctx_with(HUB, 0, vec![ok(), ok()]);
+    assert!(h.on_agent_funded());
+    let d = h.get_agent().unwrap();
+    assert_eq!(d.account.as_str(), hex::encode(mpc_key().verifying_key().to_bytes()));
+    assert_eq!(d.path, AGENT_PATH);
+    assert_eq!(d.signer.as_str(), "v1.signer-prod.testnet");
+    assert_eq!(d.tusd_free.0, AGENT_TUSD);
+    let agent = d.account.clone();
+    (h, id, agent)
+}
+
+/// Ask for a signature and answer as the MPC network would (with `key`).
+fn sign_action(h: &mut Hub, id: u32, nonce: u64, key: &ed25519_dalek::SigningKey) -> bool {
+    use ed25519_dalek::Signer;
+    ctx("crank.testnet", 1);
+    let _ = h.agent_sign(id, nonce, VEC_BLOCK.into());
+    let desk = h.get_agent().unwrap();
+    let a = h.get_agent_action(id).unwrap();
+    let pk = ed25519_bytes(&desk.public_key).unwrap();
+    let tx = payout_tx(&desk, &pk, nonce, &block_hash_bytes(VEC_BLOCK).unwrap(), &acc("tusd.signalfire.testnet"), &acc(HUB), &a);
+    let hash = env::sha256_array(&tx);
+    let sig = key.sign(&hash).to_bytes().to_vec();
+    ctx_with(HUB, 0, vec![ok()]);
+    h.on_agent_signed(id, Base64VecU8::from(tx), Ok(MpcEd25519Signature { scheme: "Ed25519".into(), signature: sig }))
+}
+
+fn deliver(h: &mut Hub, from: &str, amount: u128, msg: &str) -> PromiseOrValue<U128> {
+    ctx("tusd.signalfire.testnet", 0);
+    h.ft_on_transfer(acc(from), U128(amount), msg.into())
+}
+
+#[test]
+fn keyless_agent_pays_an_approved_milestone_exactly_once() {
+    let (mut h, id, agent) = with_agent();
+    buy(&mut h, "fan1.testnet", NEAR / 10, Some(&format!("c{id}")));
+    ctx("anyone.testnet", 0);
+    let r = h.claim_milestone(id);
+    assert!(matches!(r, PromiseOrValue::Value(ref s) if s == "paid:keyless_agent:0"), "the agent pays, not the hub");
+    let e = (*h.get_audit(None, None).last().unwrap()).clone();
+    assert_eq!(e.outcome, "paid");
+    assert!(e.flags.contains(&"keyless_agent".to_string()));
+    let a = h.get_agent_action(0).unwrap();
+    let tusd = tusd_for(milestone_amount(NEAR * 6 / 10, 1));
+    assert_eq!((a.status.as_str(), a.receiver.as_str(), a.tusd.0), ("approved", QUILL, tusd));
+    assert_eq!(h.get_agent().unwrap().tusd_free.0, AGENT_TUSD - tusd);
+
+    // a signature from any other key is refused; the action stays open
+    assert!(!sign_action(&mut h, 0, 5, &ed25519_dalek::SigningKey::from_bytes(&[8u8; 32])));
+    assert_eq!(h.get_agent_action(0).unwrap().status, "approved");
+    // nonces only go up
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ctx("crank.testnet", 1);
+        let _ = h.agent_sign(0, 5, VEC_BLOCK.into());
+    }));
+    assert!(r.is_err());
+    // the MPC network's signature checks against the agent's key: the signed transaction is kept
+    assert!(sign_action(&mut h, 0, 6, &mpc_key()));
+    let a = h.get_agent_action(0).unwrap();
+    assert_eq!(a.status, "signed");
+    assert_eq!(a.nonce, Some(6));
+    let stx = a.signed_tx.unwrap().0;
+    assert_eq!(stx[stx.len() - 65], 0, "ED25519 signature tag");
+    assert_eq!(a.tx_hash.unwrap(), hex::encode(env::sha256_array(&stx[..stx.len() - 65])));
+    // not signable again until RESIGN_AFTER_MS
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ctx("crank.testnet", 1);
+        let _ = h.agent_sign(0, 7, VEC_BLOCK.into());
+    }));
+    assert!(r.is_err());
+
+    // deliveries: from someone else, a wrong amount, or a wrong action go back
+    assert!(matches!(deliver(&mut h, "mallory.testnet", tusd, "agent-payout:0"), PromiseOrValue::Value(U128(x)) if x == tusd));
+    assert!(matches!(deliver(&mut h, agent.as_str(), tusd + 1, "agent-payout:0"), PromiseOrValue::Value(U128(x)) if x == tusd + 1));
+    assert!(matches!(deliver(&mut h, agent.as_str(), tusd, "agent-payout:9"), PromiseOrValue::Value(U128(x)) if x == tusd));
+    // the right one is forwarded to the creator
+    assert!(matches!(deliver(&mut h, agent.as_str(), tusd, "agent-payout:0"), PromiseOrValue::Promise(_)));
+    assert_eq!(h.get_agent_action(0).unwrap().status, "delivering");
+    ctx_with(HUB, 0, vec![ok()]);
+    assert_eq!(h.on_agent_forwarded(0).0, 0);
+    assert_eq!(h.get_agent_action(0).unwrap().status, "paid");
+    // a second delivery of the same action (another signature, another nonce) is refunded
+    assert!(matches!(deliver(&mut h, agent.as_str(), tusd, "agent-payout:0"), PromiseOrValue::Value(U128(x)) if x == tusd));
+    let c = h.get_campaign(id).unwrap();
+    assert_eq!((c.milestones_paid, c.paid_tusd.0), (1, tusd));
+    // the list view leaves the signed transaction out
+    assert!(h.get_agent_actions(None, None)[0].signed_tx.is_none());
+}
+
+#[test]
+fn keyless_agent_failed_forward_undoes_the_payout_and_frees_the_tusd() {
+    let (mut h, id, agent) = with_agent();
+    buy(&mut h, "fan1.testnet", NEAR / 10, Some(&format!("c{id}")));
+    ctx("anyone.testnet", 0);
+    let _ = h.claim_milestone(id);
+    let tusd = h.get_agent_action(0).unwrap().tusd.0;
+    assert!(matches!(deliver(&mut h, agent.as_str(), tusd, "agent-payout:0"), PromiseOrValue::Promise(_)));
+    ctx_with(HUB, 0, vec![PromiseResult::Failed]);
+    assert_eq!(h.on_agent_forwarded(0).0, tusd, "the tUSD goes back to the agent");
+    assert_eq!(h.get_agent_action(0).unwrap().status, "failed:transfer");
+    assert_eq!(h.get_agent().unwrap().tusd_free.0, AGENT_TUSD);
+    let c = h.get_campaign(id).unwrap();
+    assert_eq!((c.milestones_paid, c.paid.0, c.phase.as_str()), (0, 0, "funded"));
+    assert_eq!((*h.get_audit(None, None).last().unwrap()).outcome, "failed:transfer");
+}
+
+#[test]
+fn keyless_agent_timeout_lets_the_hub_pay_and_refunds_a_late_delivery() {
+    let (mut h, id, agent) = with_agent();
+    buy(&mut h, "fan1.testnet", NEAR / 10, Some(&format!("c{id}")));
+    ctx("anyone.testnet", 0);
+    let _ = h.claim_milestone(id);
+    let tusd = h.get_agent_action(0).unwrap().tusd.0;
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ctx("anyone.testnet", 0);
+        let _ = h.agent_fallback(0);
+    }));
+    assert!(r.is_err(), "the agent still has time");
+    advance(AGENT_TIMEOUT_MS);
+    ctx("anyone.testnet", 0);
+    let _ = h.agent_fallback(0);
+    assert_eq!(h.get_agent_action(0).unwrap().status, "fallback");
+    assert_eq!(h.get_agent().unwrap().tusd_free.0, AGENT_TUSD);
+    ctx_with(HUB, 0, vec![ok()]);
+    let n = h.get_agent_action(0).unwrap().audit_n;
+    assert_eq!(h.on_paid(id, 1, U128(milestone_amount(NEAR * 6 / 10, 1)), U128(tusd), n), "paid");
+    assert!(matches!(deliver(&mut h, agent.as_str(), tusd, "agent-payout:0"), PromiseOrValue::Value(U128(x)) if x == tusd));
+}
+
+#[test]
+fn keyless_agent_setup_is_owner_only_once_and_needs_the_mpc_key() {
+    let mut h = launched();
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ctx("mallory.testnet", NEAR);
+        let _ = h.agent_setup(U128(1));
+    }));
+    assert!(r.is_err());
+    ctx(HUB, NEAR / 2);
+    let _ = h.agent_setup(U128(AGENT_TUSD));
+    // the MPC call failed: nothing is set up, the NEAR goes back
+    ctx_with(HUB, 0, vec![PromiseResult::Failed]);
+    assert!(matches!(h.on_agent_key(U128(AGENT_TUSD), U128(NEAR / 2), Err(PromiseError::Failed)), PromiseOrValue::Value(false)));
+    assert!(h.get_agent().is_none());
+    // without an agent the hub pays as before
+    let id = funded(&mut h, 3);
+    buy(&mut h, "fan1.testnet", NEAR / 10, Some(&format!("c{id}")));
+    ctx("anyone.testnet", 0);
+    assert!(matches!(h.claim_milestone(id), PromiseOrValue::Promise(_)));
+}
