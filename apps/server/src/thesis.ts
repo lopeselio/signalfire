@@ -1,4 +1,5 @@
-import { accessKeys } from './chain.ts';
+import { BRIEF_EVERY_MS, BRIEF_TARGET } from './agents.ts';
+import { accessKeys, view } from './chain.ts';
 import { config } from './config.ts';
 import { getAudit, getCampaigns, getProposal, getStartups, getWallet, type Campaign } from './hub.ts';
 import { CREATORS, FAN_COUNT, HOLDERS, SCOUT, fanAccount } from './personas.ts';
@@ -30,6 +31,7 @@ export interface Thesis {
     walletsCapDayNear: string; walletsSpentNear: string; fanSpentMaxNear: string; fanCapDayNear: string;
   };
   latency: { campaigns: number; voteMedianS: number | null; briefToFundedMedianS: number | null; briefToPaidMedianS: number | null };
+  runway: { firstBuysLeft: number; perCampaign: number; campaignsLeft: number; hoursBetweenBriefs: number; lastsUntil: string; treasuriesFreeNear: string };
   limits: string[];
 }
 
@@ -166,6 +168,19 @@ export async function computeThesis(wire: WireTx[], opts: { perAction?: number }
   }
   const round = (x: number | null): number | null => (x === null ? null : Math.round(x));
 
+  // how long the demo keeps going: every fan can be a first-time buyer of each startup once (and only while its
+  // capped wallet can pay), and the founder agent posts one brief every BRIEF_EVERY_MS
+  let firstBuysLeft = 0;
+  for (const s of startups.filter((x) => x.status === 'live')) {
+    for (const f of fans) {
+      const w = await getWallet(f).catch(() => null);
+      if (!w || BigInt(w.balance) < 60_000_000_000_000_000_000_000n) continue;
+      if (!(await view<boolean>('is_buyer', { startup: s.id, account: f }).catch(() => true))) firstBuysLeft++;
+    }
+  }
+  const campaignsLeft = Math.floor(firstBuysLeft / BRIEF_TARGET);
+  const hours = BRIEF_EVERY_MS / 3_600_000;
+
   return {
     at: Date.now(),
     network: config.network,
@@ -187,6 +202,10 @@ export async function computeThesis(wire: WireTx[], opts: { perAction?: number }
       admissionsRefused: audit.filter((e) => e.action === 'vet' && e.outcome === 'rejected').length,
       flags, agents: counted, agentsFcOnly: fcOnly, fullAccessKeys: full,
       walletsCapDayNear: near(capDay, 2), walletsSpentNear: near(spent, 3), fanSpentMaxNear: near(fanSpentMax, 3), fanCapDayNear: near(fanCap, 2),
+    },
+    runway: {
+      firstBuysLeft, perCampaign: BRIEF_TARGET, campaignsLeft, hoursBetweenBriefs: hours,
+      lastsUntil: new Date(Date.now() + campaignsLeft * BRIEF_EVERY_MS).toISOString().slice(0, 16) + ' UTC', treasuriesFreeNear: near(free, 4),
     },
     latency: { campaigns: toFunded.length, voteMedianS: round(median(votes)), briefToFundedMedianS: round(median(toFunded)), briefToPaidMedianS: round(median(toPaid)) },
     limits: [

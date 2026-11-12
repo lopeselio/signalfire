@@ -25,6 +25,9 @@ console.log(`   agent wallets: ${b.walletsSpentNear} NEAR spent in total under $
 console.log('\n5. How long it takes (hub timestamps, DAO proposal submission time)');
 const l = t.latency;
 console.log(`   ${l.campaigns} funded campaigns: DAO proposal → funded median ${l.voteMedianS ?? '—'} s; brief → funded ${l.briefToFundedMedianS ?? '—'} s; brief → last payout ${l.briefToPaidMedianS ?? '—'} s`);
+console.log('\n6. Runway (fans that can still be first-time buyers, at the founder agent\'s pace)');
+const r = t.runway;
+console.log(`   ${r.firstBuysLeft} first buys left → ${r.campaignsLeft} campaigns of ${r.perCampaign} new buyers, one brief every ${r.hoursBetweenBriefs} h → until about ${r.lastsUntil}; ${r.treasuriesFreeNear} NEAR free in treasuries`);
 console.log('\nLIMITS');
 for (const x of t.limits) console.log(`   - ${x}`);
 process.exit(0);
