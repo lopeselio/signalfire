@@ -141,6 +141,28 @@ fallback text, marked unsigned.
 
    It fetches only the proof bundle (bid openings, pitches, reports, signatures) from the server and reads the hub,
    the DAO and the NFTs over public RPC itself.
+11. **Cash out tUSD through NEAR Intents** (a script; needs the creator's and the operator's keys):
+    `pnpm intents-swap <creator account> [tUSD raw]`. The creator swaps its tUSD earnings for NEAR with the operator's
+    desk, which quotes the hub's fixed test rate (1 NEAR = 3 tUSD, `nearForTusd` in `packages/core`). Both deposit into
+    the NEAR Intents Verifier (our testnet deployment of [near/intents](https://github.com/near/intents),
+    `bazaar-intents.testnet`, shared with the author's other project), each to its own identity (the implicit account
+    of its key); each signs one NEP-413 `token_diff` (creator: −tUSD +wNEAR, desk: +tUSD −wNEAR) plus an
+    `ft_withdraw`; one `execute_intents` checks both signatures and that the diffs cancel, then pays both sides out.
+    No treasury money is involved: it's the creator's own tUSD and the operator's own NEAR. Live run (the 0.045 tUSD
+    `sf-pat` earned on campaign #2):
+
+    ```
+    [  23s] sf-pat.signalfire-ref.testnet deposited 0.045 tUSD into the Verifier
+    [  24s] in the Verifier: creator 45000 raw tUSD, desk 0.015 wNEAR
+    [  25s] both sides signed (NEP-413, salt e70c3e74); simulating
+    [  28s] the Verifier settled the swap: execute_intents
+    [  31s] sf-pat.signalfire-ref.testnet unwrapped 0.015 NEAR
+    ```
+
+    [desk's wNEAR deposit](https://testnet.nearblocks.io/txns/GpB9FTV3DraPy2cgymw893WSS3LPommuBGQqg89aC4E7),
+    [creator's tUSD deposit](https://testnet.nearblocks.io/txns/DSePgQaPQj2iTdpNrXi4VpbNmRq4HVpZUr4QL8NScPfZ),
+    [`execute_intents`](https://testnet.nearblocks.io/txns/3LNPBDdr9Yoa5JaxyXayt1C4izbJs4Szkj9GUkkUt9J4),
+    [unwrap](https://testnet.nearblocks.io/txns/eQMjnSmLTff95bGyM3ZRZYbhXkXRF8CwtAMMvX2KcWT).
 
 ## Tracks, honestly
 
@@ -155,7 +177,7 @@ fallback text, marked unsigned.
 | `business` | treasury → procurement (auctions) → payouts runs by rules; the founder only posts briefs and sets constraints (web forms, checked against the hub's limits) | the demo founder agent posts briefs from a fixed list |
 | `realworld` | creators are paid in a stablecoin-shaped token through a policy; gasless meta-transactions for signed-in users | tUSD is our own labelled test token (no testnet stablecoin can be minted on demand) |
 | `nfts` | soulbound creator NFT with metadata computed from live state; receipt NFTs per completed campaign | no royalties or NFT-owned accounts |
-| `defi` | the bonding-curve market with slippage limits on both sides | **no NEAR Intents settlement** (we chose not to ship a half integration) |
+| `defi` | the bonding-curve market with slippage limits on both sides; creators cash tUSD out for NEAR through NEAR Intents (two signed `token_diff`s settled by one `execute_intents` on a testnet deployment of the near/intents Verifier, `pnpm intents-swap`) | the swap is a CLI flow, not in the web app; the Verifier is the author's own testnet deployment, and the counterparty is the operator's desk at a fixed test rate, not a solver network |
 | `thesis` | a public dashboard read live from the chain, with a written thesis | testnet data from a simulated audience |
 
 ## How it works
@@ -198,7 +220,8 @@ contracts/hub     Rust near-sdk 5.29: launchpad, curve market, treasuries, spend
 ## Tests
 
 ```bash
-pnpm test             # packages/core: 34 tests (curve, hashes, sealed openings, scoring, milestones, policy, wallets, founder limits, lookalikes; the shared vector)
+pnpm test             # packages/core: 35 tests (curve, hashes, sealed openings, scoring, milestones, policy, wallets, founder limits, lookalikes; the shared vector)
+                      # apps/server: 7 tests (the relayer's live whitelist, the NEAR Intents helpers)
 pnpm contract:test    # contracts/hub: 37 tests (the same shared vector, launch, trades and unwinds, wallets and caps,
                       # vetting and lookalikes, auctions, DAO-only funding, attribution, milestones, held payouts,
                       # failed transfers, expiry, soulbound and dynamic NFTs, solvency)
@@ -206,6 +229,7 @@ pnpm typecheck
 pnpm e2e              # the whole loop on testnet (needs the operator's and agents' keys)
 pnpm verify <id> [url]  # re-check a campaign against the chain, no keys needed
 pnpm human-bid <account> [url]  # a person's sealed bid end to end (the account's own full-access key)
+pnpm intents-swap <account> [tUSD raw]  # cash tUSD out for NEAR through the NEAR Intents Verifier
 ```
 
 ## Deploying
@@ -221,7 +245,7 @@ pnpm human-bid <account> [url]  # a person's sealed bid end to end (the account'
 
 - **Inspiration.** The idea is adapted from the Solana Foundation's request for startups "Attention tokens for startup distribution", rebuilt natively on NEAR (NEP-141 global FT, Sputnik DAO v2 via global contracts, function-call-key agents, NEAR AI Cloud TEE models, NEP-171, NEP-366). No code from any Solana project.
 - **Other submission.** The same author also submitted the **NEAR Arcade** ([github.com/lopeselio/near-arcade](https://github.com/lopeselio/near-arcade)), a separate, independent project (a set of games). Signalfire shares no contract, rules or server with it; it reuses the author's own patterns for wallet sign-in (Better Auth + better-near-auth), NEAR AI proofs, Sputnik DAO setup and Azure deployment.
-- **Libraries:** React, Vite, better-auth and better-near-auth, near-api-js, near-kit, @noble/hashes, ethers (signature recovery in `verify`), near-sdk and near-contract-standards (Rust). Onchain: NEAR's global FT and Sputnik DAO v2 contracts.
+- **Libraries:** React, Vite, better-auth and better-near-auth, near-api-js, near-kit, @noble/hashes, ethers (signature recovery in `verify`), near-sdk and near-contract-standards (Rust). Onchain: NEAR's global FT and Sputnik DAO v2 contracts, and the NEAR Intents Verifier ([near/intents](https://github.com/near/intents), MIT) as deployed by the author at `bazaar-intents.testnet`.
 
 ## License
 
