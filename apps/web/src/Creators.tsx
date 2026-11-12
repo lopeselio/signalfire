@@ -4,6 +4,7 @@ import { CashOut } from './CashOut.tsx';
 import { api, type CreatorDetail, type CreatorRec, type Nft } from './api.ts';
 import { Acct, Chip, Near, SignInHint, TeeBadge, useApp } from './ui.tsx';
 import { call } from './wallet.ts';
+import { PrivateInputs, ReceiptCheck, emptyPrivate, hasPrivate, submitPrivate, type PrivateFields } from './PrivateApply.tsx';
 
 // Creators: who may bid on campaigns, their records (from the hub and their NFTs), the scout's vetting
 // reports, and how to apply.
@@ -50,7 +51,7 @@ function CreatorCard({ c }: { c: CreatorRec }) {
   const badge = detail?.nfts.find((n) => n.token_id.startsWith('creator:'));
   const receipts = detail?.nfts.filter((n) => n.token_id.startsWith('receipt:')) ?? [];
   let report: { summary?: string; strengths?: string[]; risks?: string[]; fit?: number } | null = null;
-  try { report = detail?.vetting ? JSON.parse(/\{[\s\S]*\}/.exec(detail.vetting.report)?.[0] ?? 'null') : null; } catch { report = null; }
+  try { report = detail?.vetting ? JSON.parse(/\{[\s\S]*\}/.exec(detail.vetting.report.replace(/\n\nprivate_verdict: [\s\S]*$/, ''))?.[0] ?? 'null') : null; } catch { report = null; }
   return (
     <article className={`creator${cr.revoked ? ' revoked' : ''}`}>
       <header>
@@ -104,6 +105,18 @@ function CreatorCard({ c }: { c: CreatorRec }) {
                   {!!report.risks?.length && <p className="small"><strong>Risks:</strong> {report.risks.join('; ')}</p>}
                 </>
               ) : <p className="small pre">{detail.vetting.report}</p>}
+              {detail.vetting.privateCommitment && (
+                <div className="private-box small">
+                  <strong>Private application</strong> <TeeBadge signed model={detail.vetting.model} src={{ kind: 'private', account: cr.account }} what="private verdict" />
+                  <p>The applicant also sent private details (audience, past results, contact), sealed in their browser to the
+                  model’s attested key. <strong>Only the AI in the TEE saw them</strong>; Signalfire’s server carried ciphertext it
+                  can’t read and deleted it after the call. The note above was written from the public name and profile only.</p>
+                  {detail.vetting.privateVerdict && <p>The AI’s verdict on the private details (a score and fixed phrases only): <strong>fit {detail.vetting.privateVerdict.fit}/5</strong>, the details <strong>{detail.vetting.privateVerdict.private_details}</strong>, concern: <strong>{detail.vetting.privateVerdict.concern}</strong>.</p>}
+                  <p>Commitment to the private details (sha256 with the applicant’s salt): <code>{detail.vetting.privateCommitment.slice(0, 24)}…</code></p>
+                  <ReceiptCheck account={cr.account} commitment={detail.vetting.privateCommitment} />
+                </div>
+              )}
+              {detail.vetting.privateDropped && <p className="muted small">Private details were sent but couldn’t reach the model; they were deleted unread and this report is from the public profile only.</p>}
               <p className="muted small">sha256 of this report, onchain: <code>{detail.vetting.reportHash.slice(0, 20)}…</code>. Advice only: admission is the contract’s rule.</p>
             </div>
           ) : <p className="muted small">No vetting report on file.</p>}
@@ -123,6 +136,8 @@ function Apply() {
   const [name, setName] = useState('');
   const [profile, setProfile] = useState('');
   const [queued, setQueued] = useState(false);
+  const [priv, setPriv] = useState<PrivateFields>(emptyPrivate);
+  const [step, setStep] = useState<string | null>(null);
   const admitted = !!me?.creator;
   const applied = !!me?.application;
   const wallet = me?.wallet ? BigInt(me.wallet.balance) : 0n;
@@ -145,7 +160,14 @@ function Apply() {
               <div className="apply-form">
                 <input placeholder="Name" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} aria-label="Creator name" />
                 <textarea placeholder="What you make and for whom (max 400 characters)" maxLength={400} value={profile} onChange={(e) => setProfile(e.target.value)} aria-label="Profile" />
+                {state!.nearAi && <PrivateInputs f={priv} set={setPriv} />}
+                {step && <p className="muted small">{step}</p>}
                 <button className="primary small" disabled={!!busy || !name.trim() || wallet < fee} onClick={() => void run('Apply as a creator', async () => {
+                  if (hasPrivate(priv)) {
+                    // sealed and queued before the onchain application, so the scout has it when it vets
+                    try { await submitPrivate(account, state!.nearAiModel, priv, setStep); } finally { setStep(null); }
+                    setStep('Your receipt was downloaded (keep it to prove what the AI saw). Now confirm the application in your wallet.');
+                  }
                   const r = await call(state!.hub, 'apply_creator', { name: name.trim(), profile: profile.trim() });
                   await api('/applied', {}).catch(() => undefined);
                   setQueued(true);

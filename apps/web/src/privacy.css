@@ -22,3 +22,10 @@
 .pai-copy { border-left: 3px solid var(--ember-dim); padding: 4px 10px; margin: 10px 0; background: var(--ember-wash); }
 .pai-body .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 @media (max-width: 520px) { .pai-meas div { grid-template-columns: 1fr; } }
+.private-fields { border: 1px dashed var(--ember-dim); border-radius: 8px; padding: 10px 12px; margin: 10px 0; display: grid; gap: 8px; background: var(--ember-wash); }
+.private-fields legend { font-weight: 600; padding: 0 4px; }
+.private-fields p { margin: 0; }
+.private-box { border-left: 3px solid var(--ember-dim); padding: 6px 10px; margin: 8px 0; background: var(--ember-wash); }
+.receipt-check { margin-top: 8px; }
+.receipt-check .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+.receipt-check label.file { cursor: pointer; display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; }
