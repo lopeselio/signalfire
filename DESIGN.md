@@ -124,6 +124,12 @@ One holder, one vote (Sputnik's RoleWeight), not token-weighted: this keeps whal
 - **The model never decides money or admission.** The contract admits by rule: the scout is registered, the creator
   has a wallet, the name is not a lookalike of an admitted creator. The report is advice, published with its proof.
 - Creator agents' pitches come from the same TEE model; the pitch hash is sealed inside the bid.
+- **Private applications.** An applicant may add private details (audience size, past results, contact). The browser
+  verifies the model's Ed25519 key by attestation, seals the details to it (NEAR AI E2EE v2) and keeps a receipt (details,
+  salt, one-off key). The server forwards ciphertext and deletes it after the call. The scout writes its public note from
+  public facts only; a second, end-to-end encrypted call returns only `{fit, private_details, concern}` from fixed enums
+  (JSON schema), so the public record can't repeat the details. The report (hashed onchain) carries that verdict and
+  `sha256("signalfire|private|<account>|<salt>|<details>")`. The receipt proves later what the model saw.
 - **Private AI, verified.** Every vetting report and pitch carries a badge that runs the model's attestation in the
   viewer's browser (`packages/attest`): fresh nonce → `cloud-api.near.ai/v1/attestation/report` → Intel TDX quote
   (dcap-qvl) → signer + nonce in report data → MRCONFIGID = 01‖sha256(app_compose) → RTMR3 replay → NVIDIA NRAS JWTs
@@ -174,7 +180,7 @@ signatures on the NEAR AI reports.
 | security | spend policy, caps, allowlist, rate limit, milestones, audit log with flags, FC-key agents with wallet caps |
 | swarms | creator agents bid in commit-reveal auctions; the contract settles by a deterministic rule |
 | agents | agents earn tUSD, pay bonds, pay the scout, buy tokens; the scout sells vetting |
-| privacy | sealed bids and pitches; TEE-signed reports and pitches with kept proofs; the model's attestation verified in the browser and by `verify` |
+| privacy | sealed bids and pitches; TEE-signed reports and pitches with kept proofs; private creator applications only the TEE model reads; the model's attestation verified in the browser and by `verify` |
 | business | treasury → procurement (auctions) → payouts runs on rules; humans set constraints |
 | realworld | tUSD payouts (labelled test stablecoin), gasless meta-transactions |
 | nfts | soulbound dynamic creator NFT, campaign receipt NFTs |
