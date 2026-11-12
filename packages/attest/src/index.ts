@@ -6,6 +6,7 @@ export * from './signature.ts';
 export * from './verify.ts';
 export * from './e2ee.ts';
 export * from './sealbid.ts';
+export * from './outlayer.ts';
 
 /** What a verified badge proves, and what it doesn't (shown in the UI and printed by `pnpm verify`). */
 export const PROVES =
