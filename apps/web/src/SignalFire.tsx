@@ -220,7 +220,7 @@ export function SignalFire() {
 
   const label = wire === null ? 'reading the wire' : `${recent.length} onchain action${recent.length === 1 ? '' : 's'} in the last 24 hours`;
   return (
-    <div ref={wrap} className={`signalfire${still ? ' still' : ''}`} style={{ ['--heat' as string]: heat.toFixed(2) }}>
+    <div ref={wrap} data-tour="fire" className={`signalfire${still ? ' still' : ''}`} style={{ ['--heat' as string]: heat.toFixed(2) }}>
       <div className="sf-stage" role="img" aria-label={`The signal fire: ${label}`}>
         {still
           ? <svg className="sf-still" viewBox="0 0 120 150" aria-hidden="true"><path d="M60 6c16 24 38 40 38 74a38 38 0 0 1-76 0c0-21 15-32 22-50 9 11 11 21 11 30 8-17 9-36 5-54z" fill="url(#sf-g)" /><defs><linearGradient id="sf-g" x1="0" x2="0" y1="1" y2="0"><stop offset="0" stopColor="#ffe9bd" /><stop offset="0.45" stopColor="#ff8f1f" /><stop offset="1" stopColor="#c8370a" /></linearGradient></defs></svg>
