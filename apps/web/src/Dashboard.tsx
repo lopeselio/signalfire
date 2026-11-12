@@ -125,7 +125,7 @@ interface ThesisData {
   loopCostNear: string | null;
   fees: { inNear: string; toCreatorsNear: string; reservedNear: string; freeNear: string; toFoundersNear: string; shareToCreatorsPct: number };
   startups: { id: string; name: string; feesInNear: string; paidNear: string; campaignsDone: number; newBuyers: number; costPerBuyerNear: string | null }[];
-  bounds: { payoutAttempts: number; paid: number; held: number; admissionsRefused: number; flags: Record<string, number>; agents: number; agentsFcOnly: number; fullAccessKeys: number; walletsCapDayNear: string; walletsSpentNear: string; fanSpentMaxNear: string; fanCapDayNear: string };
+  bounds: { payoutAttempts: number; paid: number; held: number; admissionsRefused: number; flags: Record<string, number>; agents: number; agentsFcOnly: number; fullAccessKeys: number; agentsUnread?: number; walletsCapDayNear: string; walletsSpentNear: string; fanSpentMaxNear: string; fanCapDayNear: string };
   latency: { campaigns: number; voteMedianS: number | null; briefToFundedMedianS: number | null; briefToPaidMedianS: number | null };
   runway?: { firstBuysLeft: number; perCampaign: number; campaignsLeft: number; hoursBetweenBriefs: number; lastsUntil: string; treasuriesFreeNear: string };
   limits: string[];
@@ -166,7 +166,7 @@ function Thesis() {
 
           <h3>3. Keys and policy bound what agents can move</h3>
           <ul className="plain small">
-            <li><strong>{t.bounds.agentsFcOnly} of {t.bounds.agents}</strong> agent accounts hold function-call keys only ({t.bounds.fullAccessKeys} full-access keys among them).</li>
+            <li><strong>{t.bounds.agentsFcOnly} of {t.bounds.agents}</strong> agent accounts hold function-call keys only ({t.bounds.fullAccessKeys} full-access keys among them){t.bounds.agentsUnread ? `; ${t.bounds.agentsUnread} couldn’t be read this time` : ''}.</li>
             <li>Agents spent {t.bounds.walletsSpentNear} NEAR in total from capped hub wallets ({t.bounds.walletsCapDayNear} NEAR/day of caps across all of them); the busiest fan spent {t.bounds.fanSpentMaxNear} NEAR over its life, at most {t.bounds.fanCapDayNear} NEAR a day.</li>
             <li>{t.bounds.payoutAttempts} payout attempts went through the spend policy: {t.bounds.paid} paid, {t.bounds.held} held. {t.bounds.admissionsRefused} creator admission refused (a look-alike name). Flags raised: {Object.entries(t.bounds.flags).map(([k, v]) => `${k} ×${v}`).join(', ') || 'none'}.</li>
           </ul>
