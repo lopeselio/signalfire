@@ -4,6 +4,7 @@ import {
   ftBalance, getAudit, getCampaigns, getConfig, getCreators, getProposal, getStartups, getTrades, holdersOf, tusdId,
   type AuditEntry, type Campaign, type Creator, type HubConfig, type Proposal, type Startup, type Trade, type Wallet,
 } from './hub.ts';
+import { relayWhitelist } from './relay-whitelist.ts';
 import { CREATORS, FAN_COUNT, HOLDERS, SCOUT, fanAccount } from './personas.ts';
 import { getState, pendingApplicants } from './store.ts';
 
@@ -53,6 +54,7 @@ async function build(): Promise<Snapshot> {
   const [hc, startups, campaigns, creatorsRaw, audit, solvency] = await Promise.all([
     getConfig(), getStartups(), getCampaigns(), getCreators(), getAudit(), view<Record<string, string>>('solvency'),
   ]);
+  relayWhitelist.note(startups); // a startup launched since boot can use the gasless relayer
   const applicants = [...new Set([...CREATORS.map((c) => c.account), ...pendingApplicants()])];
   const fans = Array.from({ length: getState<number>('fan-count', FAN_COUNT) }, (_, i) => fanAccount(i + 1));
   const agentAccounts = [...CREATORS.map((c) => c.account), SCOUT.account, ...HOLDERS.map((h) => h.account)];
