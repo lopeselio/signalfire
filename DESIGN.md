@@ -124,6 +124,12 @@ One holder, one vote (Sputnik's RoleWeight), not token-weighted: this keeps whal
 - **The model never decides money or admission.** The contract admits by rule: the scout is registered, the creator
   has a wallet, the name is not a lookalike of an admitted creator. The report is advice, published with its proof.
 - Creator agents' pitches come from the same TEE model; the pitch hash is sealed inside the bid.
+- **Private AI, verified.** Every vetting report and pitch carries a badge that runs the model's attestation in the
+  viewer's browser (`packages/attest`): fresh nonce → `cloud-api.near.ai/v1/attestation/report` → Intel TDX quote
+  (dcap-qvl) → signer + nonce in report data → MRCONFIGID = 01‖sha256(app_compose) → RTMR3 replay → NVIDIA NRAS JWTs
+  (relayed by `/api/nras`, verified against NVIDIA's JWKS) → the reply's EIP-191 signature recovers to exactly one
+  verified signer. `pnpm verify` runs the same checks. Caveat (docs.near.ai): instances of a model share a signing
+  key, so this does not prove which instance served a given reply.
 - **NFTs (NEP-171 on the hub)**: `creator:<account>` is minted at admission and is soulbound; its metadata is
   **computed from state** at read time (campaigns won, completed, missed, results, paid, reputation).
   `receipt:<campaign>` is minted to the creator when a campaign completes: startup, campaign, spend, results,
@@ -168,7 +174,7 @@ signatures on the NEAR AI reports.
 | security | spend policy, caps, allowlist, rate limit, milestones, audit log with flags, FC-key agents with wallet caps |
 | swarms | creator agents bid in commit-reveal auctions; the contract settles by a deterministic rule |
 | agents | agents earn tUSD, pay bonds, pay the scout, buy tokens; the scout sells vetting |
-| privacy | sealed bids and pitches; TEE-signed reports and pitches with kept proofs |
+| privacy | sealed bids and pitches; TEE-signed reports and pitches with kept proofs; the model's attestation verified in the browser and by `verify` |
 | business | treasury → procurement (auctions) → payouts runs on rules; humans set constraints |
 | realworld | tUSD payouts (labelled test stablecoin), gasless meta-transactions |
 | nfts | soulbound dynamic creator NFT, campaign receipt NFTs |
