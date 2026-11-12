@@ -137,7 +137,7 @@ function Thesis() {
   const [err, setErr] = useState(false);
   useEffect(() => { api<ThesisData>('/thesis').then(setT).catch(() => setErr(true)); }, []);
   return (
-    <section className="thesis">
+    <section className="thesis" data-tour="thesis">
       <p className="eyebrow">Thesis</p>
       <h2>Why agent-run marketing treasuries belong on NEAR</h2>
       <p>
