@@ -1,7 +1,7 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize } from 'node:path';
-import { openingMatches, pitchHash, priceAt } from '@signalfire/core';
+import { fmtTusd, openingMatches, pitchHash, priceAt } from '@signalfire/core';
 import { startAgents } from './agents.ts';
 import { BA_PATH, accountFromHeaders, authHandler } from './ba.ts';
 import { view } from './chain.ts';
@@ -44,6 +44,12 @@ function serveStatic(req: IncomingMessage, res: ServerResponse): void {
 
 // ---------- the public state ----------
 
+// Display only (the chain keeps its own text): the first two campaigns were end-to-end test runs titled with their
+// date, and the first payouts' audit notes carry tUSD in raw units ("65208 tUSD (6 dp)").
+const showTitle = (c: { id: number; title: string }): string => (/^E2E \d{4}-\d{2}-\d{2}/.test(c.title) ? `Launch test (end-to-end run ${c.id + 1})` : c.title);
+const showNote = (note: string): string => note.replace(/(\d+) tUSD \(6 dp\)/g, (_, raw: string) => `${fmtTusd(raw)} tUSD`);
+const showAudit = <T extends { note: string }>(e: T): T => ({ ...e, note: showNote(e.note) });
+
 /** Pitches are published only once the chain shows the bid as revealed (they're sealed until then). */
 function pitchesOf(s: Snapshot, id: number): Record<string, { pitch: string; signed: boolean; model: string }> {
   const c = s.campaigns.find((x) => x.id === id);
@@ -80,7 +86,7 @@ function publicState(s: Snapshot) {
     startups: s.startups.map((st) => ({ ...st, price: priceAt(BigInt(st.circulating)).toString(), holders: s.holders[st.id] ?? [] })),
     campaigns: s.campaigns.map((c) => {
       const p = s.proposals[c.id];
-      return { ...c, pitches: pitchesOf(s, c.id), proposal: p ? { status: p.status, votes: p.votes, kind: p.kind } : null };
+      return { ...c, title: showTitle(c), pitches: pitchesOf(s, c.id), proposal: p ? { status: p.status, votes: p.votes, kind: p.kind } : null };
     }),
     creators: s.creators.map((c) => ({ ...c, vetted: !!loadVetting(c.creator.account) })),
     agents: {
@@ -108,10 +114,10 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (p === BA_PATH || p.startsWith(`${BA_PATH}/`)) { await authHandler(req, res); return; }
     if (p === '/api/health') return json(res, 200, { ok: true, version: process.env.APP_VERSION ?? 'dev' });
     if (p === '/api/state') return json(res, 200, publicState(await snapshot()));
-    if (p === '/api/wire') return json(res, 200, getWire().slice(0, 80).map((w) => ({ ...w, url: w.tx ? explorerTx(w.tx) : null })));
+    if (p === '/api/wire') return json(res, 200, getWire().slice(0, 80).map((w) => ({ ...w, what: w.what.replace(/"(E2E [^"]+)"/, (_, t: string) => `"${showTitle({ id: w.campaign ?? 0, title: t })}"`), url: w.tx ? explorerTx(w.tx) : null })));
     if (p === '/api/audit') {
       const s = await snapshot();
-      return json(res, 200, [...s.audit].reverse());
+      return json(res, 200, [...s.audit].reverse().map(showAudit));
     }
     let m = /^\/api\/startup\/([a-z0-9]{2,8})\/trades$/.exec(p);
     if (m) return json(res, 200, (await snapshot()).trades[m[1]] ?? []);
@@ -139,7 +145,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
         ...c,
         pitches: pitchesOf(s, id),
         proposal: s.proposals[id] ?? null,
-        audit: s.audit.filter((e) => e.campaign === id),
+        audit: s.audit.filter((e) => e.campaign === id).map(showAudit),
         txs: getWire().filter((w) => w.campaign === id && w.tx).map((w) => ({ ...w, url: explorerTx(w.tx!) })),
       });
     }
@@ -153,7 +159,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       return json(res, 200, {
         creator: c, nfts,
         vetting: v ? { report: v.report, reportHash: v.reportHash, model: v.proof.model, signed: !!v.proof.signature, signingAddress: v.proof.signingAddress ?? null, at: v.at } : null,
-        campaigns: s.campaigns.filter((x) => x.bids.some((b) => b.creator === account)).map((x) => ({ id: x.id, title: x.title, phase: x.phase, won: x.winner === account, price: x.price, results: x.results })),
+        campaigns: s.campaigns.filter((x) => x.bids.some((b) => b.creator === account)).map((x) => ({ id: x.id, title: showTitle(x), phase: x.phase, won: x.winner === account, price: x.price, results: x.results })),
       });
     }
     if (p === '/api/opening' && post) {
