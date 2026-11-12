@@ -28,11 +28,13 @@ use near_sdk::{
 use std::collections::HashMap;
 
 pub mod curve;
+pub mod keyless;
 pub mod rules;
 #[cfg(test)]
 mod tests;
 
 use curve::*;
+use keyless::*;
 use rules::*;
 
 const YOCTO: u128 = 1_000_000_000_000_000_000_000_000;
@@ -56,6 +58,11 @@ const GAS_CB_HOLDER: Gas = Gas::from_tgas(90);
 const GAS_CB_MEMBER: Gas = Gas::from_tgas(50);
 const GAS_ACT: Gas = Gas::from_tgas(30);
 const GAS_FUND_CALL: u64 = 30_000_000_000_000;
+const GAS_MPC_VIEW: Gas = Gas::from_tgas(10);
+const GAS_MPC_SIGN: Gas = Gas::from_tgas(60);
+const GAS_CB_AGENT_KEY: Gas = Gas::from_tgas(60);
+const GAS_CB_AGENT_SIGNED: Gas = Gas::from_tgas(15);
+const GAS_CB_FORWARDED: Gas = Gas::from_tgas(40);
 
 pub const TERMS: &str = "An attention token is NOT equity, NOT a share of revenue, profits or the treasury, and NOT a promise of anything. \
 Its trading fees can only fund marketing campaigns chosen by holders. Testnet only: no real money.";
@@ -682,6 +689,9 @@ impl Hub {
     /// NEP-141 receiver: selling tokens back to the curve. `msg` = `{"min_near_out": "<yocto>"}`.
     pub fn ft_on_transfer(&mut self, sender_id: AccountId, amount: U128, msg: String) -> PromiseOrValue<U128> {
         let token = env::predecessor_account_id();
+        if self.tusd.as_ref() == Some(&token) {
+            return self.agent_delivery(sender_id, amount, msg);
+        }
         let suffix = format!(".{}", env::current_account_id());
         let sym = token.as_str().strip_suffix(&suffix).unwrap_or_else(|| env::panic_str("not a Signalfire token")).to_string();
         let s = self.startup(&sym);
@@ -1090,6 +1100,24 @@ impl Hub {
         cr.payouts += 1;
         cr.paid = U128(cr.paid.0 + amount);
         cr.paid_tusd = U128(cr.paid_tusd.0 + tusd);
+        // The keyless agent pays when it is set up and holds enough: the payout becomes an approved action that only
+        // this contract can have signed (agent_sign), and that this contract checks again on delivery.
+        if let Some(mut desk) = load_desk().filter(|d| d.enabled && d.tusd_free.0 >= tusd) {
+            desk.tusd_free = U128(desk.tusd_free.0 - tusd);
+            let id = desk.actions;
+            desk.actions += 1;
+            save_desk(&desk);
+            save_action(&AgentAction {
+                id, kind: "payout".into(), campaign: campaign_id, milestone: k, receiver: winner.clone(), tusd: U128(tusd), amount: U128(amount), audit_n: n,
+                status: "approved".into(), created_ms: now, signed_ms: None, done_ms: None, signs: 0, nonce: None, tx_hash: None, signed_tx: None,
+            });
+            if let Some(e) = self.audit.get_mut(n as u32) {
+                e.flags.push("keyless_agent".into());
+                e.note = format!("{} · keyless agent action {id}", e.note);
+            }
+            event("agent_action", json!({ "id": id, "campaign": campaign_id, "milestone": k, "receiver": winner, "tusd": U128(tusd) }));
+            return PromiseOrValue::Value(format!("paid:keyless_agent:{id}"));
+        }
         PromiseOrValue::Promise(
             Promise::new(token)
                 .function_call(
@@ -1108,24 +1136,7 @@ impl Hub {
         let c = self.campaigns.get(campaign_id).unwrap().clone();
         let winner = c.winner.clone().unwrap();
         if !ok {
-            let st = self.startup_mut(&c.startup);
-            st.committed = U128(st.committed.0 + amount.0);
-            st.paid = U128(st.paid.0 - amount.0);
-            st.recent_payouts.pop();
-            let cm = self.campaign_mut(campaign_id);
-            cm.milestones_paid = k - 1;
-            cm.paid = U128(cm.paid.0 - amount.0);
-            cm.paid_tusd = U128(cm.paid_tusd.0 - tusd.0);
-            cm.phase = "funded".into();
-            self.desk_reserve -= amount.0;
-            self.tusd_paid -= tusd.0;
-            let cr = self.creators.get_mut(&winner).unwrap();
-            cr.payouts -= 1;
-            cr.paid = U128(cr.paid.0 - amount.0);
-            cr.paid_tusd = U128(cr.paid_tusd.0 - tusd.0);
-            if let Some(e) = self.audit.get_mut(audit_n as u32) {
-                e.outcome = "failed:transfer".into();
-            }
+            self.undo_payout(campaign_id, k, amount.0, tusd.0, audit_n);
             return "failed:transfer".into();
         }
         event("milestone_paid", json!({ "campaign": campaign_id, "milestone": k, "creator": winner, "amount": amount, "tusd": tusd }));
@@ -1163,6 +1174,30 @@ impl Hub {
         );
         self.campaign_mut(campaign_id).receipt = Some(token_id.clone());
         event("receipt_minted", json!({ "campaign": campaign_id, "token_id": token_id, "owner": winner }));
+    }
+
+    /// A payout whose tUSD didn't reach the creator: the books go back to before the claim.
+    fn undo_payout(&mut self, campaign_id: u32, k: u8, amount: u128, tusd: u128, audit_n: u64) {
+        let c = self.campaigns.get(campaign_id).unwrap().clone();
+        let winner = c.winner.clone().unwrap();
+        let st = self.startup_mut(&c.startup);
+        st.committed = U128(st.committed.0 + amount);
+        st.paid = U128(st.paid.0 - amount);
+        st.recent_payouts.pop();
+        let cm = self.campaign_mut(campaign_id);
+        cm.milestones_paid = k - 1;
+        cm.paid = U128(cm.paid.0 - amount);
+        cm.paid_tusd = U128(cm.paid_tusd.0 - tusd);
+        cm.phase = "funded".into();
+        self.desk_reserve -= amount;
+        self.tusd_paid -= tusd;
+        let cr = self.creators.get_mut(&winner).unwrap();
+        cr.payouts -= 1;
+        cr.paid = U128(cr.paid.0 - amount);
+        cr.paid_tusd = U128(cr.paid_tusd.0 - tusd);
+        if let Some(e) = self.audit.get_mut(audit_n as u32) {
+            e.outcome = "failed:transfer".into();
+        }
     }
 
     /// After the deadline, an unfinished campaign returns its unpaid part to the treasury and counts as a miss.
@@ -1231,6 +1266,233 @@ impl Hub {
             yocto(0),
             GAS_ACT,
         )
+    }
+
+    // ---------- the keyless treasury agent (Chain Signatures) ----------
+
+    /// Sets up the keyless agent (owner, once): asks the MPC signer for the Ed25519 key it derives for this contract
+    /// and AGENT_PATH, then opens that key's implicit account with the attached NEAR (its gas), registers it with
+    /// tUSD and moves `tusd` of the payout desk to it. Nobody supplies the key: it comes from the MPC contract.
+    #[payable]
+    pub fn agent_setup(&mut self, tusd: U128) -> Promise {
+        self.only_owner();
+        require!(load_desk().is_none(), "the agent exists");
+        require!(self.tusd.is_some(), "tUSD not set up");
+        let near = env::attached_deposit().as_yoctonear();
+        require!(near >= YOCTO / 10, "attach at least 0.1 NEAR for the agent's gas and tUSD storage");
+        Promise::new(mpc_signer())
+            .function_call(
+                "derived_public_key",
+                serde_json::to_vec(&json!({ "path": AGENT_PATH, "predecessor": env::current_account_id(), "domain_id": ED25519_DOMAIN })).unwrap(),
+                yocto(0),
+                GAS_MPC_VIEW,
+            )
+            .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_AGENT_KEY).on_agent_key(tusd, U128(near)))
+    }
+
+    #[private]
+    pub fn on_agent_key(&mut self, tusd: U128, near: U128, #[callback_result] key: Result<String, PromiseError>) -> PromiseOrValue<bool> {
+        let refund = || Promise::new(self.owner.clone()).transfer(yocto(near.0)).detach();
+        let Some(pk) = key.ok().as_deref().and_then(ed25519_bytes) else {
+            refund();
+            return PromiseOrValue::Value(false);
+        };
+        let account = implicit_account(&pk);
+        let desk = AgentDesk {
+            account: account.clone(), public_key: format!("ed25519:{}", bs58::encode(pk).into_string()), signer: mpc_signer(), path: AGENT_PATH.into(),
+            domain_id: ED25519_DOMAIN, enabled: true, tusd_free: tusd, last_nonce: 0, actions: 0, created_ms: now_ms(),
+        };
+        save_desk(&desk);
+        self.log(None, None, "agent_setup", Some(&account), near.0, "set", vec!["keyless_agent".into()], format!("key {} from {} path {AGENT_PATH}; {} tUSD of the desk moved to it", desk.public_key, desk.signer, tusd_str(tusd.0)));
+        event("agent_setup", json!(desk));
+        let token = self.tusd.clone().unwrap();
+        let storage = 1_250_000_000_000_000_000_000u128;
+        Promise::new(account.clone()).transfer(yocto(near.0 - storage)).detach();
+        PromiseOrValue::Promise(
+            Promise::new(token.clone())
+                .function_call("storage_deposit", serde_json::to_vec(&json!({ "account_id": account, "registration_only": true })).unwrap(), yocto(storage), GAS_STORAGE)
+                .then(Promise::new(token).function_call(
+                    "ft_transfer",
+                    serde_json::to_vec(&json!({ "receiver_id": account, "amount": tusd, "memo": "Signalfire payout desk: tUSD for the keyless agent" })).unwrap(),
+                    yocto(1),
+                    GAS_FT_TRANSFER,
+                ))
+                .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_SMALL).on_agent_funded()),
+        )
+    }
+
+    #[private]
+    pub fn on_agent_funded(&mut self) -> bool {
+        let ok = all_ok();
+        if !ok {
+            // the tUSD didn't move: the agent stays off until the owner sorts it out
+            if let Some(mut d) = load_desk() {
+                d.enabled = false;
+                d.tusd_free = U128(0);
+                save_desk(&d);
+            }
+        }
+        ok
+    }
+
+    /// The owner turns the agent's payouts on or off (off: the hub pays from its own desk, as before).
+    pub fn agent_set_enabled(&mut self, enabled: bool) {
+        self.only_owner();
+        let mut d = load_desk().unwrap_or_else(|| env::panic_str("no agent"));
+        d.enabled = enabled;
+        save_desk(&d);
+        self.log(None, None, "agent_enabled", Some(&d.account), 0, if enabled { "on" } else { "off" }, vec!["keyless_agent".into()], String::new());
+    }
+
+    /// Anyone cranks: build the agent's transaction for approved action `id` (content fixed here: tUSD
+    /// `ft_transfer_call` of exactly the approved amount to this hub) with a recent `block_hash` and a fresh `nonce`
+    /// for the agent's key, and ask the MPC network to sign it. Attach the MPC fee (1 yoctoNEAR on testnet).
+    #[payable]
+    pub fn agent_sign(&mut self, id: u32, nonce: u64, block_hash: String) -> Promise {
+        let fee = env::attached_deposit();
+        require!(fee.as_yoctonear() >= 1, "attach the MPC signer's fee (at least 1 yoctoNEAR)");
+        let mut desk = load_desk().unwrap_or_else(|| env::panic_str("no agent"));
+        let mut a = load_action(id).unwrap_or_else(|| env::panic_str("no such action"));
+        let now = now_ms();
+        let ready = a.status == "approved" || (a.status == "signed" && a.signed_ms.is_some_and(|t| now.saturating_sub(t) >= RESIGN_AFTER_MS))
+            || (a.status == "signing" && a.signed_ms.is_some_and(|t| now.saturating_sub(t) >= RESIGN_AFTER_MS));
+        require!(ready, "this action is not waiting for a signature");
+        require!(nonce > desk.last_nonce, "nonce must be above the last one signed");
+        let bh = block_hash_bytes(&block_hash).unwrap_or_else(|| env::panic_str("block_hash: base58 of 32 bytes"));
+        let pk = ed25519_bytes(&desk.public_key).unwrap();
+        let tx = payout_tx(&desk, &pk, nonce, &bh, self.tusd.as_ref().unwrap(), &env::current_account_id(), &a);
+        let hash = env::sha256_array(&tx);
+        desk.last_nonce = nonce;
+        save_desk(&desk);
+        a.status = "signing".into();
+        a.signed_ms = Some(now);
+        a.signs += 1;
+        a.nonce = Some(nonce);
+        save_action(&a);
+        let request = MpcSignRequestEd { path: desk.path.clone(), payload_v2: MpcPayloadEd { eddsa: hex::encode(hash) }, domain_id: ED25519_DOMAIN };
+        Promise::new(desk.signer.clone())
+            .function_call("sign", serde_json::to_vec(&json!({ "request": request })).unwrap(), fee, GAS_MPC_SIGN)
+            .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_AGENT_SIGNED).on_agent_signed(id, Base64VecU8::from(tx)))
+    }
+
+    /// The MPC network answered. Keep the signed transaction if the signature checks against the agent's key.
+    #[private]
+    pub fn on_agent_signed(&mut self, id: u32, tx: Base64VecU8, #[callback_result] sig: Result<MpcEd25519Signature, PromiseError>) -> bool {
+        let Some(mut a) = load_action(id) else { return false };
+        let desk = load_desk().unwrap();
+        let pk = ed25519_bytes(&desk.public_key).unwrap();
+        let hash = env::sha256_array(&tx.0);
+        let good = sig.ok().filter(|s| s.scheme == "Ed25519").and_then(|s| <[u8; 64]>::try_from(s.signature).ok()).filter(|s| env::ed25519_verify(s, &hash, &pk));
+        if a.status != "signing" {
+            return false; // delivered or paid by the hub meanwhile
+        }
+        match good {
+            Some(s) => {
+                a.status = "signed".into();
+                a.tx_hash = Some(hex::encode(hash));
+                a.signed_tx = Some(Base64VecU8::from(signed_tx(&tx.0, &s)));
+                save_action(&a);
+                event("agent_signed", json!({ "id": id, "tx_hash": a.tx_hash, "nonce": a.nonce }));
+                true
+            }
+            None => {
+                a.status = if a.signs > 1 { "signed".into() } else { "approved".into() };
+                save_action(&a);
+                false
+            }
+        }
+    }
+
+    /// tUSD from the agent: a delivery for an approved action is forwarded to the creator; anything else (another
+    /// signature of the same action, a wrong amount, an action already paid) goes back to the agent.
+    fn agent_delivery(&mut self, sender_id: AccountId, amount: U128, msg: String) -> PromiseOrValue<U128> {
+        let desk = load_desk();
+        let action = parse_payout_msg(&msg).and_then(load_action);
+        let fits = |a: &AgentAction| ["approved", "signing", "signed"].contains(&a.status.as_str()) && a.tusd == amount;
+        match (desk, action) {
+            (Some(d), Some(mut a)) if d.account == sender_id && fits(&a) => {
+                a.status = "delivering".into();
+                save_action(&a);
+                let token = self.tusd.clone().unwrap();
+                PromiseOrValue::Promise(
+                    Promise::new(token)
+                        .function_call(
+                            "ft_transfer",
+                            serde_json::to_vec(&json!({ "receiver_id": a.receiver, "amount": a.tusd, "memo": format!("Signalfire campaign #{} milestone {} (keyless agent)", a.campaign, a.milestone) })).unwrap(),
+                            yocto(1),
+                            GAS_FT_TRANSFER,
+                        )
+                        .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_FORWARDED).on_agent_forwarded(a.id)),
+                )
+            }
+            _ => {
+                event("agent_refund", json!({ "from": sender_id, "amount": amount, "msg": msg }));
+                PromiseOrValue::Value(amount)
+            }
+        }
+    }
+
+    /// The forward to the creator landed (the payout is done) or didn't (the books go back; the tUSD returns to the agent).
+    #[private]
+    pub fn on_agent_forwarded(&mut self, id: u32) -> U128 {
+        let ok = all_ok();
+        let mut a = load_action(id).unwrap();
+        if ok {
+            a.status = "paid".into();
+            a.done_ms = Some(now_ms());
+            save_action(&a);
+            event("milestone_paid", json!({ "campaign": a.campaign, "milestone": a.milestone, "creator": a.receiver, "amount": a.amount, "tusd": a.tusd, "keyless_agent_action": id }));
+            if a.milestone == MILESTONES {
+                self.complete(a.campaign);
+            }
+            return U128(0);
+        }
+        a.status = "failed:transfer".into();
+        a.done_ms = Some(now_ms());
+        save_action(&a);
+        let mut d = load_desk().unwrap();
+        d.tusd_free = U128(d.tusd_free.0 + a.tusd.0);
+        save_desk(&d);
+        self.undo_payout(a.campaign, a.milestone, a.amount.0, a.tusd.0, a.audit_n);
+        a.tusd
+    }
+
+    /// Anyone, once an approved payout has waited AGENT_TIMEOUT_MS: the hub pays it from its own desk instead.
+    /// The agent's tUSD for it is freed, and a late delivery by the agent is refunded (the action is no longer open).
+    pub fn agent_fallback(&mut self, id: u32) -> Promise {
+        let mut a = load_action(id).unwrap_or_else(|| env::panic_str("no such action"));
+        require!(["approved", "signing", "signed"].contains(&a.status.as_str()), "this action is not open");
+        require!(now_ms().saturating_sub(a.created_ms) >= AGENT_TIMEOUT_MS, "the agent still has time");
+        a.status = "fallback".into();
+        a.done_ms = Some(now_ms());
+        save_action(&a);
+        let mut d = load_desk().unwrap();
+        d.tusd_free = U128(d.tusd_free.0 + a.tusd.0);
+        save_desk(&d);
+        Promise::new(self.tusd.clone().unwrap())
+            .function_call(
+                "ft_transfer",
+                serde_json::to_vec(&json!({ "receiver_id": a.receiver, "amount": a.tusd, "memo": format!("Signalfire campaign #{} milestone {}", a.campaign, a.milestone) })).unwrap(),
+                yocto(1),
+                GAS_FT_TRANSFER,
+            )
+            .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB_HOLDER).on_paid(a.campaign, a.milestone, a.amount, a.tusd, a.audit_n))
+    }
+
+    pub fn get_agent(&self) -> Option<AgentDesk> {
+        load_desk()
+    }
+
+    /// The agent's actions, newest first (the signed transaction left out; get_agent_action has it).
+    pub fn get_agent_actions(&self, from: Option<u32>, limit: Option<u32>) -> Vec<AgentAction> {
+        let Some(d) = load_desk() else { return vec![] };
+        let end = from.map(|f| f.min(d.actions)).unwrap_or(d.actions);
+        let n = limit.unwrap_or(50).min(100);
+        (end.saturating_sub(n)..end).rev().filter_map(load_action).map(|a| AgentAction { signed_tx: None, ..a }).collect()
+    }
+
+    pub fn get_agent_action(&self, id: u32) -> Option<AgentAction> {
+        load_action(id)
     }
 
     // ---------- views ----------
