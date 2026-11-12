@@ -77,6 +77,11 @@ describe('reading the model’s reply', () => {
   it('tolerates trailing commas', () => {
     expect(briefFrom(wrap('{"observed":[{"text":"There are 0 verified links.","cites":["E1"]},],}'), items).brief.observed).toHaveLength(1);
   });
+  it('reads items with a missing brace or "text" key', () => {
+    const b = briefFrom(wrap('{"gaps":[\n"No verified links.",\n"cites": ["E1"]\n},\n{\n"text": "There are 0 verified links.", "cites": ["E1"]}],\n"observed": [{"There are 0 verified links.", "cites": ["E1"]}]}'), items);
+    expect(b.brief.gaps.map((l) => l.text)).toEqual(['No verified links.', 'There are 0 verified links.']);
+    expect(b.brief.observed).toHaveLength(1);
+  });
   it('keeps the complete lines of a reply cut off by the token limit', () => {
     const b = briefFrom(wrap('{"observed":[{"text":"There are 0 verified links.","cites":["E1"]},{"text":"Cut off'), items);
     expect(b.parsed).toBe(true);

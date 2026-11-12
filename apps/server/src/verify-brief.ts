@@ -1,7 +1,7 @@
 import { DOES_NOT_PROVE, attestModel, replyChecks } from '@signalfire/attest';
 import { canonical, evidenceHash, evidencePrompt, plainBrief, ruleFlags, type EvidenceItem } from '@signalfire/core';
 import type { BriefRecord } from './evidence/brief.ts';
-import { SYSTEM, briefFrom } from './evidence/parse.ts';
+import { RESPONSE_FORMAT, SYSTEM, briefFrom } from './evidence/parse.ts';
 import { RPCS, checkProof, github } from './evidence/proofs.ts';
 import type { FounderLink } from './evidence/store.ts';
 
@@ -73,8 +73,8 @@ async function main(): Promise<void> {
   if (!br.proof) {
     pass('written without NEAR AI: facts and rule checks only, unsigned');
   } else {
-    const req = JSON.parse(br.proof.request) as { model: string; messages: { role: string; content: string }[] };
-    check(req.messages[0]?.content === SYSTEM, 'the model was given the published rules (no advice, cite every line, inference labelled)', 'the system prompt differs from the published rules');
+    const req = JSON.parse(br.proof.request) as { model: string; messages: { role: string; content: string }[]; response_format?: unknown };
+    check(req.messages[0]?.content === SYSTEM && canonical(req.response_format) === canonical(RESPONSE_FORMAT), 'the model was given the published rules (no advice, cite every line, inference labelled)', 'the system prompt differs from the published rules');
     check(req.messages[1]?.content === evidencePrompt({ id: startup, name: br.name }, br.evidence) && req.messages.length === 2, 'the model was given exactly this evidence and nothing else', 'the request holds something other than this evidence');
     const g0 = briefFrom(br.proof.response, br.evidence);
     // an unreadable reply leaves only the facts and the rule checks (plainBrief), never the model's text
