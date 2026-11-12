@@ -142,6 +142,9 @@ function refreshThesis(): Promise<Thesis> {
 setTimeout(() => void refreshThesis().catch((e: Error) => console.warn(`thesis: ${e.message}`)), 20_000).unref();
 setInterval(() => void refreshThesis().catch((e: Error) => console.warn(`thesis: ${e.message}`)), 600_000).unref();
 
+const sealedCache = new Map<number, { status: string } | null>();
+let scorerCache: { at: number; v: unknown } | null = null;
+
 // ---------- routes ----------
 
 async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -211,8 +214,13 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (m) {
       // a brief scored by OutLayer: the hub's record of it, the scorer, and the runs' request ids (for their attestations)
       const id = Number(m[1]);
-      const [book, scorer] = await Promise.all([view('get_sealed', { campaign_id: id }).catch(() => null), view('get_scorer', {}).catch(() => null)]);
-      return json(res, 200, { book, scorer, runs: outlayerRuns()[id] ?? [], keyRequest: config.scorerKeyRequest, outlayerApi: 'https://testnet-api.outlayer.ai' });
+      const phase = (await snapshot()).campaigns.find((x) => x.id === id)?.phase;
+      // a settled brief's record no longer changes: read it from the chain once
+      const hit = sealedCache.get(id);
+      const book = hit !== undefined ? hit : await view<{ status: string } | null>('get_sealed', { campaign_id: id });
+      if (phase && phase !== 'bidding' && (book === null || book.status === 'scored' || book.status === 'abandoned')) sealedCache.set(id, book);
+      if (!scorerCache || Date.now() - scorerCache.at > 60_000) scorerCache = { at: Date.now(), v: await view('get_scorer', {}).catch(() => null) };
+      return json(res, 200, { book, scorer: scorerCache.v, runs: outlayerRuns()[id] ?? [], keyRequest: config.scorerKeyRequest, outlayerApi: 'https://testnet-api.outlayer.ai' });
     }
     m = /^\/api\/campaign\/(\d{1,6})(\/proof)?$/.exec(p);
     if (m) {
