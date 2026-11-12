@@ -52,7 +52,7 @@ function BriefForm({ s }: { s: Startup }) {
     })).then((ok) => { if (ok) { setTitle(''); setBrief(''); setBudget(''); } });
   };
   return (
-    <div className="founder-form">
+    <div className="founder-form" data-tour="founder-brief">
       <h3>Post a campaign brief</h3>
       <label className="field"><span>Title</span><input maxLength={80} value={title} onChange={(e) => setTitle(e.target.value)} /></label>
       <label className="field"><span>Goal (what creators should do; max 600 bytes)</span><textarea value={brief} onChange={(e) => setBrief(e.target.value)} /></label>
@@ -92,7 +92,7 @@ function ConstraintsForm({ s }: { s: Startup }) {
   const same = !!next && next.campaign_cap === c.campaign_cap && next.max_payout === c.max_payout && next.payouts_per_hour === c.payouts_per_hour && next.min_bid_bps === c.min_bid_bps && next.min_holder_tokens === c.min_holder_tokens;
   const sym = s.id.toUpperCase();
   return (
-    <div className="founder-form">
+    <div className="founder-form" data-tour="founder-constraints">
       <h3>Treasury constraints</h3>
       <p className="muted small">Hard limits in the contract: campaign cap up to 1,000 NEAR; per-payout cap above 0 (a larger payout is held); 1 to 60 payouts an hour (more are held); credible-bid floor up to 90% of the budget; holder minimum 1 {sym} to 1% of the supply. Changes apply to future briefs, bids and payouts and are written to the audit log.</p>
       <div className="form-grid">
