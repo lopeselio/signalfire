@@ -16,6 +16,7 @@
     "setup": "pnpm --filter @signalfire/server setup",
     "human-bid": "pnpm --filter @signalfire/server human-bid",
     "seed-demo": "pnpm --filter @signalfire/server seed-demo",
+    "intents-swap": "pnpm --filter @signalfire/server intents-swap",
     "contract:test": "cd contracts/hub && cargo test --locked",
     "contract:build": "cd contracts/hub && cargo near build non-reproducible-wasm --locked"
   },
