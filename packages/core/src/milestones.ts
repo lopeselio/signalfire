@@ -25,3 +25,6 @@ export const attributable = (o: { gross: bigint; firstTimeBuyer: boolean; buyerI
 /** tUSD (6 decimals) for a NEAR amount at the fixed test rate 1 NEAR = 3 tUSD. */
 export const TUSD_PER_NEAR = 3n;
 export const tusdFor = (yocto: bigint): bigint => (yocto * TUSD_PER_NEAR) / 10n ** 18n;
+
+/** The other way: yoctoNEAR for tUSD raw units at the same test rate (the desk's quote when it buys tUSD back). */
+export const nearForTusd = (raw: bigint): bigint => (raw * 10n ** 18n) / TUSD_PER_NEAR;
