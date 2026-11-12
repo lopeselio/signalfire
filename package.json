@@ -14,6 +14,7 @@
     "verify": "pnpm --filter @signalfire/server verify",
     "e2e": "pnpm --filter @signalfire/server e2e",
     "setup": "pnpm --filter @signalfire/server setup",
+    "human-bid": "pnpm --filter @signalfire/server human-bid",
     "contract:test": "cd contracts/hub && cargo test --locked",
     "contract:build": "cd contracts/hub && cargo near build non-reproducible-wasm --locked"
   },
