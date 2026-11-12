@@ -870,3 +870,168 @@ fn keyless_agent_setup_is_owner_only_once_and_needs_the_mpc_key() {
     ctx("anyone.testnet", 0);
     assert!(matches!(h.claim_milestone(id), PromiseOrValue::Promise(_)));
 }
+
+// ---------- sealed bids scored by OutLayer ----------
+
+const BID_KEY: &str = "44f468700cdec813df76b469d073d615c06ed9a2bb1a759c7cf4437a877de57c";
+const WASM_HASH: &str = "36e28ec9e6bcd127b8cdd5d7b7a34b1e4047a8661fae895cba6b5947749ddff3";
+
+/// A live startup with three admitted creators, the scorer set up with its key, and an open brief.
+fn sealed_brief() -> (Hub, u32) {
+    let mut h = launched();
+    for _ in 0..6 {
+        buy(&mut h, "whale.testnet", 20 * NEAR, None);
+    }
+    assert!(creator(&mut h, NOVA, "Nova"));
+    assert!(creator(&mut h, QUILL, "Quill"));
+    assert!(creator(&mut h, EMBER, "Ember"));
+    ctx(HUB, 0);
+    h.scorer_set("https://example.org/scorer.wasm".into(), WASM_HASH.into());
+    ctx("anyone.testnet", MIN_RUN_DEPOSIT);
+    let _ = h.scorer_publish_key();
+    ctx_with(HUB, 0, vec![ok()]);
+    let out = json!({ "op": "public_key", "public_key": BID_KEY });
+    assert_eq!(h.on_scorer_key(json!({"op":"public_key"}).to_string(), Ok(Some(out))), Some(BID_KEY.to_string()));
+    ctx(FOUNDER, 0);
+    let id = h.create_campaign("glow".into(), "Night owls".into(), "Bring builders who ship at night".into(), 3, U128(NEAR), 60, 60, 3600);
+    (h, id)
+}
+
+fn seal(h: &mut Hub, c: u32, who: &str, price: u128) {
+    ctx(who, 0);
+    h.commit_sealed_bid(c, bid_hash(c, who, price, &pitch_hash("pitch"), &salt(who)), "ab".repeat(80));
+}
+
+/// What the scorer would answer for the brief's stored input: `winner` (index, price) and which bids opened.
+fn scorer_answer(h: &Hub, c: u32, winner: Option<(usize, u128)>, valid: Vec<bool>) -> Value {
+    let book = h.get_sealed(c).unwrap();
+    let mut v = json!({ "op": "score", "hub": HUB, "campaign": c, "public_key": BID_KEY, "input_hash": book.input_hash, "valid": valid, "winner": null });
+    if let Some((i, price)) = winner {
+        let who = h.get_campaign(c).unwrap().bids[i].creator.clone();
+        v["winner"] = json!(who);
+        v["index"] = json!(i);
+        v["price"] = json!(price.to_string());
+        v["pitch_hash"] = json!(pitch_hash("pitch"));
+        v["salt"] = json!(salt(who.as_str()));
+    }
+    v
+}
+
+#[test]
+fn sealed_bids_are_scored_by_the_tee_and_only_the_winner_is_opened() {
+    let (mut h, c) = sealed_brief();
+    seal(&mut h, c, NOVA, NEAR * 9 / 10);
+    seal(&mut h, c, QUILL, NEAR * 6 / 10);
+    seal(&mut h, c, EMBER, NEAR * 5 / 10);
+    // a sealed brief takes no commit-reveal bid
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| commit(&mut h, c, "creator-x.testnet", NEAR)));
+    assert!(r.is_err());
+    // not before bidding closes
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ctx("anyone.testnet", MIN_RUN_DEPOSIT);
+        let _ = h.score_sealed(c);
+    }));
+    assert!(r.is_err());
+    advance(61_000);
+    // nobody reveals a sealed bid
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| reveal(&mut h, c, QUILL, NEAR * 6 / 10)));
+    assert!(r.is_err());
+    ctx("anyone.testnet", MIN_RUN_DEPOSIT);
+    let _ = h.score_sealed(c);
+    let book = h.get_sealed(c).unwrap();
+    assert_eq!(book.status, "scoring");
+    let input: Value = serde_json::from_str(book.input.as_ref().unwrap()).unwrap();
+    assert_eq!(input["bids"].as_array().unwrap().len(), 3);
+    assert_eq!(book.input_hash.as_deref().unwrap(), hex::encode(env::sha256_array(book.input.as_ref().unwrap().as_bytes())));
+    // Ember's ciphertext didn't open: its bond is forfeited; Quill wins; Nova's price stays secret
+    let answer = scorer_answer(&h, c, Some((1, NEAR * 6 / 10)), vec![true, true, false]);
+    ctx_with(HUB, 0, vec![ok()]);
+    assert!(matches!(h.on_scored(c, Ok(Some(answer))), PromiseOrValue::Promise(_)));
+    let cm = h.get_campaign(c).unwrap();
+    assert_eq!((cm.phase.as_str(), cm.winner.as_ref().map(|w| w.as_str())), ("proposing", Some(QUILL)));
+    assert_eq!(cm.price.0, NEAR * 6 / 10);
+    assert!(cm.bids[1].revealed && cm.bids[1].credible);
+    assert!(!cm.bids[0].revealed && cm.bids[0].price.is_none(), "a losing bid is never opened");
+    assert_eq!(h.get_wallet(acc(NOVA)).unwrap().locked.0, 0);
+    let s = h.get_startup("glow".into()).unwrap();
+    assert_eq!(s.forfeits_in.0, BID_BOND);
+    let book = h.get_sealed(c).unwrap();
+    assert_eq!((book.status.as_str(), book.valid.clone()), ("scored", vec![true, true, false]));
+    assert!(book.output_hash.is_some());
+}
+
+#[test]
+fn a_wrong_or_foreign_answer_is_refused_and_scoring_can_be_asked_again() {
+    let (mut h, c) = sealed_brief();
+    seal(&mut h, c, NOVA, NEAR * 9 / 10);
+    seal(&mut h, c, QUILL, NEAR * 6 / 10);
+    advance(61_000);
+    ctx("anyone.testnet", MIN_RUN_DEPOSIT);
+    let _ = h.score_sealed(c);
+    // an answer for another input
+    let mut a = scorer_answer(&h, c, Some((1, NEAR * 6 / 10)), vec![true, true]);
+    a["input_hash"] = json!("00".repeat(32));
+    ctx_with(HUB, 0, vec![ok()]);
+    assert!(matches!(h.on_scored(c, Ok(Some(a))), PromiseOrValue::Value(None)));
+    assert_eq!(h.get_sealed(c).unwrap().status, "failed");
+    // too soon to ask again
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ctx("anyone.testnet", MIN_RUN_DEPOSIT);
+        let _ = h.score_sealed(c);
+    }));
+    assert!(r.is_err());
+    advance(RESCORE_AFTER_MS);
+    ctx("anyone.testnet", MIN_RUN_DEPOSIT);
+    let _ = h.score_sealed(c);
+    // a winner whose opening doesn't match its commitment
+    let a = scorer_answer(&h, c, Some((1, NEAR * 5 / 10)), vec![true, true]);
+    ctx_with(HUB, 0, vec![ok()]);
+    assert!(matches!(h.on_scored(c, Ok(Some(a))), PromiseOrValue::Value(None)));
+    assert_eq!(h.get_campaign(c).unwrap().phase, "bidding");
+    // OutLayer failed (null output)
+    advance(RESCORE_AFTER_MS);
+    ctx("anyone.testnet", MIN_RUN_DEPOSIT);
+    let _ = h.score_sealed(c);
+    ctx_with(HUB, 0, vec![ok()]);
+    assert!(matches!(h.on_scored(c, Ok(None)), PromiseOrValue::Value(None)));
+    // and if it never works, every bond comes back and nobody is opened
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ctx("anyone.testnet", 0);
+        h.abandon_sealed(c);
+    }));
+    assert!(r.is_err(), "OutLayer still has time");
+    advance(60_000 + SEALED_GIVE_UP_MS + 1);
+    ctx("anyone.testnet", 0);
+    h.abandon_sealed(c);
+    assert_eq!(h.get_campaign(c).unwrap().phase, "no_bids");
+    assert_eq!(h.get_wallet(acc(NOVA)).unwrap().locked.0, 0);
+    assert_eq!(h.get_sealed(c).unwrap().status, "abandoned");
+}
+
+#[test]
+fn sealed_bids_need_the_scorers_key_and_a_well_formed_ciphertext() {
+    let mut h = launched();
+    assert!(creator(&mut h, NOVA, "Nova"));
+    ctx(FOUNDER, 0);
+    for _ in 0..6 {
+        buy(&mut h, "whale.testnet", 20 * NEAR, None);
+    }
+    ctx(FOUNDER, 0);
+    let c = h.create_campaign("glow".into(), "Night owls".into(), "Bring builders who ship at night".into(), 3, U128(NEAR), 60, 60, 3600);
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| seal(&mut h, c, NOVA, NEAR / 2)));
+    assert!(r.is_err(), "no scorer yet");
+    ctx(HUB, 0);
+    h.scorer_set("https://example.org/scorer.wasm".into(), WASM_HASH.into());
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| seal(&mut h, c, NOVA, NEAR / 2)));
+    assert!(r.is_err(), "the key is not published");
+    // a key run that answered something else is not a key
+    ctx("anyone.testnet", MIN_RUN_DEPOSIT);
+    let _ = h.scorer_publish_key();
+    ctx_with(HUB, 0, vec![ok()]);
+    assert_eq!(h.on_scorer_key("{}".into(), Ok(Some(json!({ "op": "score", "public_key": BID_KEY })))), None);
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ctx("mallory.testnet", 0);
+        h.scorer_set("https://evil.example/x.wasm".into(), WASM_HASH.into());
+    }));
+    assert!(r.is_err(), "owner only");
+}
