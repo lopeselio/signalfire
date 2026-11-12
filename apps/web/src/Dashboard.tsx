@@ -1,8 +1,11 @@
+import { useEffect, useState } from 'react';
 import { fmtNear, fmtTokens, fmtTusd } from '@signalfire/core';
+import { api } from './api.ts';
 import { StartupLogo } from './Discover.tsx';
 import { Acct, Chip, Near, useApp } from './ui.tsx';
 
-// Public data, read live from the chain through /api/state, and the written thesis.
+// Public data, read live from the chain through /api/state, and the thesis with its evidence (/api/thesis, the same
+// computation as `pnpm thesis`, which anyone can re-run against public RPC).
 
 export function Dashboard() {
   const { state, go } = useApp();
@@ -111,32 +114,70 @@ export function Dashboard() {
         <p className={balance - storage >= owed ? 'ok-text small' : 'bad-text small'}>{balance - storage >= owed ? 'Covered: the hub’s free balance exceeds everything it owes.' : 'Not covered: the hub owes more than its free balance.'}</p>
       </section>
 
-      <section className="thesis">
-        <h2>Why attention markets need spend-restricted treasuries</h2>
-        <p>
-          Attention tokens work: people will trade a token because a project is interesting, and that trading is real demand
-          for the project’s story. But on most launchpads the fees and the founders’ allocation go to the founders. The token
-          becomes exit liquidity, the community that bought the story pays for it, and the next launch inherits the distrust.
-        </p>
-        <p>
-          Signalfire changes one thing: where the money can go. Every trade pays 2% into a marketing treasury the founders cannot
-          withdraw. The only way out is a campaign that vetted creators bid for, that holders approve, and that pays only as new
-          buyers arrive. Trading volume turns into distribution, and the people who supply the volume decide how it is spent.
-        </p>
-        <p>
-          On NEAR this is enforceable rather than promised. The treasury is a ledger inside one contract with no withdraw method;
-          funding is a FunctionCall proposal in a Sputnik DAO whose policy gives nobody a transfer permission; agents act through
-          function-call keys and capped wallets; every payout passes a spend policy and lands in an onchain audit log; the token
-          has a fixed supply with no mint method.
-        </p>
-        <p>
-          What the data here shows: fees in, treasury balances, campaigns funded, what each one cost per new buyer, and every
-          creator’s record, all read from the chain and checkable with <code>pnpm verify</code>. What it does not show: this is
-          testnet, the audience is simulated fan accounts and the demo creators are our own agents, so the cost per buyer is a
-          mechanism test, not a market price. The thesis to test with real money is whether cost per holder falls as creators
-          build reputation and holders learn which pitches deliver.
-        </p>
-      </section>
+      <Thesis />
     </div>
+  );
+}
+
+interface ThesisData {
+  at: number; claim: string;
+  costs: { action: string; method: string; n: number; medianNear: string; maxNear: string }[];
+  loopCostNear: string | null;
+  fees: { inNear: string; toCreatorsNear: string; reservedNear: string; freeNear: string; toFoundersNear: string; shareToCreatorsPct: number };
+  startups: { id: string; name: string; feesInNear: string; paidNear: string; campaignsDone: number; newBuyers: number; costPerBuyerNear: string | null }[];
+  bounds: { payoutAttempts: number; paid: number; held: number; admissionsRefused: number; flags: Record<string, number>; agents: number; agentsFcOnly: number; fullAccessKeys: number; walletsCapDayNear: string; walletsSpentNear: string; fanSpentMaxNear: string; fanCapDayNear: string };
+  latency: { campaigns: number; voteMedianS: number | null; briefToFundedMedianS: number | null; briefToPaidMedianS: number | null };
+  limits: string[];
+}
+
+function Thesis() {
+  const [t, setT] = useState<ThesisData | null>(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => { api<ThesisData>('/thesis').then(setT).catch(() => setErr(true)); }, []);
+  return (
+    <section className="thesis">
+      <p className="eyebrow">Thesis</p>
+      <h2>Why agent-run marketing treasuries belong on NEAR</h2>
+      <p>
+        Attention tokens work: people trade a token because a project is interesting. On most launchpads the fees and the
+        founders’ allocation go to the founders, so the community that bought the story pays for an exit. Signalfire changes
+        where the money can go: fees can only buy reach, through campaigns creators bid for and holders approve, paid as new
+        buyers arrive. That only works if many small actions (bids, votes, buys, payouts) are cheap, fast and checkable, and if
+        the agents doing them can’t move money they shouldn’t. That is the claim; below is the evidence, recomputed from chain data.
+      </p>
+      {err && <p className="muted">The evidence couldn’t be loaded right now; run <code>pnpm thesis</code> to compute it yourself.</p>}
+      {!t && !err && <p className="muted">Reading transactions from an archival RPC…</p>}
+      {t && (
+        <div className="evidence">
+          <h3>1. An agent action costs a thousandth of a NEAR or less</h3>
+          <p className="small muted">Gas burnt, read from each transaction’s receipts. One whole campaign is 19 transactions{t.loopCostNear && <>: about <strong>{t.loopCostNear} NEAR</strong> of gas</>}.</p>
+          <div className="tbl-wrap"><table className="tbl compact">
+            <thead><tr><th>Action</th><th>Method</th><th className="r">Median (NEAR)</th><th className="r">Max</th><th className="r">n</th></tr></thead>
+            <tbody>{t.costs.map((c) => <tr key={c.method}><td>{c.action}</td><td><code>{c.method}</code></td><td className="r">{c.medianNear}</td><td className="r">{c.maxNear}</td><td className="r">{c.n}</td></tr>)}</tbody>
+          </table></div>
+
+          <h3>2. Fees reach creators, never founders</h3>
+          <p className="small">{t.fees.inNear} NEAR came into marketing treasuries: <strong>{t.fees.toCreatorsNear} NEAR ({t.fees.shareToCreatorsPct}%) paid to creators</strong>, {t.fees.reservedNear} reserved for running campaigns, {t.fees.freeNear} free for the next briefs, and {t.fees.toFoundersNear} to founders. The rest is not stuck: it waits for briefs, and no method can send it anywhere else.</p>
+          <div className="tbl-wrap"><table className="tbl compact">
+            <thead><tr><th>Startup</th><th className="r">Fees in</th><th className="r">Paid to creators</th><th className="r">Campaigns</th><th className="r">New buyers</th><th className="r">Per new buyer (NEAR)</th></tr></thead>
+            <tbody>{t.startups.map((s) => <tr key={s.id}><td><span className="t-name"><StartupLogo id={s.id} size={22} />{s.name}</span></td><td className="r">{s.feesInNear}</td><td className="r">{s.paidNear}</td><td className="r">{s.campaignsDone}</td><td className="r">{s.newBuyers}</td><td className="r">{s.costPerBuyerNear ?? '—'}</td></tr>)}</tbody>
+          </table></div>
+
+          <h3>3. Keys and policy bound what agents can move</h3>
+          <ul className="plain small">
+            <li><strong>{t.bounds.agentsFcOnly} of {t.bounds.agents}</strong> agent accounts hold function-call keys only ({t.bounds.fullAccessKeys} full-access keys among them).</li>
+            <li>Agents spent {t.bounds.walletsSpentNear} NEAR in total from capped hub wallets ({t.bounds.walletsCapDayNear} NEAR/day of caps across all of them); the busiest fan spent {t.bounds.fanSpentMaxNear} NEAR over its life, at most {t.bounds.fanCapDayNear} NEAR a day.</li>
+            <li>{t.bounds.payoutAttempts} payout attempts went through the spend policy: {t.bounds.paid} paid, {t.bounds.held} held. {t.bounds.admissionsRefused} creator admission refused (a look-alike name). Flags raised: {Object.entries(t.bounds.flags).map(([k, v]) => `${k} ×${v}`).join(', ') || 'none'}.</li>
+          </ul>
+
+          <h3>4. Holders decide in minutes</h3>
+          <p className="small">Across {t.latency.campaigns} funded campaigns: DAO proposal to funded, median <strong>{t.latency.voteMedianS ?? '—'} s</strong>; brief to funded {t.latency.briefToFundedMedianS ?? '—'} s; brief to the last milestone paid {t.latency.briefToPaidMedianS ?? '—'} s.</p>
+
+          <h3>Limits</h3>
+          <ul className="small muted">{t.limits.map((l) => <li key={l}>{l}</li>)}</ul>
+          <p className="small">Recompute all of it yourself, with no keys: <code>pnpm thesis</code> (reads hub and DAO state over public RPC, and every transaction from an archival RPC). Computed {new Date(t.at).toUTCString()}.</p>
+        </div>
+      )}
+    </section>
   );
 }
