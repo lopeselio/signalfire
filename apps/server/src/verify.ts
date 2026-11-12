@@ -1,8 +1,9 @@
-import { DOES_NOT_PROVE, attestModel, replyChecks, type ModelVerification } from '@signalfire/attest';
+import { DOES_NOT_PROVE, attestModel, openReply, replyChecks, type ModelVerification } from '@signalfire/attest';
 import {
   MIN_ATTRIB, bidHash, cost, credible, fmtTusd, milestoneAmount, pickWinner, pitchHash, sha256Hex, threshold, tusdFor,
 } from '@signalfire/core';
 import type { ProofBundle } from './proof.ts';
+import { parseVerdict, privateLines, type PrivateVerdict } from './verdict.ts';
 
 // Re-checks a campaign without trusting the Signalfire server:
 //   pnpm verify <campaignId> [baseUrl]
@@ -126,43 +127,97 @@ export async function verifyCampaign(id: number, bundle: ProofBundle, log: (s: s
   // 7. the curve
   check(BigInt(s.reserve) === cost(0n, BigInt(s.circulating)), `${c.startup.toUpperCase()}'s curve reserve equals the integral of the price line (every token can be sold back)`, 'the curve reserve is off');
 
-  // 8. NEAR AI: the model's TEE, checked now with a fresh nonce, then every reply's signature against it
-  const signed = [...bundle.bids.map((b) => b.proof), ...bundle.vetting.map((v) => v.proof)].filter((p): p is NonNullable<typeof p> => !!p?.signature);
-  const models = [...new Set(signed.map((p) => p.model))];
-  const attested = new Map<string, ModelVerification | null>();
-  for (const model of models) {
+  await checkAi(bundle, hub, ok, bad, check, log);
+  log(`\n${r.failed === 0 ? '✓' : '✗'} ${r.ok} checks passed, ${r.failed} failed`);
+  return r;
+}
+
+
+type Mark = (s: string) => void;
+/** NEAR AI: the model's TEE, checked now with a fresh nonce, then every reply's signature (and report hash) against it. */
+async function checkAi(bundle: Pick<ProofBundle, 'bids' | 'vetting'>, hub: string, ok: Mark, bad: Mark, check: (c: boolean, y: string, n: string) => void, log: Mark): Promise<void> {
+  const signed = [...bundle.bids.map((b) => b.proof), ...bundle.vetting.flatMap((v) => [v.proof, v.privateProof])].filter((p): p is NonNullable<typeof p> => !!p?.signature);
+  const algoOf = (p: { signingAlgo?: string }): 'ecdsa' | 'ed25519' => (p.signingAlgo === 'ed25519' ? 'ed25519' : 'ecdsa');
+  const keys = [...new Set(signed.map((p) => `${p.model}|${algoOf(p)}`))];
+    const attested = new Map<string, ModelVerification | null>();
+  for (const k of keys) {
+    const [model, algo] = k.split('|') as [string, 'ecdsa' | 'ed25519'];
     try {
-      const v = await attestModel(model);
-      attested.set(model, v);
+      const v = await attestModel(model, { algo });
+      attested.set(k, v);
       v.candidates.forEach((cand, i) => {
-        log(`  ${model} report candidate ${i + 1} (signer ${cand.signingAddress}), nonce ${v.nonce.slice(0, 16)}…`);
+        log(`  ${model} (${algo}) report candidate ${i + 1} (signer ${cand.signingAddress}), nonce ${v.nonce.slice(0, 16)}…`);
         for (const k of cand.checks) check(k.ok, `TEE: ${k.label}${k.detail ? ` [${k.detail}]` : ''}`, `TEE: ${k.label}${k.detail ? ` [${k.detail}]` : ''}`);
         if (cand.measurements.mrTd) log(`  measurements: MRTD ${cand.measurements.mrTd.slice(0, 16)}…, compose ${cand.measurements.composeHash?.slice(0, 16)}…, app ${cand.measurements.appId ?? '?'}, TCB ${cand.measurements.tcbStatus}, GPUs ${cand.measurements.gpus?.join(' ') ?? '?'}`);
       });
       check(v.ok, `${model}: attested by NEAR AI Cloud with a fresh nonce (signer ${v.trustedSigners.join(', ')})`, `${model}: no report candidate passed every check`);
     } catch (e) {
-      attested.set(model, null);
+      attested.set(k, null);
       bad(`${model}: could not fetch or check the attestation report (${(e as Error).message})`);
     }
   }
-  const replyOk = (p: NonNullable<ProofBundle['bids'][number]['proof']>): boolean => replyChecks(p, attested.get(p.model) ?? null).every((k) => k.ok);
+  const replyOk = (p: NonNullable<ProofBundle['bids'][number]['proof']>): boolean => replyChecks(p, attested.get(`${p.model}|${algoOf(p)}`) ?? null).every((k) => k.ok);
   for (const o of bundle.bids) {
     if (!o.proof) { ok(o.author === 'creator' ? `${o.creator}: pitch written by the creator in their browser (no model, nothing to sign)` : `${o.creator}: pitch written without NEAR AI (fallback text, unsigned)`); continue; }
     check(replyOk(o.proof) && o.proof.response.includes(JSON.stringify(o.pitch).slice(1, 30)), `${o.creator}: pitch signed by the attested NEAR AI TEE key ${o.proof.signingAddress?.slice(0, 10)}…`, `${o.creator}: the pitch's TEE signature does not check against a verified report`);
   }
   for (const v of bundle.vetting) {
     const cr = await viewOn<{ creator: { report_hash: string } } | null>(hub, 'get_creator', { account: v.account });
-    check(!!cr && sha256Hex(v.report) === cr.creator.report_hash, `${v.account}: the vetting report hashes to the report_hash the scout put onchain`, `${v.account}: report hash mismatch`);
+    if (cr) check(sha256Hex(v.report) === cr.creator.report_hash, `${v.account}: the vetting report hashes to the report_hash the scout put onchain`, `${v.account}: report hash mismatch`);
+    else {
+      // refused by rule: the hub keeps no report hash for a refused applicant, only the audit entry
+      const audit = await viewOn<Audit[]>(hub, 'get_audit', { from: 0, limit: 200 }).then(async (a) => (a.length === 200 ? [...a, ...(await viewOn<Audit[]>(hub, 'get_audit', { from: 200, limit: 200 }))] : a));
+      const refused = audit.find((e) => e.action === 'vet' && e.account === v.account && e.outcome === 'rejected');
+      check(!!refused, `${v.account}: refused by the contract's rule (${refused?.note ?? ''}); the hub keeps no report hash for refused applicants`, `${v.account}: neither admitted nor refused onchain`);
+    }
     if (v.proof) check(replyOk(v.proof), `${v.account}: vetting report signed by the attested NEAR AI TEE key`, `${v.account}: vetting report signature does not check against a verified report`);
+    if (v.privateProof) {
+      // a private application: the verdict came from an end-to-end encrypted call. Its signature must check against
+      // the attested Ed25519 key; its reply (opened with the published one-off key) must be exactly the verdict in
+      // the onchain-hashed report, in the allowed shape; and every message to the model must be ciphertext.
+      const pp = v.privateProof;
+      check(replyOk(pp), `${v.account}: the private verdict is signed by the attested NEAR AI TEE key (Ed25519)`, `${v.account}: the private verdict's signature does not check against a verified report`);
+      let verdict: PrivateVerdict | null = null;
+      try {
+        const sealed = (JSON.parse(pp.response) as { choices: { message: { content: string } }[] }).choices[0].message.content;
+        verdict = parseVerdict(openReply(sealed, pp.e2ee!.clientSecret));
+      } catch { /* fails below */ }
+      check(!!verdict && !!v.privateCommitment && v.report.endsWith(privateLines(verdict, v.privateCommitment)),
+        `${v.account}: the encrypted reply opens to the verdict in the report (${verdict ? `fit ${verdict.fit}, details ${verdict.private_details}` : '?'}), which commits to the private details (${v.privateCommitment?.slice(0, 12)}…)`,
+        `${v.account}: the private verdict does not match the report`);
+      check(!!verdict, `${v.account}: the verdict is only a score and fixed phrases, so it cannot repeat the private details`, `${v.account}: the private reply is not in the allowed shape`);
+      const msgs = (JSON.parse(pp.request) as { messages: { content: string }[] }).messages;
+      check(msgs.length === 3 && msgs.every((m) => /^[0-9a-f]+$/.test(m.content)), `${v.account}: every message of the private call was encrypted to the model (only the TEE could read the details)`, `${v.account}: a message went to the model in clear text`);
+    }
   }
-  if (models.length) log(`  note: ${DOES_NOT_PROVE}`);
+  if (keys.length) log(`  note: ${DOES_NOT_PROVE}`);
+}
+
+/** `pnpm verify creator <account>`: a creator's vetting report, its hash onchain, its TEE signature and, for a
+ *  private application, the encrypted request and the commitment. */
+export async function verifyCreator(account: string, vetting: ProofBundle['vetting'][number], hub: string, log: Mark = console.log): Promise<Report> {
+  const r: Report = { ok: 0, failed: 0, lines: [] };
+  const ok = (s: string): void => { r.ok++; r.lines.push(`✓ ${s}`); log(`✓ ${s}`); };
+  const bad = (s: string): void => { r.failed++; r.lines.push(`✗ ${s}`); log(`✗ ${s}`); };
+  const check = (cond: boolean, yes: string, no: string): void => (cond ? ok(yes) : bad(no));
+  log(`creator ${account} (${hub})`);
+  await checkAi({ bids: [], vetting: [vetting] }, hub, ok, bad, check, log);
   log(`\n${r.failed === 0 ? '✓' : '✗'} ${r.ok} checks passed, ${r.failed} failed`);
   return r;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const [idArg, base = 'http://localhost:8861'] = process.argv.slice(2);
-  if (!idArg) { console.error('usage: pnpm verify <campaignId> [baseUrl]'); process.exit(2); }
+  const [idArg, ...rest] = process.argv.slice(2);
+  if (!idArg) { console.error('usage: pnpm verify <campaignId> [baseUrl]  |  pnpm verify creator <account> [baseUrl]'); process.exit(2); }
+  if (idArg === 'creator') {
+    const [account, base = 'http://localhost:8861'] = rest;
+    const res = await fetch(`${base}/api/creator/${account}/proof`);
+    const v = (await res.json()) as ProofBundle['vetting'][number] & { hub: string; error?: string };
+    if (!res.ok) { console.error(`✗ ${v.error ?? res.status}`); process.exit(1); }
+    const rep = await verifyCreator(account, v, v.hub);
+    process.exit(rep.failed === 0 ? 0 : 1);
+  }
+  const base = rest[0] ?? 'http://localhost:8861';
   const res = await fetch(`${base}/api/campaign/${idArg}/proof`);
   const bundle = (await res.json()) as ProofBundle & { error?: string };
   if (!res.ok) { console.error(`✗ ${bundle.error ?? res.status}`); process.exit(1); }
