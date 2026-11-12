@@ -30,7 +30,7 @@ export function Launch() {
       </section>
       <SignInHint what="launch a startup" />
       {account && (
-        <section className="panel launch-form">
+        <section className="panel launch-form" data-tour="launch">
           <label className="field"><span>Symbol (2–8 lowercase letters or digits)</span>
             <input value={symbol} onChange={(e) => setSymbol(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8))} aria-invalid={!!symbol && !okSym} />
           </label>
