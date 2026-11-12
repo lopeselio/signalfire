@@ -1,0 +1,7 @@
+/* Feature panels (a person's sealed bid, the founder's desk). Kept apart from style.css; uses its variables. */
+.mybid, .founder-form { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 14px 0; }
+.mybid h4, .founder-form h3 { margin-top: 0; }
+.mybid textarea, .founder-form textarea { min-height: 72px; }
+.timeline.small-steps { grid-template-columns: repeat(3, 1fr); }
+.mybid .row, .founder-form .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px 12px; }
