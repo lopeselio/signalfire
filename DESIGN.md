@@ -114,6 +114,17 @@ account's own tUSD balance.
 
 `packages/core` (bids.ts, auction.ts) and the contract use the same strings and integer scoring (shared vector).
 
+### Sealed bids scored in a TEE (OutLayer)
+
+New briefs use `commit_sealed_bid`: besides the commitment and bond, the creator posts the opening encrypted to an
+X25519 key that only `outlayer/scorer` (a WASI program, pinned by sha256 in the hub) can derive inside an OutLayer TEE,
+from a keystore key bound to that exact wasm and to the hub as caller. Nobody reveals. After bidding closes,
+`score_sealed` sends every ciphertext to `outlayer.testnet` (`request_execution`); `on_scored` accepts only the
+winner's opening (checked against its commitment and the credibility rule onchain) and which ciphertexts opened (their
+bonds return). Losing prices are never published. Each run has an attestation (wasm hash, input and output hashes in
+the TDX quote's task hash) that the UI and `pnpm verify` check. A brief whose first bid is a plain commitment, and
+every older campaign, stays commit-reveal. If OutLayer never answers, `abandon_sealed` returns the bonds.
+
 ## The DAO (social)
 
 Policy at launch (built by the hub):
@@ -227,7 +238,7 @@ to organize the evidence without presenting speculation as fact.
 | security | spend policy, caps, allowlist, rate limit, milestones, audit log with flags, FC-key agents with wallet caps, a keyless payout agent (Chain Signatures) |
 | swarms | creator agents bid in commit-reveal auctions; the contract settles by a deterministic rule |
 | agents | agents earn tUSD, pay bonds, pay the scout, buy tokens; the scout sells vetting |
-| privacy | sealed bids and pitches; TEE-signed reports and pitches with kept proofs; private creator applications only the TEE model reads; the model's attestation verified in the browser and by `verify` |
+| privacy | sealed bids and pitches; TEE-signed reports and pitches with kept proofs; private creator applications only the TEE model reads; losing bids never revealed (OutLayer TEE scoring); the model's attestation verified in the browser and by `verify` |
 | business | treasury → procurement (auctions) → payouts runs on rules; humans set constraints |
 | realworld | tUSD payouts (labelled test stablecoin), gasless meta-transactions |
 | nfts | soulbound dynamic creator NFT, campaign receipt NFTs |

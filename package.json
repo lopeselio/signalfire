@@ -24,7 +24,8 @@
     "intents-swap": "pnpm --filter @signalfire/server intents-swap",
     "contract:test": "cd contracts/hub && cargo test --locked",
     "contract:build": "cd contracts/hub && cargo near build non-reproducible-wasm --locked",
-    "private-apply": "pnpm --filter @signalfire/server private-apply"
+    "private-apply": "pnpm --filter @signalfire/server private-apply",
+    "sealed-bid": "pnpm --filter @signalfire/server sealed-bid"
   },
   "devDependencies": {
     "typescript": "5.9.3",
