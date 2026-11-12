@@ -23,21 +23,34 @@ const HOLDER = { balance: '0.2', wallet: '0.06', capTx: '0.05', capDay: '0.06' }
 const FAN_BUY = parseNear('0.06');
 const FAN_STORAGE = parseNear('0.0015');
 const FAN_CAP_DAY = parseNear('0.2');
+/** a new fan: a little NEAR on its account for gas, the rest in its capped hub wallet */
+const FAN_ACCOUNT = '0.05';
+/** pays for the fans (account and wallet top-ups); FUNDER=signalfire-desk.testnet keeps the operator's NEAR for gas */
+const FUNDER = process.env.FUNDER ?? config.operator;
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const say = (s: string, tx?: string): void => console.log(tx ? `${s}  ${explorerTx(tx)}` : s);
 
 async function main(): Promise<void> {
   const op = config.operator;
-  if (!hasKey(op) || !hasKey(config.hub)) throw new Error(`needs the keys of ${op} (the founder) and ${config.hub} (creates agents)`);
+  if (!hasKey(op) || !hasKey(config.hub) || !hasKey(FUNDER)) throw new Error(`needs the keys of ${op} (the founder), ${config.hub} (creates agents) and ${FUNDER} (pays for fans)`);
   const start = (await balanceOf(op)) ?? 0n;
   const todo = [];
   for (const d of DEMO_STARTUPS) if (!(await getStartup(d.id))) todo.push(d);
   // a rough upper bound: launch, holders, fees, gas
   const perStartup = YOCTO + 3n * (parseNear(HOLDER.balance) + parseNear(HOLDER.wallet)) + FEES_WANTED + parseNear('0.15');
-  const fanTopUp = BigInt(FAN_COUNT) * (FAN_BUY + FAN_STORAGE) * BigInt(DEMO_STARTUPS.length);
-  const need = perStartup * BigInt(todo.length) + fanTopUp;
+  const startups = BigInt(DEMO_STARTUPS.length + 1);
+  let missing = 0n;
+  for (let i = 1; i <= FAN_COUNT; i++) if ((await balanceOf(fanAccount(i))) === null) missing++;
+  // new fans in full, plus a top-up allowance for the existing ones
+  const fanTopUp = missing * ((FAN_BUY + FAN_STORAGE) * startups + parseNear(FAN_ACCOUNT)) + parseNear('0.3');
+  const need = perStartup * BigInt(todo.length) + (FUNDER === op ? fanTopUp : 0n);
   console.log(`operator ${op}: ${fmtNear(start, 3)} NEAR; ${todo.length} startups to launch (${todo.map((d) => d.id).join(', ') || 'none'}); at most ${fmtNear(need, 2)} NEAR; keeps ${fmtNear(KEEP, 0)} spare`);
   if (start - need < KEEP) throw new Error('not enough NEAR on the operator to keep the spare');
+  if (FUNDER !== op) {
+    const f = (await balanceOf(FUNDER)) ?? 0n;
+    console.log(`fans paid by ${FUNDER}: ${fmtNear(f, 3)} NEAR; at most ${fmtNear(fanTopUp, 2)} NEAR`);
+    if (f < fanTopUp) throw new Error(`${FUNDER} can't cover the fans`);
+  }
   if (!GO) { console.log('dry run: pass --go to do it'); return; }
 
   for (const d of DEMO_STARTUPS) {
@@ -85,10 +98,17 @@ async function main(): Promise<void> {
     console.log(`${d.name}: fees in ${fmtNear(s.fees_in, 4)} NEAR, treasury free ${fmtNear(s.available, 4)} NEAR`);
   }
 
-  // the fans: enough in each hub wallet for one first buy of every startup it hasn't bought yet
+  // the fans: open the missing ones, then enough in each hub wallet for one first buy of every startup it hasn't
+  // bought yet, under a 24-hour cap that allows a few buys a day
   const ids = ['glow', ...DEMO_STARTUPS.map((d) => d.id)];
   for (let i = 1; i <= FAN_COUNT; i++) {
     const f = fanAccount(i);
+    if ((await balanceOf(f)) === null) {
+      const wallet = (FAN_BUY + FAN_STORAGE) * BigInt(ids.length);
+      const tx = await send(FUNDER, config.hub, parseNear(FAN_ACCOUNT) + wallet);
+      say(`${FUNDER} paid the hub for ${f.split('.')[0]}'s account and wallet`, tx);
+      await ensureAgent(f.split('.')[0], { balance: FAN_ACCOUNT, wallet: fmtNear(wallet, 6), capTx: '0.07', capDay: fmtNear(FAN_CAP_DAY, 2) });
+    }
     const w = await getWallet(f);
     if (!w) continue;
     let firsts = 0n;
@@ -96,8 +116,8 @@ async function main(): Promise<void> {
     const want = firsts * (FAN_BUY + FAN_STORAGE);
     const have = BigInt(w.balance);
     if (have < want) {
-      const r = await call(op, 'fund_wallet', { account: f }, 30, want - have);
-      say(`operator added ${fmtNear(want - have, 3)} NEAR to ${f.split('.')[0]}'s wallet`, r.tx);
+      const r = await call(FUNDER, 'fund_wallet', { account: f }, 30, want - have);
+      say(`${FUNDER} added ${fmtNear(want - have, 3)} NEAR to ${f.split('.')[0]}'s wallet`, r.tx);
     }
     if (BigInt(w.cap_day) < FAN_CAP_DAY) {
       const r = await call(config.hub, 'set_wallet_caps', { account: f, cap_tx: w.cap_tx, cap_day: FAN_CAP_DAY.toString() }, 30);
