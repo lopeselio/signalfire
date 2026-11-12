@@ -1,4 +1,4 @@
-import { verifyMessage } from 'ethers';
+import { DOES_NOT_PROVE, attestModel, replyChecks, type ModelVerification } from '@signalfire/attest';
 import {
   MIN_ATTRIB, bidHash, cost, credible, fmtTusd, milestoneAmount, pickWinner, pitchHash, sha256Hex, threshold, tusdFor,
 } from '@signalfire/core';
@@ -10,7 +10,8 @@ import type { ProofBundle } from './proof.ts';
 // server, then reads the hub, the startup's Sputnik DAO and the NFTs itself over public RPC, and checks:
 // every revealed bid against its sealed commitment; the winner by the shared scoring rule; the DAO proposal
 // (what it calls, its status and who voted); the attributed buyers; every payout against the milestones and
-// the spend policy log; the tUSD amounts; the receipt NFT; the curve reserve; and the TEE signatures.
+// the spend policy log; the tUSD amounts; the receipt NFT; the curve reserve; the NEAR AI model's TEE attestation (fresh nonce, Intel quote, bindings,
+// RTMR3, GPUs); and every reply's TEE signature against it.
 
 const RPCS = ['https://rpc.testnet.fastnear.com', 'https://test.rpc.fastnear.com', 'https://near-testnet.drpc.org'];
 
@@ -125,23 +126,36 @@ export async function verifyCampaign(id: number, bundle: ProofBundle, log: (s: s
   // 7. the curve
   check(BigInt(s.reserve) === cost(0n, BigInt(s.circulating)), `${c.startup.toUpperCase()}'s curve reserve equals the integral of the price line (every token can be sold back)`, 'the curve reserve is off');
 
-  // 8. NEAR AI: the TEE signatures and the report hashes
-  const signedOk = (p: NonNullable<ProofBundle['bids'][number]['proof']>): boolean => {
-    if (!p.signature || !p.signedText || !p.signingAddress) return false;
-    const tail = `${sha256Hex(p.request)}:${sha256Hex(p.response)}`;
-    let who = '';
-    try { who = verifyMessage(p.signedText, p.signature).toLowerCase(); } catch { /* bad signature */ }
-    return p.signedText.endsWith(tail) && who === p.signingAddress.toLowerCase();
-  };
+  // 8. NEAR AI: the model's TEE, checked now with a fresh nonce, then every reply's signature against it
+  const signed = [...bundle.bids.map((b) => b.proof), ...bundle.vetting.map((v) => v.proof)].filter((p): p is NonNullable<typeof p> => !!p?.signature);
+  const models = [...new Set(signed.map((p) => p.model))];
+  const attested = new Map<string, ModelVerification | null>();
+  for (const model of models) {
+    try {
+      const v = await attestModel(model);
+      attested.set(model, v);
+      v.candidates.forEach((cand, i) => {
+        log(`  ${model} report candidate ${i + 1} (signer ${cand.signingAddress}), nonce ${v.nonce.slice(0, 16)}…`);
+        for (const k of cand.checks) check(k.ok, `TEE: ${k.label}${k.detail ? ` [${k.detail}]` : ''}`, `TEE: ${k.label}${k.detail ? ` [${k.detail}]` : ''}`);
+        if (cand.measurements.mrTd) log(`  measurements: MRTD ${cand.measurements.mrTd.slice(0, 16)}…, compose ${cand.measurements.composeHash?.slice(0, 16)}…, app ${cand.measurements.appId ?? '?'}, TCB ${cand.measurements.tcbStatus}, GPUs ${cand.measurements.gpus?.join(' ') ?? '?'}`);
+      });
+      check(v.ok, `${model}: attested by NEAR AI Cloud with a fresh nonce (signer ${v.trustedSigners.join(', ')})`, `${model}: no report candidate passed every check`);
+    } catch (e) {
+      attested.set(model, null);
+      bad(`${model}: could not fetch or check the attestation report (${(e as Error).message})`);
+    }
+  }
+  const replyOk = (p: NonNullable<ProofBundle['bids'][number]['proof']>): boolean => replyChecks(p, attested.get(p.model) ?? null).every((k) => k.ok);
   for (const o of bundle.bids) {
     if (!o.proof) { ok(o.author === 'creator' ? `${o.creator}: pitch written by the creator in their browser (no model, nothing to sign)` : `${o.creator}: pitch written without NEAR AI (fallback text, unsigned)`); continue; }
-    check(signedOk(o.proof) && o.proof.response.includes(JSON.stringify(o.pitch).slice(1, 30)), `${o.creator}: pitch signed by the NEAR AI TEE key ${o.proof.signingAddress?.slice(0, 10)}…`, `${o.creator}: the pitch's TEE signature does not check`);
+    check(replyOk(o.proof) && o.proof.response.includes(JSON.stringify(o.pitch).slice(1, 30)), `${o.creator}: pitch signed by the attested NEAR AI TEE key ${o.proof.signingAddress?.slice(0, 10)}…`, `${o.creator}: the pitch's TEE signature does not check against a verified report`);
   }
   for (const v of bundle.vetting) {
     const cr = await viewOn<{ creator: { report_hash: string } } | null>(hub, 'get_creator', { account: v.account });
     check(!!cr && sha256Hex(v.report) === cr.creator.report_hash, `${v.account}: the vetting report hashes to the report_hash the scout put onchain`, `${v.account}: report hash mismatch`);
-    if (v.proof) check(signedOk(v.proof), `${v.account}: vetting report signed by the NEAR AI TEE key`, `${v.account}: vetting report signature does not check`);
+    if (v.proof) check(replyOk(v.proof), `${v.account}: vetting report signed by the attested NEAR AI TEE key`, `${v.account}: vetting report signature does not check against a verified report`);
   }
+  if (models.length) log(`  note: ${DOES_NOT_PROVE}`);
   log(`\n${r.failed === 0 ? '✓' : '✗'} ${r.ok} checks passed, ${r.failed} failed`);
   return r;
 }

@@ -17,10 +17,10 @@
   },
   "dependencies": {
     "@better-auth/core": "1.7.18",
+    "@signalfire/attest": "workspace:*",
     "@signalfire/core": "workspace:*",
     "better-auth": "1.7.18",
     "better-near-auth": "1.10.2",
-    "ethers": "6.17.0",
     "near-api-js": "7.4.0",
     "near-kit": "0.14.0",
     "tsx": "4.20.6"
