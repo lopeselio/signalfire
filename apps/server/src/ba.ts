@@ -3,8 +3,9 @@ import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { siwn } from 'better-near-auth';
+import { decodeSignedDelegateAction } from 'near-kit';
 import { config, hasKey, privateKey } from './config.ts';
-import { getStartups } from './hub.ts';
+import { relayWhitelist } from './relay-whitelist.ts';
 
 // Sign in with a NEAR wallet: Better Auth with the better-near-auth plugin (SIWN, NEP-413).
 // NEAR Connect shows the wallet picker; the wallet signs "Sign in to <our host>"; the plugin checks
@@ -23,12 +24,13 @@ const baseURL = process.env.BETTER_AUTH_URL ?? `http://localhost:${config.port}`
 export const authOrigin = new URL(baseURL).origin;
 export const authHost = new URL(baseURL).host;
 
-// the relayer only relays to the hub and to the startups' tokens and DAOs (read from the chain at boot);
-// any NEAR a call attaches (a buy) comes from the user's own account, never from the relayer
-const startups = await getStartups().catch(() => [] as { token: string; dao: string }[]);
-const whitelistedContracts = [config.hub, ...startups.flatMap((s) => [s.token, s.dao])];
+// the relayer only relays to the hub and to the startups' tokens and DAOs. The plugin copies a whitelist once at
+// boot, so we keep the list ourselves (relay-whitelist.ts: refreshed by every chain snapshot and on a miss, so a
+// startup launched after boot works at once) and check each relay in the hook below. Any NEAR a call attaches
+// (a buy) comes from the user's own account, never from the relayer.
+await relayWhitelist.refresh().catch(() => undefined);
 const relayer = config.relayer && hasKey(config.relayer)
-  ? { testnet: { accountId: config.relayer, privateKey: privateKey(config.relayer), whitelistedContracts, maxDepositPerTransaction: '5000000000000000000000000', maxGasPerTransaction: '300000000000000' } }
+  ? { testnet: { accountId: config.relayer, privateKey: privateKey(config.relayer), maxDepositPerTransaction: '5000000000000000000000000', maxGasPerTransaction: '300000000000000' } }
   : undefined;
 
 export const auth = betterAuth({
@@ -45,6 +47,14 @@ export const auth = betterAuth({
     // the plugin checks signature, key and nonce, but not which site a signature was made for:
     // a sign-in must be signed for our host, with our exact message, from our page
     before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === '/near/relay') {
+        let receiver = '';
+        try { receiver = decodeSignedDelegateAction(String((ctx.body as { payload?: unknown } | undefined)?.payload ?? '')).signedDelegate.delegateAction.receiverId; } catch {
+          throw new APIError('BAD_REQUEST', { message: 'Not a signed delegate action.' });
+        }
+        if (!(await relayWhitelist.allows(receiver))) throw new APIError('FORBIDDEN', { message: `Contract ${receiver} is not whitelisted for relay` });
+        return;
+      }
       if (ctx.path !== '/near/verify' && ctx.path !== '/near/link-account') return;
       const b = (ctx.body ?? {}) as { recipient?: unknown; message?: unknown };
       if (b.recipient !== authHost || b.message !== `Sign in to ${authHost}`) {
