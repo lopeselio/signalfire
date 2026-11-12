@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { fmtNear, fmtTokens, fmtTusd } from '@signalfire/core';
 import { api } from './api.ts';
 import { StartupLogo } from './Discover.tsx';
+import { Count } from './motion.tsx';
 import { Acct, Chip, Near, useApp } from './ui.tsx';
 
 // Public data, read live from the chain through /api/state, and the thesis with its evidence (/api/thesis, the same
@@ -24,11 +25,11 @@ export function Dashboard() {
       </section>
 
       <section className="stats" aria-label="Totals">
-        <div><span className="n">{fmtNear(t.volume, 2)}<small> NEAR</small></span><span className="l">traded</span></div>
-        <div><span className="n">{fmtNear(t.feesIn, 3)}<small> NEAR</small></span><span className="l">into marketing treasuries (fees and bonds)</span></div>
-        <div><span className="n">{fmtNear(t.paid, 3)}<small> NEAR</small></span><span className="l">paid to creators ({fmtTusd(t.tusdPaid)} tUSD)</span></div>
+        <div><span className="n"><Count value={fmtNear(t.volume, 2)} /><small> NEAR</small></span><span className="l">traded</span></div>
+        <div><span className="n"><Count value={fmtNear(t.feesIn, 3)} /><small> NEAR</small></span><span className="l">into marketing treasuries (fees and bonds)</span></div>
+        <div><span className="n"><Count value={fmtNear(t.paid, 3)} /><small> NEAR</small></span><span className="l">paid to creators ({fmtTusd(t.tusdPaid)} tUSD)</span></div>
         <div><span className="n">{t.done}/{t.funded}</span><span className="l">campaigns paid out / funded</span></div>
-        <div><span className="n">{t.results}</span><span className="l">new buyers from completed campaigns</span></div>
+        <div><span className="n"><Count value={String(t.results)} /></span><span className="l">new buyers from completed campaigns</span></div>
         <div><span className="n">{t.costPerResult ? <>{fmtNear(t.costPerResult, 4)}<small> NEAR</small></> : 'none yet'}</span><span className="l">cost per new buyer</span></div>
       </section>
 
