@@ -1,4 +1,5 @@
 import { fmtNear, fmtTokens, fmtTusd } from '@signalfire/core';
+import { StartupLogo } from './Discover.tsx';
 import { Acct, Chip, Near, useApp } from './ui.tsx';
 
 // Public data, read live from the chain through /api/state, and the written thesis.
@@ -14,13 +15,14 @@ export function Dashboard() {
   return (
     <div className="dashboard">
       <section className="page-head">
-        <h1>Dashboard</h1>
+        <p className="eyebrow">Dashboard</p>
+        <h1>Where the attention money went</h1>
         <p className="lede">Every number here is read from <Acct a={s.hub} full /> and the startups’ DAOs on NEAR testnet, refreshed every five seconds.</p>
       </section>
 
       <section className="stats" aria-label="Totals">
         <div><span className="n">{fmtNear(t.volume, 2)}<small> NEAR</small></span><span className="l">traded</span></div>
-        <div><span className="n">{fmtNear(t.feesIn, 3)}<small> NEAR</small></span><span className="l">fees and bonds in</span></div>
+        <div><span className="n">{fmtNear(t.feesIn, 3)}<small> NEAR</small></span><span className="l">into marketing treasuries (fees and bonds)</span></div>
         <div><span className="n">{fmtNear(t.paid, 3)}<small> NEAR</small></span><span className="l">paid to creators ({fmtTusd(t.tusdPaid)} tUSD)</span></div>
         <div><span className="n">{t.done}/{t.funded}</span><span className="l">campaigns paid out / funded</span></div>
         <div><span className="n">{t.results}</span><span className="l">new buyers from completed campaigns</span></div>
@@ -35,7 +37,7 @@ export function Dashboard() {
             <tbody>
               {s.startups.map((st) => (
                 <tr key={st.id} className="clickable" onClick={() => go(`/s/${st.id}`)}>
-                  <td><strong>{st.id.toUpperCase()}</strong> <span className="muted">{st.name}</span>{st.status !== 'live' && <Chip kind="bad">{st.status}</Chip>}</td>
+                  <td><span className="t-name"><StartupLogo id={st.id} size={26} /><span><strong>{st.name}</strong> <span className="muted">{st.id.toUpperCase()}</span>{st.status !== 'live' && <Chip kind="bad">{st.status}</Chip>}</span></span></td>
                   <td className="r">{fmtNear(st.price, 6)}</td>
                   <td className="r">{fmtTokens(st.circulating, 0)}</td>
                   <td className="r">{fmtNear(st.fees_in, 4)}</td>
