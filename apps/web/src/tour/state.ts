@@ -58,8 +58,11 @@ export const tourStore = {
 
 export const useTour = (): Saved => useSyncExternalStore(tourStore.subscribe, tourStore.get, tourStore.get);
 
-/** True once the visitor answered or skipped the welcome (App opens it on a first visit otherwise). */
-export const seenOnboarding = (): boolean => read().welcomed;
+/**
+ * True once the visitor answered or skipped the welcome (App opens it on a first visit otherwise). Someone arriving
+ * through a creator's referral link (?ref=c<id>) came to buy: the welcome waits for "?" or their next visit.
+ */
+export const seenOnboarding = (): boolean => read().welcomed || /[?&]ref=c\d/.test(location.search);
 
 // ---------- what the visitor has done, from real state ----------
 
