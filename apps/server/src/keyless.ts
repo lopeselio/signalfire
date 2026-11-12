@@ -79,7 +79,18 @@ export async function crankAgent(): Promise<void> {
 }
 
 /** What the treasury page shows, with everything a visitor needs to check it. */
-export async function agentInfo(): Promise<unknown> {
+let infoCache: { at: number; p: Promise<unknown> } | null = null;
+/** Cached for 15 seconds: every visitor's treasury page polls it, and it costs several RPC reads. */
+export function agentInfo(): Promise<unknown> {
+  if (!infoCache || Date.now() - infoCache.at > 15_000) {
+    const p = readAgentInfo();
+    infoCache = { at: Date.now(), p };
+    p.catch(() => { if (infoCache?.p === p) infoCache = null; });
+  }
+  return infoCache.p;
+}
+
+async function readAgentInfo(): Promise<unknown> {
   const desk = await getDesk();
   if (!desk) return { desk: null };
   const [actions, keys, derived, tusd] = await Promise.all([
