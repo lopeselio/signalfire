@@ -44,7 +44,7 @@ async function act<T>(who: string, what: string, fn: () => Promise<{ tx: string;
 
 // ---------- scout ----------
 
-async function vet(s: Snapshot, account: string): Promise<void> {
+export async function vet(s: Snapshot, account: string): Promise<void> {
   const app = s.applications[account];
   if (!app) return;
   const admitted = s.creators.map((c) => c.creator.account);
