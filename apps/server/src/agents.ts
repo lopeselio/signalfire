@@ -4,7 +4,7 @@ import { call, callOn } from './chain.ts';
 import { config, hasKey } from './config.ts';
 import { ftBalance, getProposal, type Campaign, type Startup } from './hub.ts';
 import { ask, jsonFrom } from './nearai.ts';
-import { BRIEFS, CREATORS, FAN_COUNT, HOLDERS, SCOUT, bidPrice, fanAccount, holderApproves, type CreatorPersona } from './personas.ts';
+import { BRIEFS, CREATORS, FAN_COUNT, HOLDERS, SCOUT, bidPrice, fanAccount, holderApproves, holdersOf, type CreatorPersona } from './personas.ts';
 import { snapshot, invalidate, type Snapshot } from './snapshot.ts';
 import { addWire, getState, loadBid, pendingApplicants, saveBid, saveVetting, setPendingApplicants, setState } from './store.ts';
 
@@ -14,13 +14,20 @@ import { addWire, getState, loadBid, pendingApplicants, saveBid, saveVetting, se
 //   operator  settles auctions, cranks milestones, expires late campaigns (anyone could)
 //   holders   vote on funding proposals in the DAO by a plain rule
 //   fans      the simulated audience: first-time buyers through the winning creator's link
-//   founder   posts the next brief for the demo startup when nothing is running
+//   founder   posts the next brief for one of the operator's startups when nothing is running (paced, within budgets)
 // Prices and votes are rules (personas.ts); the model only writes words.
 
 const MARGIN_MS = 4000; // block time vs our clock
 const FAN_BUY = parseNear('0.06');
-const BRIEF_BUDGET_MAX = parseNear('0.25');
-const BRIEF_EVERY_MS = 5 * 60_000;
+const BRIEF_BUDGET_MAX = parseNear('0.12');
+const BRIEF_BUDGET_MIN = parseNear('0.04');
+/** the share of a treasury's free balance one brief may ask for */
+const BRIEF_SHARE_BPS = 3500n;
+const BRIEF_TARGET = 3;
+/** gap after any brief, and between two briefs of the same startup (the demo's treasuries and fans are finite) */
+const BRIEF_EVERY_MS = Number(process.env.BRIEF_EVERY_MIN ?? '45') * 60_000;
+const BRIEF_SAME_STARTUP_MS = Number(process.env.BRIEF_SAME_STARTUP_MIN ?? '180') * 60_000;
+const ACTIVE = ['bidding', 'proposing', 'voting', 'funded', 'propose_failed'];
 const MAX_FANS = 40;
 
 let running = false;
@@ -116,7 +123,7 @@ async function reveal(c: Campaign, p: CreatorPersona): Promise<void> {
 
 async function vote(s: Snapshot, c: Campaign, st: Startup): Promise<void> {
   if (c.proposal_id === null) return;
-  for (const h of HOLDERS) {
+  for (const h of holdersOf(st.id)) {
     if (!hasKey(`${h.account}#dao`)) continue;
     const p = await getProposal(st.dao, c.proposal_id);
     if (!p || p.status !== 'InProgress') return;
@@ -130,6 +137,26 @@ async function vote(s: Snapshot, c: Campaign, st: Startup): Promise<void> {
 
 // ---------- the audience ----------
 
+/** Can this fan's hub wallet pay for one buy right now (balance, per-transaction and 24-hour caps)? */
+function canBuy(s: Snapshot, f: string): boolean {
+  const w = s.wallets[f];
+  if (!w) return false;
+  const daySpent = Date.now() - w.day_start_ms >= 24 * 3600_000 ? 0n : BigInt(w.day_spent);
+  return BigInt(w.balance) >= FAN_BUY && BigInt(w.cap_tx) >= FAN_BUY && daySpent + FAN_BUY <= BigInt(w.cap_day);
+}
+
+/** Fans who could still be first-time buyers of this startup today. */
+function fansReady(s: Snapshot, st: Startup): number {
+  const used = new Set(getState<string[]>(`fans-${st.id}`, []));
+  const count = getState<number>('fan-count', FAN_COUNT);
+  let n = 0;
+  for (let i = 1; i <= count; i++) {
+    const f = fanAccount(i);
+    if (!used.has(f) && !s.buyers[`${st.id}|${f}`] && hasKey(f) && canBuy(s, f)) n++;
+  }
+  return n;
+}
+
 async function nextFan(st: Startup, s: Snapshot): Promise<string | null> {
   const used = new Set(getState<string[]>(`fans-${st.id}`, []));
   const count = getState<number>('fan-count', FAN_COUNT);
@@ -137,6 +164,7 @@ async function nextFan(st: Startup, s: Snapshot): Promise<string | null> {
     const f = fanAccount(i);
     if (used.has(f) || !hasKey(f)) continue;
     if (s.buyers[`${st.id}|${f}`]) { used.add(f); continue; }
+    if (!canBuy(s, f)) continue;
     return f;
   }
   // out of fans: the hub owner opens a few more (each is a fresh first-time buyer)
@@ -215,26 +243,36 @@ async function campaignStep(s: Snapshot, c: Campaign, opts: TickOptions): Promis
 }
 
 async function founder(s: Snapshot): Promise<void> {
-  const st = s.startups.find((x) => x.id === config.demo);
-  if (!st || st.founder !== config.operator || !hasKey(config.operator)) return;
-  const active = s.campaigns.some((c) => c.startup === st.id && ['bidding', 'proposing', 'voting', 'funded', 'propose_failed'].includes(c.phase));
-  if (active) return;
-  const last = getState<number>('last-brief', 0);
-  if (Date.now() - last < BRIEF_EVERY_MS) return;
-  const free = BigInt(st.available);
-  let budget = (free * 6n) / 10n;
-  if (budget > BRIEF_BUDGET_MAX) budget = BRIEF_BUDGET_MAX;
-  if (budget > BigInt(st.constraints.campaign_cap)) budget = BigInt(st.constraints.campaign_cap);
-  budget -= budget % parseNear('0.01');
-  if (budget < parseNear('0.05')) return;
-  const n = getState<number>('briefs-posted', 0);
-  const b = BRIEFS[n % BRIEFS.length];
-  setState('last-brief', Date.now());
-  const id = await act<number>('Glowpath founder', `posted brief "${b.title}": ${fmtNear(budget)} NEAR budget for 3 new holders`, () =>
-    call<number>(config.operator, 'create_campaign', {
-      startup: st.id, title: b.title, brief: b.brief, target: 3, budget: budget.toString(), commit_secs: 90, reveal_secs: 60, duration_secs: 3600,
-    }, 30), 'brief');
-  if (id !== undefined) setState('briefs-posted', n + 1);
+  if (!hasKey(config.operator)) return;
+  // the operator's startups with briefs written for them; one campaign at a time across all of them
+  const mine = s.startups.filter((st) => st.founder === config.operator && st.status === 'live' && BRIEFS[st.id]?.length);
+  if (s.campaigns.some((c) => mine.some((st) => st.id === c.startup) && ACTIVE.includes(c.phase))) return;
+  const now = Date.now();
+  if (now - getState<number>('last-brief', 0) < BRIEF_EVERY_MS) return;
+  const lastBy = getState<Record<string, number>>('last-brief-by', {});
+  // the startup that waited longest goes first
+  for (const st of [...mine].sort((a, b) => (lastBy[a.id] ?? 0) - (lastBy[b.id] ?? 0))) {
+    if (now - (lastBy[st.id] ?? 0) < BRIEF_SAME_STARTUP_MS) continue;
+    let budget = (BigInt(st.available) * BRIEF_SHARE_BPS) / 10_000n;
+    if (budget > BRIEF_BUDGET_MAX) budget = BRIEF_BUDGET_MAX;
+    if (budget > BigInt(st.constraints.campaign_cap)) budget = BigInt(st.constraints.campaign_cap);
+    budget -= budget % parseNear('0.01');
+    if (budget < BRIEF_BUDGET_MIN) continue;
+    // don't open a campaign the simulated audience can't finish
+    if (fansReady(s, st) < BRIEF_TARGET) continue;
+    const posted = getState<Record<string, number>>('briefs-posted-by', {});
+    const n = posted[st.id] ?? (st.id === config.demo ? getState<number>('briefs-posted', 0) : 0);
+    const list = BRIEFS[st.id];
+    const b = list[n % list.length];
+    setState('last-brief', now);
+    setState('last-brief-by', { ...lastBy, [st.id]: now });
+    const id = await act<number>(`${st.name} founder`, `posted brief "${b.title}": ${fmtNear(budget)} NEAR budget for ${BRIEF_TARGET} new holders`, () =>
+      call<number>(config.operator, 'create_campaign', {
+        startup: st.id, title: b.title, brief: b.brief, target: BRIEF_TARGET, budget: budget.toString(), commit_secs: 90, reveal_secs: 60, duration_secs: 3600,
+      }, 30), 'brief');
+    if (id !== undefined) setState('briefs-posted-by', { ...posted, [st.id]: n + 1 });
+    return;
+  }
 }
 
 /** One pass of every agent. Safe to call often; only one runs at a time. */
