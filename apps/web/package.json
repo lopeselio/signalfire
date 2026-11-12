@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@better-auth/core": "1.7.18",
+    "@signalfire/attest": "workspace:*",
     "@signalfire/core": "workspace:*",
     "better-auth": "1.7.18",
     "better-near-auth": "1.10.2",
