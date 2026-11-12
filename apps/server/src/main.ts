@@ -68,14 +68,16 @@ function pitchesOf(s: Snapshot, id: number): Record<string, { pitch: string; sig
  * has passed. An estimate for the onboarding's waiting states: it also waits for running campaigns to finish, a
  * treasury with enough free NEAR and fans who can still buy.
  */
-function briefSchedule(s: Snapshot): { auto: boolean; everyMin: number; nextAt: number | null } {
+function briefSchedule(s: Snapshot): { auto: boolean; everyMin: number; nextAt: number | null; startup: string | null } {
   const everyMin = Math.round(BRIEF_EVERY_MS / 60_000);
   const auto = config.agents && config.autoBriefs && hasKey(config.operator);
   const mine = s.startups.filter((st) => st.founder === config.operator && st.status === 'live' && BRIEFS[st.id]?.length);
-  if (!auto || mine.length === 0) return { auto: false, everyMin, nextAt: null };
+  if (!auto || mine.length === 0) return { auto: false, everyMin, nextAt: null, startup: null };
   const lastBy = getState<Record<string, number>>('last-brief-by', {});
   const soonest = Math.min(...mine.map((st) => (lastBy[st.id] ?? 0) + BRIEF_SAME_STARTUP_MS));
-  return { auto, everyMin, nextAt: Math.max(getState<number>('last-brief', 0) + BRIEF_EVERY_MS, soonest) };
+  // the founder agent serves the startup that waited longest first
+  const next = [...mine].sort((x, y) => (lastBy[x.id] ?? 0) - (lastBy[y.id] ?? 0))[0];
+  return { auto, everyMin, nextAt: Math.max(getState<number>('last-brief', 0) + BRIEF_EVERY_MS, soonest), startup: next.id };
 }
 
 function publicState(s: Snapshot) {
