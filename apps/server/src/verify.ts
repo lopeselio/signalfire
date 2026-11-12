@@ -134,7 +134,7 @@ export async function verifyCampaign(id: number, bundle: ProofBundle, log: (s: s
     return p.signedText.endsWith(tail) && who === p.signingAddress.toLowerCase();
   };
   for (const o of bundle.bids) {
-    if (!o.proof) { ok(`${o.creator}: pitch written without NEAR AI (fallback text, unsigned)`); continue; }
+    if (!o.proof) { ok(o.author === 'creator' ? `${o.creator}: pitch written by the creator in their browser (no model, nothing to sign)` : `${o.creator}: pitch written without NEAR AI (fallback text, unsigned)`); continue; }
     check(signedOk(o.proof) && o.proof.response.includes(JSON.stringify(o.pitch).slice(1, 30)), `${o.creator}: pitch signed by the NEAR AI TEE key ${o.proof.signingAddress?.slice(0, 10)}…`, `${o.creator}: the pitch's TEE signature does not check`);
   }
   for (const v of bundle.vetting) {

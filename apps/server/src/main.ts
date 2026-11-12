@@ -1,7 +1,7 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize } from 'node:path';
-import { priceAt } from '@signalfire/core';
+import { openingMatches, pitchHash, priceAt } from '@signalfire/core';
 import { startAgents } from './agents.ts';
 import { BA_PATH, accountFromHeaders, authHandler } from './ba.ts';
 import { view } from './chain.ts';
@@ -11,7 +11,7 @@ import { attestation, nearAiEnabled } from './nearai.ts';
 import { CREATORS, HOLDERS, SCOUT } from './personas.ts';
 import { buildProof } from './proof.ts';
 import { latest as snapshot, type Snapshot } from './snapshot.ts';
-import { bidsFor, getWire, loadVetting, pendingApplicants, setPendingApplicants } from './store.ts';
+import { addWire, bidsFor, getWire, loadBid, loadVetting, pendingApplicants, saveBid, setPendingApplicants } from './store.ts';
 
 // ---------- tiny HTTP helpers ----------
 
@@ -49,7 +49,7 @@ function pitchesOf(s: Snapshot, id: number): Record<string, { pitch: string; sig
   const c = s.campaigns.find((x) => x.id === id);
   if (!c) return {};
   const revealed = new Set(c.bids.filter((b) => b.revealed).map((b) => b.creator));
-  return Object.fromEntries(bidsFor(id).filter((b) => revealed.has(b.creator)).map((b) => [b.creator, { pitch: b.pitch, signed: !!b.proof.signature, model: b.proof.model }]));
+  return Object.fromEntries(bidsFor(id).filter((b) => revealed.has(b.creator)).map((b) => [b.creator, { pitch: b.pitch, signed: !!b.proof.signature, model: b.human ? 'creator' : b.proof.model }]));
 }
 
 function publicState(s: Snapshot) {
@@ -155,6 +155,26 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
         vetting: v ? { report: v.report, reportHash: v.reportHash, model: v.proof.model, signed: !!v.proof.signature, signingAddress: v.proof.signingAddress ?? null, at: v.at } : null,
         campaigns: s.campaigns.filter((x) => x.bids.some((b) => b.creator === account)).map((x) => ({ id: x.id, title: x.title, phase: x.phase, won: x.winner === account, price: x.price, results: x.results })),
       });
+    }
+    if (p === '/api/opening' && post) {
+      // a person revealed a bid sealed in their browser: publish the opening (price, pitch, salt) so anyone can
+      // check it. Accepted only once the chain shows the bid revealed, and only if it hashes to that commitment.
+      const o = await body<{ campaign?: number; creator?: string; price?: string; pitch?: string; salt?: string }>(req, 4000);
+      if (typeof o.campaign !== 'number' || typeof o.creator !== 'string' || typeof o.price !== 'string' || typeof o.pitch !== 'string' || typeof o.salt !== 'string') return json(res, 400, { error: 'campaign, creator, price, pitch, salt' });
+      if (o.pitch.length === 0 || o.pitch.length > 400) return json(res, 400, { error: 'pitch: 1 to 400 characters' });
+      const c = await view<{ bids: { creator: string; hash: string; revealed: boolean }[] } | null>('get_campaign', { id: o.campaign });
+      const b = c?.bids.find((x) => x.creator === o.creator);
+      if (!b) return json(res, 404, { error: 'no such bid onchain' });
+      if (!b.revealed) return json(res, 409, { error: 'reveal onchain first; the opening stays private until then' });
+      const ph = pitchHash(o.pitch);
+      const opening = { campaign: o.campaign, creator: o.creator, price: o.price, pitch: o.pitch, pitchHash: ph, salt: o.salt, hash: b.hash };
+      if (!openingMatches(opening, b.hash)) return json(res, 400, { error: 'this opening does not match the sealed commitment' });
+      const had = loadBid(o.campaign, o.creator);
+      if (!had) {
+        saveBid({ ...opening, human: true, proof: { who: o.creator, text: o.pitch, model: 'none', request: '', response: '', at: Date.now() } });
+        addWire({ who: o.creator.replace(`.${config.hub}`, ''), what: `published the opening of their revealed bid on #${o.campaign}`, kind: 'reveal', campaign: o.campaign });
+      }
+      return json(res, 200, { ok: true, stored: !had });
     }
     const me = await accountFromHeaders(req.headers);
     if (p === '/api/me') {
