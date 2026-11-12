@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { bidHash, fmtNear, isLookalike, parseNear, pitchHash, sha256Hex, unlocked } from '@signalfire/core';
 import { call, callOn, view } from './chain.ts';
+import { sealBid } from '@signalfire/attest';
 import { crankAgent } from './keyless.ts';
 import { config, hasKey } from './config.ts';
 import { ftBalance, getProposal, type Campaign, type Startup } from './hub.ts';
@@ -130,7 +131,9 @@ async function seal(s: Snapshot, c: Campaign, p: CreatorPersona): Promise<void> 
   }
   if (prev) {
     try {
-      const r = await call(p.account, 'commit_bid', { campaign_id: c.id, hash: prev.hash }, 30);
+      const r = prev.sealed && prev.ciphertext
+        ? await call(p.account, 'commit_sealed_bid', { campaign_id: c.id, hash: prev.hash, ciphertext: prev.ciphertext }, 30)
+        : await call(p.account, 'commit_bid', { campaign_id: c.id, hash: prev.hash }, 30);
       saveBid({ ...prev, committedTx: r.tx });
       addWire({ who: p.name, what: `sealed a bid on #${c.id} "${c.title}" (price and pitch hidden until the reveal)`, tx: r.tx, kind: 'bid', campaign: c.id });
     } catch (e) {
@@ -153,13 +156,62 @@ async function seal(s: Snapshot, c: Campaign, p: CreatorPersona): Promise<void> 
   const pitch = proof.text.replace(/^"|"$/g, '').slice(0, 400);
   const ph = pitchHash(pitch);
   const hash = bidHash(c.id, p.account, price, ph, salt);
-  saveBid({ campaign: c.id, creator: p.account, price: price.toString(), salt, pitch, pitchHash: ph, hash, proof });
-  await act(p.name, `sealed a bid on #${c.id} "${c.title}" (price and pitch hidden until the reveal)`, async () => {
-    const r = await call(p.account, 'commit_bid', { campaign_id: c.id, hash }, 30);
+  // A brief scored by OutLayer: the opening is also encrypted to the scorer's key, which only its TEE can derive.
+  // It is never revealed; the TEE opens every bid and hands back only the winner's.
+  const bidKey = await sealedKey(c);
+  const ciphertext = bidKey ? sealBid(bidKey, config.hub, c.id, p.account, { price: price.toString(), pitch_hash: ph, salt }) : undefined;
+  saveBid({ campaign: c.id, creator: p.account, price: price.toString(), salt, pitch, pitchHash: ph, hash, proof, sealed: !!bidKey, ciphertext });
+  await act(p.name, bidKey ? `sealed a bid on #${c.id} "${c.title}" for the TEE (price and pitch encrypted; only the winner's is ever opened)` : `sealed a bid on #${c.id} "${c.title}" (price and pitch hidden until the reveal)`, async () => {
+    const r = bidKey
+      ? await call(p.account, 'commit_sealed_bid', { campaign_id: c.id, hash, ciphertext }, 30)
+      : await call(p.account, 'commit_bid', { campaign_id: c.id, hash }, 30);
     const b = loadBid(c.id, p.account);
     if (b) saveBid({ ...b, committedTx: r.tx });
     return r;
   }, 'bid', c.id);
+}
+
+/** The OutLayer scorer's bid key if this brief is (or can still become) a sealed brief; null for commit-reveal. */
+async function sealedKey(c: Campaign): Promise<string | null> {
+  const sc = await view<{ bid_key: string | null } | null>('get_scorer', {}).catch(() => null);
+  if (!sc?.bid_key) return null;
+  const book = await view<{ bid_key: string } | null>('get_sealed', { campaign_id: c.id }).catch(() => null);
+  if (book) return book.bid_key;
+  const onchain = await view<{ bids: unknown[] } | null>('get_campaign', { id: c.id }).catch(() => null);
+  return onchain && onchain.bids.length === 0 ? sc.bid_key : null;
+}
+
+interface SealedBook { status: string; requested_ms: number | null; entries: unknown[] }
+/** OutLayer's request id from a transaction's logs (its execution_requested event). */
+export function outlayerRequestId(logs: string[]): number | null {
+  for (const l of logs) {
+    if (!l.startsWith('EVENT_JSON:') || !l.includes('execution_requested')) continue;
+    try {
+      const ev = JSON.parse(l.slice(11)) as { standard: string; event: string; data: { request_data: string }[] };
+      if (ev.standard === 'near-outlayer' && ev.event === 'execution_requested') return (JSON.parse(ev.data[0].request_data) as { request_id: number }).request_id;
+    } catch { /* not ours */ }
+  }
+  return null;
+}
+export interface OutlayerRun { requestId: number | null; tx: string; at: number }
+export const outlayerRuns = (): Record<string, OutlayerRun[]> => getState<Record<string, OutlayerRun[]>>('outlayer-runs', {});
+
+/** A sealed brief after bidding closed: have OutLayer score it (again if it failed), or give up and return the bonds. */
+async function scoreSealed(c: Campaign, book: SealedBook, now: number): Promise<void> {
+  const retry = book.requested_ms !== null && now - book.requested_ms > 2 * 60_000 + MARGIN_MS;
+  if (book.status === 'open' || ((book.status === 'failed' || book.status === 'scoring') && retry)) {
+    if (now > c.reveal_ends_ms + 30 * 60_000 + MARGIN_MS && book.status !== 'open') {
+      await act('Signalfire', `ended #${c.id}: OutLayer did not score its sealed bids in time, so every bond went back and no bid was opened`, () =>
+        call(config.operator, 'abandon_sealed', { campaign_id: c.id }, 60), 'settle', c.id);
+      return;
+    }
+    try {
+      const r = await call<unknown>(config.operator, 'score_sealed', { campaign_id: c.id }, 300, parseNear('0.02'));
+      const requestId = outlayerRequestId(r.logs);
+      setState('outlayer-runs', { ...outlayerRuns(), [c.id]: [...(outlayerRuns()[c.id] ?? []), { requestId, tx: r.tx, at: Date.now() }] });
+      addWire({ who: 'Signalfire', what: `asked OutLayer to score #${c.id}'s ${book.entries.length} sealed bid(s) in a TEE${requestId !== null ? ` (request ${requestId})` : ''}: only the winner's bid is opened`, tx: r.tx, kind: 'settle', campaign: c.id });
+    } catch (e) { console.warn(`score_sealed #${c.id}: ${(e as Error).message}`); }
+  }
 }
 
 async function reveal(c: Campaign, p: CreatorPersona): Promise<void> {
@@ -259,6 +311,11 @@ async function campaignStep(s: Snapshot, c: Campaign, opts: TickOptions): Promis
         if (loadBid(c.id, p.account)?.committedTx) continue;
         await seal(s, c, p);
       }
+    } else if (now >= c.commit_ends_ms + MARGIN_MS && c.bids.length > 0 && await view<SealedBook | null>('get_sealed', { campaign_id: c.id }).then(async (book) => {
+      if (book) await scoreSealed(c, book, now);
+      return !!book;
+    }).catch(() => false)) {
+      // scored (or being scored) by OutLayer: nothing to reveal, nothing to settle by hand
     } else if (now >= c.commit_ends_ms + MARGIN_MS && now < c.reveal_ends_ms - MARGIN_MS) {
       for (const b of c.bids) {
         const p = personaOf(b.creator);

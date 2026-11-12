@@ -1,4 +1,4 @@
-import { DOES_NOT_PROVE, attestModel, openReply, replyChecks, type ModelVerification } from '@signalfire/attest';
+import { DOES_NOT_PROVE, attestModel, fetchOutlayerAttestation, openReply, replyChecks, sha256Hex as sha256Bytes, verifyOutlayerRun, type ModelVerification } from '@signalfire/attest';
 import {
   MIN_ATTRIB, bidHash, cost, credible, fmtTusd, milestoneAmount, pickWinner, pitchHash, sha256Hex, threshold, tusdFor,
 } from '@signalfire/core';
@@ -93,7 +93,9 @@ export async function verifyCampaign(id: number, bundle: ProofBundle, log: (s: s
     check(o.price === b.price && credible(BigInt(o.price), BigInt(c.budget), s.constraints.min_bid_bps) === b.credible, `${b.creator}: price and credibility match the chain`, `${b.creator}: price or credibility differ`);
   }
   const unrevealed = c.bids.filter((x) => !x.revealed).length;
-  if (unrevealed) ok(`${unrevealed} bid(s) never revealed (their bonds go to the treasury)`);
+  const book = await viewOn<SealedBook | null>(hub, 'get_sealed', { campaign_id: id }).catch(() => null);
+  if (book) await checkSealed(id, c, s, book, bundle, hub, ok, bad, check, log);
+  else if (unrevealed) ok(`${unrevealed} bid(s) never revealed (their bonds go to the treasury)`);
 
   // 2. the winner, by the shared rule
   if (c.phase !== 'bidding') {
@@ -192,6 +194,61 @@ export async function verifyCampaign(id: number, bundle: ProofBundle, log: (s: s
   return r;
 }
 
+
+interface SealedBook {
+  status: string; entries: { creator: string; ciphertext: string }[]; wasm_hash: string; bid_key: string;
+  input: string | null; input_hash: string | null; output: string | null; output_hash: string | null; valid: boolean[];
+}
+interface Scorer { outlayer: string; wasm_url: string; wasm_hash: string; bid_key: string | null; key_input: string | null; key_output: string | null }
+
+/** One OutLayer run: its attestation against what the hub stored, and the transaction that asked for it. */
+async function checkRun(what: string, requestId: number, method: string, exp: { wasmHash: string; input: string; output: string }, hub: string, outlayer: string, check: (c: boolean, y: string, n: string) => void, bad: Mark, log: Mark): Promise<void> {
+  try {
+    const att = await fetchOutlayerAttestation(requestId);
+    // the run was asked for by a transaction that calls the hub's method (the hub is then OutLayer's caller)
+    const t = await rpcCall<{ transaction: { signer_id: string; receiver_id: string; actions: { FunctionCall?: { method_name: string } }[] } }>('tx', { tx_hash: att.transaction_hash, sender_account_id: att.caller_account_id, wait_until: 'NONE' });
+    check(t.transaction.receiver_id === hub && t.transaction.actions[0]?.FunctionCall?.method_name === method,
+      `${what}: OutLayer request ${requestId} came from ${hub}.${method} (tx ${att.transaction_hash?.slice(0, 10)}…)`, `${what}: request ${requestId} did not come from ${hub}.${method}`);
+    const { checks, measurements } = await verifyOutlayerRun(att, {
+      ...exp, caller: t.transaction.signer_id,
+      approved: (m) => viewOn<boolean>(`worker.${outlayer}`, 'is_measurements_approved', { measurements: m }),
+    });
+    for (const k of checks) check(k.ok, `${what}: ${k.label}${k.detail ? ` [${k.detail}]` : ''}`, `${what}: ${k.label}${k.detail ? ` [${k.detail}]` : ''}`);
+    if (measurements) log(`  ${what}: worker MRTD ${measurements.mrtd.slice(0, 16)}…, RTMR3 ${measurements.rtmr3.slice(0, 16)}…; attestation https://testnet-api.outlayer.ai/attestations/by-request/${requestId}`);
+  } catch (e) { bad(`${what}: could not check OutLayer request ${requestId} (${(e as Error).message})`); }
+}
+
+/** A brief whose bids were sealed to the OutLayer scorer: nobody revealed; the TEE opened them and returned the winner only. */
+async function checkSealed(id: number, c: ChainCampaign, s: ChainStartup, book: SealedBook, bundle: ProofBundle, hub: string, ok: Mark, bad: Mark, check: (c: boolean, y: string, n: string) => void, log: Mark): Promise<void> {
+  const scorer = await viewOn<Scorer>(hub, 'get_scorer', {});
+  log(`  sealed brief: ${book.entries.length} bid(s) encrypted to the scorer's key ${book.bid_key.slice(0, 16)}… (wasm ${book.wasm_hash.slice(0, 16)}…), status ${book.status}`);
+  check(book.entries.length === c.bids.length && book.entries.every((e, i) => e.creator === c.bids[i].creator), 'every bid in the book has a ciphertext onchain, in commit order', 'the ciphertexts and the bid book disagree');
+  if (scorer.wasm_hash === book.wasm_hash) {
+    const wasm = new Uint8Array(await (await fetch(scorer.wasm_url)).arrayBuffer());
+    check(sha256Bytes(wasm) === scorer.wasm_hash, `the scorer's wasm at its URL hashes to the sha256 the hub runs (${scorer.wasm_hash.slice(0, 16)}…); its source is outlayer/scorer`, 'the scorer wasm at its URL does not match the hash onchain');
+    if (scorer.key_input && scorer.key_output && bundle.sealed) {
+      check((JSON.parse(scorer.key_output) as { public_key: string }).public_key === book.bid_key, 'the key the bids were sealed to is the one the scorer published from inside the TEE', 'the bid key is not the one the scorer published');
+      await checkRun('bid key', bundle.sealed.keyRequest, 'scorer_publish_key', { wasmHash: scorer.wasm_hash, input: scorer.key_input, output: scorer.key_output }, hub, scorer.outlayer, check, bad, log);
+    }
+  } else ok('the hub has moved to a newer scorer since this brief; its own wasm hash and key are recorded in the brief');
+  if (book.status === 'abandoned') { ok('OutLayer did not score this brief in time: every bond went back and no bid was opened'); return; }
+  if (book.status !== 'scored' || !book.input || !book.output) { ok(`not scored yet (${book.status})`); return; }
+  const input = JSON.parse(book.input) as { op: string; hub: string; campaign: number; budget: string; min_bid_bps: number; bids: { creator: string; hash: string; rep: number; ciphertext: string }[] };
+  check(sha256Hex(book.input) === book.input_hash && input.op === 'score' && input.hub === hub && input.campaign === id && input.budget === c.budget && input.min_bid_bps === s.constraints.min_bid_bps
+    && input.bids.length === c.bids.length && input.bids.every((b, i) => b.creator === c.bids[i].creator && b.hash === c.bids[i].hash && b.ciphertext === book.entries[i].ciphertext),
+    'the scorer was given exactly the onchain ciphertexts, commitments, budget and credible floor', 'the scoring input does not match the chain');
+  const out = JSON.parse(book.output) as { winner: string | null; price?: string; pitch_hash?: string; salt?: string; index?: number; valid: boolean[]; input_hash: string; public_key: string };
+  check(out.input_hash === book.input_hash && out.public_key === book.bid_key && sha256Hex(book.output) === book.output_hash, 'the scorer answered for exactly that input, with the key the bids were sealed to', 'the scoring output is for another input or key');
+  check(out.winner === c.winner && (out.winner === null || (out.price === c.price && bidHash(id, out.winner, BigInt(out.price!), out.pitch_hash!, out.salt!) === c.bids[out.index!].hash)),
+    out.winner ? `the TEE's winner (${out.winner}) is the campaign's winner, and its opening hashes to the commitment it posted before bidding closed` : 'the TEE found no credible bid, and the campaign has no winner', 'the winner onchain is not the scorer\'s');
+  const opened = c.bids.filter((b) => b.revealed).length;
+  check(opened === (out.winner ? 1 : 0), `${c.bids.length - opened} losing bid(s) were never opened: their prices exist only as ciphertext onchain`, 'more than the winner was opened');
+  const forfeits = out.valid.filter((v) => !v).length;
+  if (forfeits) ok(`${forfeits} ciphertext(s) did not open to their commitment: those bonds went to the treasury`);
+  const run = [...(bundle.sealed?.runs ?? [])].reverse().find((r) => r.requestId !== null);
+  if (run?.requestId != null) await checkRun('scoring', run.requestId, 'score_sealed', { wasmHash: book.wasm_hash, input: book.input, output: book.output }, hub, scorer.outlayer, check, bad, log);
+  else bad('the server published no OutLayer request id for the scoring run');
+}
 
 type Mark = (s: string) => void;
 /** NEAR AI: the model's TEE, checked now with a fresh nonce, then every reply's signature (and report hash) against it. */

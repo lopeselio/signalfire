@@ -1,3 +1,4 @@
+import { outlayerRuns, type OutlayerRun } from './agents.ts';
 import { config, explorerTx } from './config.ts';
 import { getAudit, getCampaign, getProposal, getStartup } from './hub.ts';
 import type { Signed } from './nearai.ts';
@@ -27,6 +28,8 @@ export interface ProofBundle {
   bids: ProofBid[];
   vetting: ProofVetting[];
   txs: { what: string; who: string; tx: string; url: string }[];
+  /** a brief scored by OutLayer: the runs' request ids (each one's attestation is checked against what the hub stored) */
+  sealed?: { runs: OutlayerRun[]; keyRequest: number };
   /** the startup's latest AI research brief: its evidence hash and where its full proof is (`pnpm verify-brief`) */
   brief?: { at: number; evidenceHash: string; signed: boolean; proof: string } | null;
 }
@@ -50,7 +53,8 @@ export async function buildProof(id: number): Promise<ProofBundle | null> {
     .map((w) => ({ what: w.what, who: w.who, tx: w.tx!, url: explorerTx(w.tx!) }));
   const b = loadBrief<{ at: number; evidenceHash: string; proof: { signature?: string } | null }>(s.id);
   const brief = b ? { at: b.at, evidenceHash: b.evidenceHash, signed: !!b.proof?.signature, proof: `/api/evidence/${s.id}/proof` } : null;
-  return { campaign: id, hub: config.hub, startup: s.id, dao: s.dao, bids, vetting, txs, brief };
+  const runs = outlayerRuns()[id];
+  return { campaign: id, hub: config.hub, startup: s.id, dao: s.dao, bids, vetting, txs, brief, ...(runs ? { sealed: { runs, keyRequest: config.scorerKeyRequest } } : {}) };
 }
 
 export { getAudit, getProposal };
