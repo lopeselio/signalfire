@@ -117,9 +117,11 @@ fallback text, marked unsigned.
       28/28 agent accounts hold function-call keys only (0 full-access keys among them)
    ```
 9. **Watch a campaign happen.** With the server running and keys present, the founder agent posts a brief for one of
-   the operator's startups (Glowpath, Fernbook, Looproom, Kilnday) when none is running: one campaign at a time, at
-   least 45 minutes apart (`BRIEF_EVERY_MIN`), 3 hours per startup (`BRIEF_SAME_STARTUP_MIN`), sized to a third of
-   that treasury's free balance, and only when enough fan accounts can still finish it (`AUTO_BRIEFS=1`). On the
+   the operator's startups (Glowpath, Fernbook, Looproom, Kilnday) when none is running: one campaign at a time, one
+   brief every 8 hours (`BRIEF_EVERY_MIN`, ~3 a day), 2 new buyers each (`BRIEF_TARGET`), a tenth of that treasury's free
+   balance (0.01 to 0.05 NEAR), and only when enough fan accounts can still finish it (`AUTO_BRIEFS=1`). The simulated
+   audience is finite (24 fans, each a first-time buyer of each startup once), so this pace is set to keep the hosted
+   demo running through judging; the dashboard's thesis shows the remaining runway (`pnpm thesis`, section 6). On the
    hosted site that is the wire you see moving. Or run the whole loop yourself:
 
    ```
