@@ -1,0 +1,111 @@
+/* The onboarding: welcome, tour ring and card, Get started checklist, hints, notes. Uses style.css's variables. */
+
+/* welcome */
+.modal.welcome { max-width: 620px; padding: 26px 26px 18px; max-height: calc(100vh - 32px); overflow-y: auto; }
+.wl-brand { display: inline-flex; align-items: center; gap: 6px; font: 700 15px var(--display); letter-spacing: -0.02em; margin-bottom: 10px; }
+.welcome h2 { font-size: 24px; line-height: 1.15; }
+.wl-lede { color: var(--ash-2); }
+.wl-terms { font-size: 13px; background: var(--ember-wash); border-left: 3px solid var(--ember); border-radius: 6px; padding: 8px 10px; }
+.wl-ask { font: 600 12px var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ember); margin: 18px 0 8px; }
+.wl-paths { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.wl-path { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto auto; column-gap: 10px; text-align: left; background: var(--night-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; color: var(--ash); }
+.wl-path svg { grid-row: 1 / 4; color: var(--ember); margin-top: 1px; }
+.wl-path:hover { border-color: var(--ember-dim); background: var(--ember-wash); }
+.wl-path.on { border-color: var(--ember); }
+.wl-t { font-weight: 600; }
+.wl-who { font-size: 13px; color: var(--ash-2); }
+.wl-meta { font-size: 11.5px; color: var(--smoke); margin-top: 2px; }
+.wl-foot { margin-bottom: 0; }
+.tour-grow { flex: 1; }
+
+/* the tour: a ring that dims around the element (clicks pass through) and a card beside it */
+.tour-ring { position: fixed; z-index: 45; border: 2px solid var(--ember); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(25, 22, 17, 0.26); pointer-events: none; transition: top 0.18s, left 0.18s, width 0.18s, height 0.18s; }
+.tour-ring.via { border-style: dashed; }
+.tour-card { position: fixed; z-index: 55; width: 340px; max-height: calc(100vh - 96px); overflow-y: auto; background: var(--night-2); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 12px; box-shadow: 0 24px 48px -16px rgba(25, 22, 17, 0.35); font-size: 14px; }
+.tour-card.sheet { left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 46vh; border-radius: 14px; }
+.tour-card h3 { margin: 6px 0 6px; font-size: 16px; }
+.tour-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tour-path { font: 600 11px var(--body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ember-2); }
+.tour-x { background: none; border: 0; padding: 0 4px; font-size: 20px; line-height: 1; color: var(--smoke); }
+.tour-x:hover { color: var(--ash); }
+.tour-bar { display: flex; gap: 3px; margin-top: 8px; }
+.tour-bar span { flex: 1; height: 3px; border-radius: 2px; background: var(--night-3); }
+.tour-bar span.done { background: var(--ok); }
+.tour-bar span.now { background: var(--ember); }
+.tour-tick { color: var(--ok); margin-right: 6px; }
+.tour-body { color: var(--ash-2); margin-bottom: 8px; }
+.tour-via { font-size: 13px; background: var(--ember-wash); border-radius: 8px; padding: 6px 9px; margin: 0 0 8px; }
+.tour-wait { display: flex; gap: 7px; align-items: flex-start; font-size: 13px; background: var(--night); border: 1px dashed var(--line); border-radius: 8px; padding: 7px 9px; margin: 0 0 8px; }
+.tour-wait svg { flex: none; margin-top: 2px; color: var(--warn); }
+.tour-after { font-size: 13.5px; border-left: 3px solid var(--ok); background: color-mix(in srgb, var(--ok) 7%, var(--night-2)); border-radius: 6px; padding: 7px 10px; margin-bottom: 8px; }
+.tour-after strong { color: var(--ok); }
+.tour-cost { font-size: 12.5px; color: var(--ash-2); margin: 0 0 8px; }
+.tour-cost strong { display: inline-block; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--smoke); margin-right: 6px; }
+.tour-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pulse { animation: tour-pulse 1.4s ease-in-out infinite; }
+@keyframes tour-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 89, 12, 0.45); } 50% { box-shadow: 0 0 0 6px rgba(232, 89, 12, 0); } }
+
+/* Get started */
+.gs-pill { position: fixed; left: 16px; bottom: 16px; z-index: 40; display: inline-flex; align-items: center; gap: 8px; background: var(--ash); color: var(--night-2); border-radius: 999px; padding: 8px 14px 8px 10px; font-weight: 600; font-size: 13px; box-shadow: var(--shadow); }
+.gs-pill:hover { background: #2c2720; }
+.gs-n { font-weight: 500; opacity: 0.8; }
+.gs-ring { width: 16px; height: 16px; border-radius: 50%; background: conic-gradient(var(--ember) var(--p), rgba(255, 255, 255, 0.22) 0); }
+.gs-pill.all .gs-ring { background: var(--ok); }
+.gs-panel { position: fixed; left: 16px; bottom: 60px; z-index: 41; width: 360px; max-height: calc(100vh - 140px); overflow-y: auto; background: var(--night-2); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; box-shadow: 0 24px 48px -16px rgba(25, 22, 17, 0.35); }
+.gs-head { display: flex; justify-content: space-between; align-items: center; }
+.gs-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 10px 0 8px; }
+.gs-tabs button { display: grid; gap: 1px; padding: 6px 4px; font-size: 12px; border: 1px solid var(--line); background: var(--night-2); color: var(--ash-2); border-radius: 8px; }
+.gs-tabs button small { color: var(--smoke); font-size: 11px; }
+.gs-tabs button.on { background: var(--ash); color: var(--night-2); border-color: var(--ash); }
+.gs-tabs button.on small { color: var(--night-3); }
+.gs-blurb { font-size: 13px; color: var(--ash-2); }
+.gs-steps { list-style: none; padding: 0; margin: 0 0 10px; }
+.gs-steps li button { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; background: none; border: 0; border-radius: 8px; padding: 6px 6px; color: var(--ash); font-size: 13.5px; }
+.gs-steps li button:hover { background: var(--night-3); }
+.gs-mark { flex: none; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 11px; color: #fff; }
+.gs-steps li.ok .gs-mark { background: var(--ok); border-color: var(--ok); }
+.gs-steps li.ok .gs-t { color: var(--smoke); }
+.gs-t small { color: var(--smoke); margin-left: 6px; }
+.gs-t .gs-wait { color: var(--warn); }
+.gs-done { font-size: 13px; color: var(--ok); }
+.gs-foot { display: flex; gap: 6px; align-items: center; border-top: 1px solid var(--line); padding-top: 10px; }
+
+/* hints */
+.hint-chip { position: absolute; z-index: 15; display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 3px; font-size: 11.5px; font-weight: 500; border-radius: 999px; background: var(--ember-wash); color: var(--ember-2); border: 1px solid var(--ember-dim); animation: hint-in 0.4s ease-out; }
+.hint-chip span { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; background: var(--ember); color: #fff; font-weight: 700; font-size: 10.5px; }
+.hint-chip:hover { border-color: var(--ember); }
+@keyframes hint-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.hint-pop { position: absolute; z-index: 35; background: var(--night-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px 10px; box-shadow: 0 18px 40px -14px rgba(25, 22, 17, 0.35); font-size: 13.5px; }
+.hint-pop p { color: var(--ash-2); margin: 6px 0 10px; }
+
+/* notes in empty and waiting states */
+.tour-note-host { grid-column: 1 / -1; }
+.tour-note { font-size: 13.5px; background: var(--ember-wash); border: 1px solid var(--ember-dim); border-radius: 10px; padding: 10px 12px; margin: 0 0 14px; }
+.tour-note-sub { display: block; color: var(--ash-2); font-size: 12.5px; margin-top: 4px; }
+
+/* How it works */
+.how .how-flow { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin: 18px 0; }
+.how .how-flow li { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--night-2); border-radius: 999px; padding: 4px 12px 4px 5px; font-size: 13px; font-weight: 500; }
+.how .how-flow li span { font: 600 10.5px var(--mono); background: var(--ember); color: #fff; border-radius: 999px; padding: 2px 6px; }
+.how-tours { margin: 26px 0; }
+.how-paths { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.how-paths button { display: grid; gap: 4px; text-align: left; align-content: start; padding: 12px 14px; }
+.how-paths button span { font-size: 13px; color: var(--ash-2); }
+.how-paths button small { color: var(--smoke); }
+.how-body { max-width: 760px; }
+.how-body section { scroll-margin-top: 80px; margin-bottom: 30px; }
+.how-body h2 { margin-top: 0; }
+.how-body p, .how-body li { color: var(--ash-2); }
+.how-body ul, .how-body ol { padding-left: 20px; }
+.how-body li { margin-bottom: 4px; }
+
+@media (max-width: 980px) { .how-paths { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 720px) {
+  .wl-paths, .how-paths { grid-template-columns: 1fr; }
+  .modal.welcome { padding: 20px 16px 12px; }
+  .welcome h2 { font-size: 20px; }
+  .gs-pill { left: 12px; bottom: 12px; }
+  .gs-panel { left: 8px; right: 8px; bottom: 56px; width: auto; max-height: 70vh; }
+  .hint-chip { padding: 2px 3px; }
+  .hint-chip { font-size: 0; gap: 0; }
+}
