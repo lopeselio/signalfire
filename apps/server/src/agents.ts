@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { bidHash, fmtNear, isLookalike, parseNear, pitchHash, sha256Hex, unlocked } from '@signalfire/core';
-import { call, callOn } from './chain.ts';
+import { call, callOn, view } from './chain.ts';
 import { config, hasKey } from './config.ts';
 import { ftBalance, getProposal, type Campaign, type Startup } from './hub.ts';
 import { ask, jsonFrom } from './nearai.ts';
@@ -90,6 +90,14 @@ async function seal(s: Snapshot, c: Campaign, p: CreatorPersona): Promise<void> 
   // An opening saved earlier whose commit we never saw confirmed (an RPC error after the transaction may still have
   // landed): send the same commitment again, never a new one, or the reveal would no longer match what's onchain.
   const prev = loadBid(c.id, p.account);
+  // the snapshot may predate a commit that landed (a restart or an RPC error after sending): ask the chain itself
+  const onchain = await view<{ bids: { creator: string; hash: string }[] } | null>('get_campaign', { id: c.id }).catch(() => null);
+  const mine = onchain?.bids.find((b) => b.creator === p.account);
+  if (mine) {
+    if (prev && prev.hash === mine.hash) saveBid({ ...prev, committedTx: prev.committedTx ?? 'landed' });
+    else console.warn(`${p.name}: #${c.id} already has a commitment onchain that no saved opening matches; it can't be revealed`);
+    return;
+  }
   if (prev) {
     try {
       const r = await call(p.account, 'commit_bid', { campaign_id: c.id, hash: prev.hash }, 30);
