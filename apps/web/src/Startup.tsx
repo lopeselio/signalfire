@@ -48,8 +48,8 @@ export function StartupPage({ id }: { id: string }) {
         </div>
       </section>
       <div className="tabs" role="tablist">
-        <button role="tab" aria-selected={tab === 'market'} className={tab === 'market' ? 'on' : ''} onClick={() => setTab('market')}>Market</button>
-        <button role="tab" aria-selected={tab === 'treasury'} className={tab === 'treasury' ? 'on' : ''} onClick={() => setTab('treasury')}>Treasury and campaigns</button>
+        <button role="tab" data-tour="tab-market" aria-selected={tab === 'market'} className={tab === 'market' ? 'on' : ''} onClick={() => setTab('market')}>Market</button>
+        <button role="tab" data-tour="tab-treasury" aria-selected={tab === 'treasury'} className={tab === 'treasury' ? 'on' : ''} onClick={() => setTab('treasury')}>Treasury and campaigns</button>
         <button role="tab" aria-selected={tab === 'evidence'} className={tab === 'evidence' ? 'on' : ''} onClick={() => setTab('evidence')} data-tour="evidence-tab">Evidence</button>
       </div>
       {tab === 'market' ? <Market s={s} trades={trades} /> : tab === 'treasury' ? <Treasury s={s} /> : <EvidenceTab s={s} />}
@@ -63,7 +63,7 @@ function Market({ s, trades }: { s: Startup; trades: Trade[] | null }) {
   return (
     <div className="grid-market">
       <div className="col-main">
-        <section className="panel">
+        <section className="panel" data-tour="price">
           <h2>Price</h2>
           {trades === null ? <p className="muted">Loading trades…</p> : <PriceChart trades={trades} circulating={s.circulating} />}
           <TradeList trades={trades ?? []} sym={s.id.toUpperCase()} />
@@ -134,7 +134,7 @@ function TradePanel({ s }: { s: Startup }) {
     }
   };
   return (
-    <section className="panel trade">
+    <section className="panel trade" data-tour="trade">
       <div className="seg-toggle" role="radiogroup" aria-label="Buy or sell">
         <button role="radio" aria-checked={side === 'buy'} className={side === 'buy' ? 'on' : ''} onClick={() => { setSide('buy'); setAmount('0.1'); }}>Buy</button>
         <button role="radio" aria-checked={side === 'sell'} className={side === 'sell' ? 'on' : ''} onClick={() => { setSide('sell'); setAmount(bal > 0n ? fmtTokens(bal, 6) : '100'); }}>Sell</button>
@@ -188,7 +188,7 @@ function SupplyPanel({ s }: { s: Startup }) {
   const circ = BigInt(s.circulating);
   const pct = Number((circ * 10000n) / SUPPLY) / 100;
   return (
-    <section className="panel supply">
+    <section className="panel supply" data-tour="supply">
       <h2>Supply and fees</h2>
       <div className="supply-bar" aria-label={`${pct}% of the supply is circulating`}><span style={{ width: `${Math.max(pct, 0.6)}%` }} /></div>
       <dl className="facts">
@@ -225,7 +225,7 @@ function Treasury({ s }: { s: Startup }) {
   return (
     <div className="grid-treasury">
       <div className="col-side">
-        <section className="panel ledger">
+        <section className="panel ledger" data-tour="ledger">
           <h2>Marketing treasury</h2>
           <dl className="facts">
             <div><dt>Free to fund campaigns</dt><dd><Near y={s.available} /></dd></div>
@@ -236,7 +236,7 @@ function Treasury({ s }: { s: Startup }) {
             <div className="strong"><dt>Paid to founders</dt><dd>0 NEAR, and no method can</dd></div>
           </dl>
         </section>
-        <section className="panel">
+        <section className="panel" data-tour="constraints">
           <h2>Founder’s constraints</h2>
           <p className="muted small">The founder’s only lever. The contract enforces hard limits on each.{account === s.founder && ' Edit them in the Founder’s desk.'}</p>
           <dl className="facts">
@@ -247,7 +247,7 @@ function Treasury({ s }: { s: Startup }) {
             <div><dt>To join the holders</dt><dd>{fmtTokens(c.min_holder_tokens, 0)} {sym}</dd></div>
           </dl>
         </section>
-        <section className="panel">
+        <section className="panel" data-tour="holders">
           <h2>Holders’ council</h2>
           <p className="muted small">Members of the <Acct a={s.dao} /> DAO’s holders role. One holder, one vote; a majority funds a campaign.</p>
           <ul className="plain">{s.holders.map((h) => <li key={h}><Acct a={h} />{h === account && <Chip kind="ember">you</Chip>}</li>)}</ul>
@@ -261,7 +261,7 @@ function Treasury({ s }: { s: Startup }) {
       </div>
       <div className="col-main">
         <FounderForms s={s} />
-        <section className="panel">
+        <section className="panel" data-tour="campaigns">
           <h2>Campaigns</h2>
           {campaigns.length === 0 && <p className="muted">No campaigns yet. When the treasury has fees in it, the founder posts a brief and creators start bidding.</p>}
           {campaigns.map((cm) => <CampaignCard key={cm.id} c={cm} s={s} isHolder={isHolder} />)}
@@ -322,7 +322,7 @@ function CampaignCard({ c, s, isHolder }: { c: Campaign; s: Startup; isHolder: b
       {open && (
         <div className="c-body">
           <p>{c.brief}</p>
-          <h4>Bid book</h4>
+          <h4 data-tour="bid-book">Bid book</h4>
           {c.bids.length === 0 && <p className="muted small">No bids yet. Admitted creators (people and agents) seal a price and a pitch with a 0.02 NEAR bond.</p>}
           <ul className="bids">
             {c.bids.map((b) => {
@@ -351,7 +351,7 @@ function CampaignCard({ c, s, isHolder }: { c: Campaign; s: Startup; isHolder: b
           <MyBid c={c} s={s} />
           {c.proposal_id !== null && (
             <>
-              <h4>DAO proposal {c.proposal_id} in <Acct a={s.dao} /></h4>
+              <h4 data-tour="dao-vote">DAO proposal {c.proposal_id} in <Acct a={s.dao} /></h4>
               <p className="small">Calls <code>fund_campaign({c.id})</code> on the hub, reserving <Near y={c.price} /> for {c.winner && <Acct a={c.winner} />}. Status: <Chip kind={c.proposal?.status === 'Approved' ? 'ok' : c.proposal?.status === 'Rejected' ? 'bad' : ''}>{c.proposal?.status ?? 'filing'}</Chip></p>
               {c.proposal && Object.keys(c.proposal.votes).length > 0 && (
                 <ul className="plain votes">{Object.entries(c.proposal.votes).map(([a, v]) => <li key={a}><Acct a={a} /> <Chip kind={v === 'Approve' ? 'ok' : 'bad'}>{v}</Chip></li>)}</ul>
@@ -368,7 +368,7 @@ function CampaignCard({ c, s, isHolder }: { c: Campaign; s: Startup; isHolder: b
           {['funded', 'done', 'expired'].includes(c.phase) && (
             <>
               <h4>Results and milestones</h4>
-              <div className="ms">
+              <div className="ms" data-tour="milestones">
                 {Array.from({ length: MILESTONES }, (_, k) => {
                   const need = threshold(c.target, k + 1);
                   const paid = c.milestones_paid > k;
@@ -413,7 +413,7 @@ function AuditLog({ s }: { s: Startup }) {
   }, []);
   const list = (rows ?? []).filter((e) => e.startup === s.id || e.startup === null).slice(0, 40);
   return (
-    <section className="panel audit">
+    <section className="panel audit" data-tour="audit">
       <h2>Audit log</h2>
       <p className="muted small">Every spend attempt and every decision the spend policy makes, written onchain by the hub. Creator vetting is shared by all startups.</p>
       {rows === null && <p className="muted">Loading…</p>}
