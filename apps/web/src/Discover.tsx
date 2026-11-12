@@ -135,7 +135,7 @@ export function Discover() {
         {account && <button className="ghost small d-launch" onClick={() => go('/launch')}>Launch a startup</button>}
       </div>
       <EvidenceFilters f={filter} set={setFilter} />
-      <div className="s-grid">{sorted.map((s) => <StartupCard key={s.id} s={s} ev={ev} />)}</div>
+      <div className="s-grid" data-tour="startups">{sorted.map((s) => <StartupCard key={s.id} s={s} ev={ev} />)}</div>
       {sorted.length === 0 && <p className="muted">No startup has that evidence yet. A founder adds it by linking and proving their GitHub and X.</p>}
       <p className="muted small d-note">
         The demo startups and their founders are fictional; one operator account runs them on testnet, and the creators,
