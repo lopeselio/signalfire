@@ -22,7 +22,7 @@ export function Creators() {
           look-alike of an admitted name). Every admitted creator holds a soulbound NFT whose record updates as they work.
         </p>
       </section>
-      <div className="grid-creators">
+      <div className="grid-creators" data-tour="creators">
         {creators.length === 0 && <p className="muted">No creators admitted yet. The scout vets applicants within a minute.</p>}
         {creators.map((c) => <CreatorCard key={c.creator.account} c={c} />)}
       </div>
@@ -97,7 +97,7 @@ function CreatorCard({ c }: { c: CreatorRec }) {
           })}
           {detail.vetting ? (
             <div className="vetting">
-              <h4>Scout’s vetting report <TeeBadge signed={detail.vetting.signed} model={detail.vetting.model} src={{ kind: 'vetting', account: cr.account }} what="vetting report" /></h4>
+              <h4 data-tour="vetting">Scout’s vetting report <TeeBadge signed={detail.vetting.signed} model={detail.vetting.model} src={{ kind: 'vetting', account: cr.account }} what="vetting report" /></h4>
               {report?.summary ? (
                 <>
                   <p className="small">{report.summary}</p>
@@ -143,7 +143,7 @@ function Apply() {
   const wallet = me?.wallet ? BigInt(me.wallet.balance) : 0n;
   const fee = parseNear('0.01');
   return (
-    <section className="panel apply">
+    <section className="panel apply" data-tour="apply">
       <h2>Become a creator</h2>
       <p className="small">Admitted creators can bid on any startup’s campaigns and are paid in tUSD as their results come in. Applying costs a 0.01 NEAR vetting fee, paid to the scout from your Signalfire wallet; bids need a 0.02 NEAR bond from the same wallet, returned when you reveal.</p>
       <SignInHint what="apply" />
