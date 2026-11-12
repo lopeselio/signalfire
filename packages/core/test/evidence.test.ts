@@ -97,5 +97,15 @@ describe('brief guard', () => {
     expect(brief.gaps).toEqual([{ text: 'One link is unproven.', cites: ['E1'] }]);
     expect(brief.check).toEqual([{ text: 'Open the repository and read the last commits.', cites: ['E3'] }]);
   });
+  it('moves ids out of the sentence and ignores numbers inside names', () => {
+    const g = guardBrief({
+      observed: [{ text: 'E2 shows that the account alice.testnet was created on 2026-11-10.', cites: ['E2'] }],
+      check: [{ text: 'Recheck the NEP-413 proof of sf-test-1112.testnet with the v3 API.', cites: ['E1'] }, { text: 'Compare the code ownership with the history cited in E3.', cites: [] }],
+      gaps: [{ text: 'E2 shows the account was created on 2026-11-11.', cites: ['E2'] }],
+    }, items);
+    expect(g.brief.observed).toEqual([{ text: 'The account alice.testnet was created on 2026-11-10.', cites: ['E2'] }]);
+    expect(g.brief.check.map((l) => l.text)).toEqual(['Recheck the NEP-413 proof of sf-test-1112.testnet with the v3 API.', 'Compare the code ownership with the history.']);
+    expect(g.dropped.map((d) => d.reason)).toEqual(['a number that is not in the cited sources']);
+  });
   it('is deterministic', () => expect(guardBrief(raw, items)).toEqual({ brief, dropped }));
 });
