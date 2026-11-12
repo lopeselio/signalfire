@@ -2,7 +2,7 @@ import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 import { fmtTusd, openingMatches, pitchHash, priceAt } from '@signalfire/core';
-import { BRIEF_EVERY_MS, BRIEF_SAME_STARTUP_MS, startAgents } from './agents.ts';
+import { BRIEF_EVERY_MS, BRIEF_SAME_STARTUP_MS, outlayerRuns, startAgents } from './agents.ts';
 import { BA_PATH, accountFromHeaders, authHandler } from './ba.ts';
 import { view } from './chain.ts';
 import { config, explorerTx, hasKey } from './config.ts';
@@ -206,6 +206,13 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       if (near) return json(res, 200, await view('quote_buy', { startup, near, account: account || null }));
       if (tokens) return json(res, 200, await view('quote_sell', { startup, tokens }));
       return json(res, 400, { error: 'near or tokens' });
+    }
+    m = /^\/api\/campaign\/(\d{1,6})\/sealed$/.exec(p);
+    if (m) {
+      // a brief scored by OutLayer: the hub's record of it, the scorer, and the runs' request ids (for their attestations)
+      const id = Number(m[1]);
+      const [book, scorer] = await Promise.all([view('get_sealed', { campaign_id: id }).catch(() => null), view('get_scorer', {}).catch(() => null)]);
+      return json(res, 200, { book, scorer, runs: outlayerRuns()[id] ?? [], keyRequest: config.scorerKeyRequest, outlayerApi: 'https://testnet-api.outlayer.ai' });
     }
     m = /^\/api\/campaign\/(\d{1,6})(\/proof)?$/.exec(p);
     if (m) {

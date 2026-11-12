@@ -27,6 +27,8 @@ export const config = {
   webDist: env('WEB_DIST', join(import.meta.dirname, '../../web/dist')),
   dataDir: env('DATA_DIR', join(import.meta.dirname, '../../../data')),
   sessionSecret: env('SESSION_SECRET', 'dev-only-secret-change-me'),
+  /** OutLayer's request id of the run that published the scorer's bid key (its attestation is checked against the hub) */
+  scorerKeyRequest: Number(env('SCORER_KEY_REQUEST', '31532')),
   nearAi: {
     apiKey: env('NEARAI_API_KEY') === 'none' ? '' : env('NEARAI_API_KEY'),
     baseUrl: env('NEARAI_BASE_URL', 'https://cloud-api.near.ai/v1'),

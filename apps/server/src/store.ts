@@ -36,6 +36,9 @@ export interface BidSecret {
   human?: boolean;
   committedTx?: string;
   revealedTx?: string;
+  /** sealed to the OutLayer scorer's key (never revealed; the TEE scores it): the ciphertext posted onchain */
+  sealed?: boolean;
+  ciphertext?: string;
 }
 const bidFile = (campaign: number, creator: string): string => join(dir('bids'), `${campaign}-${creator}.json`);
 export const saveBid = (b: BidSecret): void => write(bidFile(b.campaign, b.creator), b);
