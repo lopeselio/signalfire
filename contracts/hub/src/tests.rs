@@ -653,3 +653,23 @@ fn tusd_formats_with_two_decimals() {
     assert_eq!(tusd_str(1_800_000), "1.80");
     assert_eq!(tusd_str(0), "0.00");
 }
+
+// The same edges packages/core (founder.ts, constraintErrors) checks in the founder's form.
+#[test]
+fn constraint_edges_match_core() {
+    let d = Constraints::default();
+    let accepts = |c: Constraints| std::panic::catch_unwind(|| Hub::check_constraints(&c)).is_ok();
+    assert!(accepts(d.clone()));
+    assert!(accepts(Constraints { campaign_cap: U128(1000 * NEAR), ..d.clone() }));
+    assert!(!accepts(Constraints { campaign_cap: U128(1000 * NEAR + 1), ..d.clone() }));
+    assert!(!accepts(Constraints { campaign_cap: U128(0), ..d.clone() }));
+    assert!(!accepts(Constraints { max_payout: U128(0), ..d.clone() }));
+    assert!(accepts(Constraints { payouts_per_hour: 60, ..d.clone() }));
+    assert!(!accepts(Constraints { payouts_per_hour: 61, ..d.clone() }));
+    assert!(accepts(Constraints { min_bid_bps: 0, ..d.clone() }));
+    assert!(accepts(Constraints { min_bid_bps: 9000, ..d.clone() }));
+    assert!(!accepts(Constraints { min_bid_bps: 9001, ..d.clone() }));
+    assert!(!accepts(Constraints { min_holder_tokens: U128(UNIT - 1), ..d.clone() }));
+    assert!(accepts(Constraints { min_holder_tokens: U128(SUPPLY / 100), ..d.clone() }));
+    assert!(!accepts(Constraints { min_holder_tokens: U128(SUPPLY / 100 + 1), ..d }));
+}
