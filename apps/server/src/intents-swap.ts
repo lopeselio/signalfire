@@ -1,13 +1,13 @@
 // A creator cashes out tUSD earnings for NEAR through NEAR Intents:
 //   pnpm intents-swap <account> [tUSD raw units, default: all of it]
-// <account> holds tUSD (milestone payouts) and has its full-access key in ~/.near-credentials. The operator's desk is
-// the counterparty and quotes the hub's fixed test rate (1 NEAR = 3 tUSD, packages/core nearForTusd).
+// <account> holds tUSD (milestone payouts) and has its full-access key in ~/.near-credentials. The desk
+// (signalfire-desk.testnet) is the counterparty and quotes the hub's fixed test rate (1 NEAR = 3 tUSD, packages/core nearForTusd).
 // 1. both sides deposit into the Verifier, each to its own identity (the implicit account of its key):
 //    the creator its tUSD, the desk wrapped NEAR (wrap.testnet)
 // 2. each signs one token_diff (creator: −tUSD +wNEAR; desk: +tUSD −wNEAR) and an ft_withdraw of what it gets
 // 3. the desk sends both signed intents in one execute_intents: the Verifier checks the signatures and that the
 //    diffs cancel, swaps, and pays each side out; then the creator unwraps the wNEAR.
-// No Signalfire treasury money is involved: this is the creator's own tUSD and the operator's own NEAR.
+// No Signalfire treasury money is involved: this is the creator's own tUSD and the desk's own NEAR.
 import { randomBytes } from 'node:crypto';
 import { fmtNear, fmtTusd, nearForTusd } from '@signalfire/core';
 import { callOn, viewOn } from './chain.ts';
@@ -20,7 +20,7 @@ const WRAP = process.env.WRAP_ID ?? 'wrap.testnet';
 const STORAGE = 1_250_000_000_000_000_000_000n;
 const [who, amountArg] = process.argv.slice(2);
 if (!who) { console.error('usage: pnpm intents-swap <account> [tUSD raw]'); process.exit(2); }
-const desk = config.operator;
+const desk = config.desk;
 const TUSD = tusdId();
 const t0 = Date.now();
 const log = (s: string, tx?: string): void => console.log(`[${String(Math.round((Date.now() - t0) / 1000)).padStart(4)}s] ${s}${tx ? `\n        ${explorerTx(tx)}` : ''}`);
