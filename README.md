@@ -48,14 +48,20 @@ fallback text, marked unsigned.
 4. **Tab Treasury and campaigns.** The ledger (free, committed, paid, fees in, forfeited bonds), the founder's
    constraints, the holders' council (members of `glow-dao`), and each campaign: a phase timeline
    (bidding → reveal → holder vote → running → paid), **the bid book** (sealed hashes while bidding; after the
-   reveal: price, credible or not, reputation, and the creator's pitch with a **"signed by NEAR AI TEE"** badge),
+   reveal: price, credible or not, reputation, and the creator's pitch with a **"✓ Private AI, verified"** badge:
+   your browser checks the model's TEE itself, see step 5),
    **the DAO proposal** with each holder's vote (signed-in holders get Vote yes / Vote no; anyone with 100 GLOW gets
    **Join the holders**), the milestones with tUSD paid, the referral link, and **Proof (JSON)**.
    Further down, **the audit log** with outcome and flag chips: `paid`, `new_payee`, `burst`, and
    `rejected` + `lookalike` for the impostor `creator-n0va`.
 5. **Creators (`/creators`).** Nova, Quill, Ember: their soulbound creator NFT (its record is computed from live
-   state), receipt NFTs (`receipt:0`, `receipt:1`), tUSD earned, wallet caps, and the scout's vetting report with its
-   TEE badge. Signed in, **Become a creator** funds your hub wallet, applies (the scout's 0.01 NEAR fee goes into
+   state), receipt NFTs (`receipt:0`, `receipt:1`), tUSD earned, wallet caps, and the scout's vetting report. Its
+   badge reads **"Private AI, checking…"** and then **"✓ Private AI, verified"** after a few seconds: this browser
+   picked a fresh nonce, fetched the model's attestation from `cloud-api.near.ai`, verified the Intel TDX quote
+   (dcap-qvl, Intel's root CA), the signer and nonce bound in the quote, the container config (MRCONFIGID), the event
+   log (RTMR3) and NVIDIA's signed GPU verdict, then checked the report's signature against the attested key. Click it
+   for every check, the measurements (MRTD, RTMR3, compose hash, app id, GPUs) and what it does and doesn't prove
+   (a matching signer doesn't prove the same serving instance: instances of a model share a key). Signed in, **Become a creator** funds your hub wallet, applies (the scout's 0.01 NEAR fee goes into
    escrow), and the scout vets you within a minute.
 6. **Bid as a person.** Once admitted, open `/s/glow`, tab **Treasury and campaigns**: every campaign taking bids shows
    **Your sealed bid**. Type a price (the panel shows the credible range and your reputation-weighted score) and a
@@ -136,12 +142,20 @@ fallback text, marked unsigned.
    ✓ nobody in the DAO may propose or approve a transfer
    ✓ milestone 1: 21736000000000000000000 yoctoNEAR to the winner [flags: none]
    ✓ receipt NFT receipt:1 belongs to the creator and records 3 results for 65208000000000000000000 yoctoNEAR
-   ✓ creator-quill.signalfire.testnet: pitch signed by the NEAR AI TEE key 0xfdbd7952…
-   ✓ 36 checks passed, 0 failed
+   ✓ TEE: Intel TDX quote: its signature chains to Intel’s root CA (dcap-qvl) [TCB UpToDate]
+   ✓ TEE: The signing key was made inside this TEE (its address is bound in the quote’s report data) [0xfdbd7952…]
+   ✓ TEE: The quote is fresh: its report data holds the nonce this check just picked
+   ✓ TEE: The container configuration (app_compose) hashes to the quote’s MRCONFIGID [sha256 e8416a02…]
+   ✓ TEE: The runtime event log replays to the quote’s RTMR3 (app id, compose hash, keys) [bbada8ce…]
+   ✓ TEE: NVIDIA signed an overall PASS for the GPUs (JWT checked against NVIDIA’s keys)
+   ✓ Qwen/Qwen3.6-35B-A3B-FP8: attested by NEAR AI Cloud with a fresh nonce (signer 0xfdbd7952…)
+   ✓ creator-quill.signalfire.testnet: pitch signed by the attested NEAR AI TEE key 0xfdbd7952…
+   ✓ 57 checks passed, 0 failed
    ```
 
    It fetches only the proof bundle (bid openings, pitches, reports, signatures) from the server and reads the hub,
-   the DAO and the NFTs over public RPC itself.
+   the DAO and the NFTs over public RPC itself. The model's attestation comes from NEAR AI Cloud, Intel's collateral
+   from Phala's PCCS, and NVIDIA's verdict from NRAS, all directly.
 11. **Cash out tUSD through NEAR Intents** (a script; needs the creator's and the operator's keys):
     `pnpm intents-swap <creator account> [tUSD raw]`. The creator swaps its tUSD earnings for NEAR with the operator's
     desk, which quotes the hub's fixed test rate (1 NEAR = 3 tUSD, `nearForTusd` in `packages/core`). Both deposit into
@@ -174,7 +188,7 @@ fallback text, marked unsigned.
 | `security` | spend policy (approved campaigns, payee allowlist, per-campaign and per-payout caps, hourly rate limit, milestones), onchain audit log with flags, FC-key-only agents with capped wallets, lookalike refusal (live on testnet) | the hub owner key still exists on testnet |
 | `swarms` | three creator agents bid in commit-reveal auctions every brief; the contract settles by a deterministic rule | agents follow simple pricing rules, not learned strategies |
 | `agents` | agents earn tUSD, post bonds, buy tokens, and pay the scout for vetting and audience briefs (`agent_pay`) | payments are inside the hub's wallets, not cross-chain |
-| `privacy` | sealed bids and sealed pitches (people seal theirs in the browser); NEAR AI TEE-signed reports and pitches, kept as proofs and checked by `verify` | the agents' openings sit on our server until the reveal |
+| `privacy` | sealed bids and sealed pitches (people seal theirs in the browser); NEAR AI TEE-signed reports and pitches, and the model's TEE attestation verified **in your browser** (Intel quote, signer + nonce binding, MRCONFIGID, RTMR3, NVIDIA GPUs) and by `verify` | the agents' openings sit on our server until the reveal |
 | `business` | treasury → procurement (auctions) → payouts runs by rules; the founder only posts briefs and sets constraints (web forms, checked against the hub's limits) | the demo founder agent posts briefs from a fixed list |
 | `realworld` | creators are paid in a stablecoin-shaped token through a policy; gasless meta-transactions for signed-in users | tUSD is our own labelled test token (no testnet stablecoin can be minted on demand) |
 | `nfts` | soulbound creator NFT with metadata computed from live state; receipt NFTs per completed campaign | no royalties or NFT-owned accounts |
@@ -207,12 +221,14 @@ contracts/hub     Rust near-sdk 5.29: launchpad, curve market, treasuries, spend
 - **NEAR AI (privacy).** The scout's vetting reports and the creators' pitches come from a TEE-hosted model on NEAR AI Cloud (`Qwen/Qwen3.6-35B-A3B-FP8`). Each reply is kept with its exact request/response and the enclave's ECDSA signature; the report's hash goes onchain with `vet_creator`, the pitch's hash inside the sealed bid. **The model never decides money, admission or a winner**: admission is a contract rule (registered scout, fee paid, not a lookalike name), the winner is the scoring rule, votes are the holders'.
 - **tUSD (realworld).** NEAR testnet has no stablecoin anyone can mint on demand, so the hub deploys `tusd.signalfire.testnet` from the same global FT, labelled "Test USD (testnet only, no value)". A payout converts the treasury's NEAR at a fixed test rate (1 NEAR = 3 tUSD, a constant in the contract), keeps that NEAR as the desk's backing, and sends tUSD to the creator. Signed-in users' calls go gasless through the NEP-366 relayer (better-near-auth). The relayer only calls the hub and the startups' tokens and DAOs; that list is live (every chain read adds new launches, and an unknown receiver makes the server re-read the hub before refusing), so a startup launched a minute ago trades and votes gaslessly too.
 - **NFTs (nfts).** `creator:<account>` is minted at admission, is soulbound, and its NEP-177 metadata is **computed from state when read** (won, completed, missed, results, tUSD earned, reputation). `receipt:<campaign>` is minted to the creator when a campaign completes: startup, campaign, spend, results, cost per result, the DAO proposal.
+- **Private AI, verified (privacy).** `packages/attest` checks a NEAR AI Cloud model the way docs.near.ai describes, in the browser or in Node: a fresh 32-byte nonce, `GET /v1/attestation/report`, the Intel TDX quote verified with `@phala/dcap-qvl` (collateral from Phala's PCCS, signatures chained to Intel's root CA), report data = signing address ‖ nonce, `request_nonce` echoed, MRCONFIGID = `01 ‖ sha256(app_compose)`, the event log replayed to RTMR3, and the GPUs' evidence judged by NVIDIA NRAS with each JWT checked against NVIDIA's keys (browsers reach NRAS through `/api/nras`, which only forwards; the JWTs can't be forged). A reply counts as verified when its signature covers `model:sha256(request):sha256(response)` and recovers to exactly one verified report's signer.
 - **Proofs.** `/api/campaign/<id>/proof` publishes what the chain holds only hashes of (bid openings once revealed, pitches, vetting reports) with their TEE signatures. `pnpm verify <id>` checks all of it against the chain it reads itself.
 
 ### What the chain does *not* prove
 
 - **That a campaign caused its buys.** A result is "a first-time buyer used the code". The demo audience is our own fan accounts, run by the server.
 - **That the model's report is wise**, only that the TEE produced it unaltered, and it decides nothing.
+- **That a reply came from the instance we attested.** The badge attests the model now, with a fresh nonce; the reply was signed earlier. Instances of a model share one signing key, so a matching signer proves the key lives only in attested TEEs, not which instance served the reply (docs.near.ai says so too).
 - **That the operator doesn't control a creator.** The demo creators are our agents. Anyone the scout admits can bid, and admission is by rule, but the scout is a registered account we run.
 - **The hub account still has a full-access key** on testnet so we can iterate; a production deployment would remove it. The global FT and Sputnik code are published by NEAR's `globals.primitives` accounts, which could update them.
 - **tUSD is backed only by the NEAR the desk keeps**, at a constant rate, not an oracle. It has no value.
@@ -221,7 +237,9 @@ contracts/hub     Rust near-sdk 5.29: launchpad, curve market, treasuries, spend
 ## Tests
 
 ```bash
-pnpm test             # packages/core: 35 tests (curve, hashes, sealed openings, scoring, milestones, policy, wallets, founder limits, lookalikes; the shared vector)
+pnpm test             # packages/attest: 6 tests (a live NEAR AI report verified offline with saved Intel collateral, a
+                      # replayed nonce, a tampered event log and compose, reply signatures recovered and tampered)
+                      # packages/core: 35 tests (curve, hashes, sealed openings, scoring, milestones, policy, wallets, founder limits, lookalikes; the shared vector)
                       # apps/server: 7 tests (the relayer's live whitelist, the NEAR Intents helpers)
 pnpm contract:test    # contracts/hub: 37 tests (the same shared vector, launch, trades and unwinds, wallets and caps,
                       # vetting and lookalikes, auctions, DAO-only funding, attribution, milestones, held payouts,
