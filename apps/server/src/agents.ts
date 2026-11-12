@@ -87,6 +87,21 @@ async function seal(s: Snapshot, c: Campaign, p: CreatorPersona): Promise<void> 
     await act(p.name, `paid ${SCOUT.name} 0.002 NEAR for an audience brief on #${c.id}`, () =>
       call(p.account, 'agent_pay', { to: SCOUT.account, amount: parseNear('0.002').toString(), memo: `audience brief #${c.id}` }, 20), 'pay', c.id);
   }
+  // An opening saved earlier whose commit we never saw confirmed (an RPC error after the transaction may still have
+  // landed): send the same commitment again, never a new one, or the reveal would no longer match what's onchain.
+  const prev = loadBid(c.id, p.account);
+  if (prev) {
+    try {
+      const r = await call(p.account, 'commit_bid', { campaign_id: c.id, hash: prev.hash }, 30);
+      saveBid({ ...prev, committedTx: r.tx });
+      addWire({ who: p.name, what: `sealed a bid on #${c.id} "${c.title}" (price and pitch hidden until the reveal)`, tx: r.tx, kind: 'bid', campaign: c.id });
+    } catch (e) {
+      // the first commit landed after all: keep the opening, the reveal will match
+      if (/one bid per creator/.test((e as Error).message)) saveBid({ ...prev, committedTx: 'landed' });
+      else console.warn(`${p.name}: re-sending the commitment on #${c.id} failed: ${(e as Error).message}`);
+    }
+    return;
+  }
   const salt = randomBytes(32).toString('hex');
   const price = bidPrice(p, BigInt(c.budget), salt);
   const proof = await ask(
