@@ -71,6 +71,7 @@ export function ago(t: number, now = Date.now()): string {
 }
 
 export function TeeBadge({ signed, model }: { signed: boolean; model?: string }) {
+  if (model === 'creator') return <span className="tee off" title="A person wrote this pitch and sealed it in their browser; no model was involved">written by the creator</span>;
   if (!signed) return <span className="tee off" title="Written without NEAR AI (fallback text, unsigned)">unsigned</span>;
   return (
     <span className="tee" title={`Signed inside the NEAR AI Cloud TEE${model ? ` (${model})` : ''}; check it with pnpm verify`}>

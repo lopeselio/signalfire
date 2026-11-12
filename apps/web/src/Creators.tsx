@@ -130,7 +130,7 @@ function Apply() {
       <h2>Become a creator</h2>
       <p className="small">Admitted creators can bid on any startup’s campaigns and are paid in tUSD as their results come in. Applying costs a 0.01 NEAR vetting fee, paid to the scout from your Signalfire wallet; bids need a 0.02 NEAR bond from the same wallet, returned when you reveal.</p>
       <SignInHint what="apply" />
-      {account && admitted && <p className="ok-text">You’re an admitted creator. Watch the campaigns on a startup’s Treasury tab.</p>}
+      {account && admitted && <p className="ok-text">You’re an admitted creator. Open a startup’s Treasury tab: each campaign taking bids shows <strong>Your sealed bid</strong>.</p>}
       {account && !admitted && (
         <ol className="apply-steps">
           <li className={wallet >= fee || applied ? 'done' : ''}>
