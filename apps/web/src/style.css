@@ -374,7 +374,7 @@ blockquote { margin: 8px 0 0; padding-left: 12px; border-left: 2px solid var(--l
 .apply-form button { justify-self: start; }
 
 /* dashboard */
-.thesis { max-width: 70ch; margin-top: 40px; }
+.thesis { max-width: 82ch; margin-top: 40px; }
 .thesis h2 { font-size: 28px; letter-spacing: -0.03em; }
 .thesis p { color: var(--ash-2); font-size: 16px; line-height: 1.7; }
 .solvency .facts { max-width: 560px; }
@@ -430,3 +430,8 @@ blockquote { margin: 8px 0 0; padding-left: 12px; border-left: 2px solid var(--l
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* the thesis evidence */
+.thesis .evidence h3 { margin-top: 26px; }
+.thesis .evidence .tbl { font-size: 13px; }
+.thesis .evidence ul.plain li { color: var(--ash-2); }
