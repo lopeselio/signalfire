@@ -56,7 +56,7 @@ async function build(): Promise<Snapshot> {
   ]);
   relayWhitelist.note(startups); // a startup launched since boot can use the gasless relayer
   const applicants = [...new Set([...CREATORS.map((c) => c.account), ...pendingApplicants()])];
-  const fans = Array.from({ length: getState<number>('fan-count', FAN_COUNT) }, (_, i) => fanAccount(i + 1));
+  const fans = Array.from({ length: Math.max(getState<number>('fan-count', FAN_COUNT), FAN_COUNT) }, (_, i) => fanAccount(i + 1));
   const agentAccounts = [...CREATORS.map((c) => c.account), SCOUT.account, ...HOLDERS.map((h) => h.account)];
   const [apps, buyerFlags, walletList, creators, trades, holders, proposals] = await Promise.all([
     Promise.all(applicants.map(async (a) => [a, await view<Application | null>('get_application', { account: a }).catch(() => null)] as const)),
