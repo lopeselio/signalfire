@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BID_BOND, YOCTO, bidHash, bidStage, openingMatches, pitchHash, sealBid, walletRefusal } from '../src/index.ts';
+import { BID_BOND, YOCTO, bidHash, nearForTusd, tusdFor, bidStage, openingMatches, pitchHash, sealBid, walletRefusal } from '../src/index.ts';
 
 describe('sealed bids for people (same strings as the agents and the hub)', () => {
   const salt = 'ab'.repeat(32);
@@ -43,5 +43,13 @@ describe('hub wallets', () => {
   });
   it('the 24-hour cap resets after a day', () => {
     expect(walletRefusal({ ...w, day_spent: (5n * YOCTO).toString() }, BID_BOND, 24 * 3_600_000)).toBeNull();
+  });
+});
+
+describe('the desk rate both ways', () => {
+  it('round-trips at 1 NEAR = 3 tUSD', () => {
+    expect(nearForTusd(3_000_000n)).toBe(10n ** 24n);
+    expect(tusdFor(nearForTusd(45_000n))).toBe(45_000n);
+    expect(nearForTusd(1n)).toBe(333_333_333_333_333_333n);
   });
 });
