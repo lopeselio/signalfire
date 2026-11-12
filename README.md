@@ -32,10 +32,14 @@ With no NEAR keys the server still serves everything read-only from testnet (the
 agents' keys; set `AGENTS=0` to run without them). Without `NEARAI_API_KEY`, pitches and reports use plain
 fallback text, marked unsigned.
 
-1. **Open the landing page.** You see the headline, a "not equity, testnet only" notice, and the treasury drawn as a
-   beacon: free, committed to campaigns, paid out, and **"paid to founders: 0"**. Below: live numbers (fees in,
-   treasury, campaigns funded by holders, cost per new holder), "How it works" in five steps, and **The wire**, the
-   agents acting onchain with a tx link on every line. First visit: four onboarding cards (reopen with **?**).
+1. **Open the landing page.** You see the headline, a "not equity, testnet only" notice, and on the right **the
+   signal fire** above the **Marketing treasuries** card (fees in; free, reserved, paid to creators; **"Paid to
+   founders: 0 NEAR, by design"**). The fire is three.js fed by the wire: its height follows the number of onchain
+   actions in the last 24 hours (the caption says how many and names the latest), a buy through a creator's link throws
+   sparks, and a milestone payout flares it. With reduced motion or no WebGL you get a still flame of the same height.
+   Below: four startup cards (each with a small flame as tall as its treasury against the largest), totals across
+   startups that count up as they scroll in, "How it works" as three product cards, and **The wire**, the agents
+   acting onchain with a tx link on every line. First visit: the onboarding (reopen with **?**).
 2. **Open Glowpath (`/s/glow`), tab Market.** A price chart from the onchain trade ring; the trades table tags buys
    that counted for a campaign ("campaign #1"). The **Supply and fees** panel shows a fixed 1,000,000 GLOW supply,
    **founder allocation 0**, the curve reserve, and "2% of every trade, to the marketing treasury only".
@@ -404,7 +408,7 @@ pnpm verify-brief <startup> [url]  # a startup's founder-link proofs and AI rese
 
 - **Inspiration.** The idea is adapted from the Solana Foundation's request for startups "Attention tokens for startup distribution", rebuilt natively on NEAR (NEP-141 global FT, Sputnik DAO v2 via global contracts, function-call-key agents, NEAR AI Cloud TEE models, NEP-171, NEP-366). No code from any Solana project.
 - **Other submission.** The same author also submitted the **NEAR Arcade** ([github.com/lopeselio/near-arcade](https://github.com/lopeselio/near-arcade)), a separate, independent project (a set of games). Signalfire shares no contract, rules or server with it; it reuses the author's own patterns for wallet sign-in (Better Auth + better-near-auth), NEAR AI proofs, Sputnik DAO setup and Azure deployment.
-- **Libraries:** React, Vite, better-auth and better-near-auth, near-api-js, near-kit, @noble/hashes, @noble/curves, @phala/dcap-qvl (Intel TDX quotes), jose (NVIDIA attestation JWTs), near-sdk and near-contract-standards (Rust). Onchain: NEAR's global FT and Sputnik DAO v2 contracts, and the NEAR Intents Verifier ([near/intents](https://github.com/near/intents), MIT), Signalfire's own testnet instance at `signalfire-intents.testnet`.
+- **Libraries:** React, Vite, three.js (the signal fire, loaded on demand), better-auth and better-near-auth, near-api-js, near-kit, @noble/hashes, @noble/curves, @phala/dcap-qvl (Intel TDX quotes), jose (NVIDIA attestation JWTs), near-sdk and near-contract-standards (Rust). Onchain: NEAR's global FT and Sputnik DAO v2 contracts, and the NEAR Intents Verifier ([near/intents](https://github.com/near/intents), MIT), Signalfire's own testnet instance at `signalfire-intents.testnet`.
 
 ## License
 
