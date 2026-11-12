@@ -56,10 +56,24 @@ const Arrow = () => (
   <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 11.5 11.5 4.5M6 4.5h5.5V10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
 
+/** A small flame whose height is the startup's marketing treasury relative to the largest; brighter while a campaign runs. */
+function CardFlame({ level, lit }: { level: number; lit: boolean }) {
+  const k = 0.45 + 0.55 * Math.max(0, Math.min(1, level));
+  return (
+    <svg className={`s-flame${lit ? ' lit' : ''}`} viewBox="0 0 24 30" width="22" height="28" style={{ ['--k' as string]: k.toFixed(2) }} role="img" aria-label={`Treasury at ${Math.round(level * 100)}% of the largest${lit ? ', campaign open' : ''}`}>
+      <path className="f-out" d="M12 1.5c3.4 5 8 8.300 8 15.200a8 8 0 0 1-16 0c0-4.300 3.100-6.600 4.600-10.400 1.900 2.300 2.300 4.300 2.300 6.200C12.600 9 12.800 5.200 12 1.500z" />
+      <path className="f-in" d="M12 13c1.700 2.400 3.600 3.800 3.600 6.600a3.600 3.600 0 0 1-7.200 0c0-1.900 1.300-3 2-4.600.9 1 1.100 1.900 1.100 2.800.5-1.600.8-3.200.5-4.800z" />
+    </svg>
+  );
+}
+
 export function StartupCard({ s, ev }: { s: Startup; ev?: Summaries | null }) {
   const { state, go } = useApp();
   const f = founderOf(s, state!.operator);
   const treasury = BigInt(s.available) + BigInt(s.committed);
+  // the card's flame: this treasury against the largest one on the hub
+  const top = state!.startups.reduce((m, x) => { const v = BigInt(x.available) + BigInt(x.committed); return v > m ? v : m; }, 1n);
+  const level = Number((treasury * 100n) / top) / 100;
   const campaigns = state!.campaigns.filter((c) => c.startup === s.id);
   const running = campaigns.find((c) => ['bidding', 'proposing', 'voting', 'funded', 'propose_failed'].includes(c.phase));
   const results = campaigns.filter((c) => c.phase === 'done' || c.phase === 'expired').reduce((a, c) => a + c.results, 0);
@@ -76,7 +90,7 @@ export function StartupCard({ s, ev }: { s: Startup; ev?: Summaries | null }) {
       <p className="s-pitch">{s.pitch}</p>
       <div className="s-big">
         <span className="s-big-l">Marketing treasury</span>
-        <span className="s-big-n">{fmtNear(treasury, 3)}<small> NEAR</small></span>
+        <span className="s-big-n">{fmtNear(treasury, 3)}<small> NEAR</small><CardFlame level={level} lit={!!running} /></span>
         <span className="s-big-sub">{fmtNear(s.paid, 3)} NEAR paid to creators · {results} new buyers reached</span>
       </div>
       <EvidenceChips sum={ev?.[s.id]} />
