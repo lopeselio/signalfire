@@ -173,7 +173,8 @@ const MAX: Record<Section, number> = { observed: 8, reading: 5, gaps: 6, check: 
 /** Advice, predictions and fundraising words: never allowed, in any section. */
 const ADVICE: RegExp[] = [
   /\b(should|must|recommend\w*|advis\w*|consider|worth)\b[^.]{0,60}\b(buy|buying|sell|selling|hold|holding|invest\w*|back|backing|ape)\b/i,
-  /\b(invest|invested|investing|investment|investments|investor|investors|returns?|roi|profit\w*|yields?|undervalued|overvalued|moon\w*|pump\w*|dump\w*|guarantee\w*|upside|downside|equity|ownership|dividends?|raise|raised|raising|fundrais\w*)\b/i,
+  /\b(invest|invested|investing|investment|investments|investor|investors|returns?|roi|profit\w*|yields?|undervalued|overvalued|moon\w*|pump\w*|dump\w*|guarantee\w*|upside|downside|equity|dividends?|raise|raised|raising|fundrais\w*)\b/i,
+  /\b(ownership|stake|shares?)\b[^.]{0,30}\b(company|startup|token|treasury|revenue|business)\b/i,
   /\bprice target\b/i,
   /\b(will|going to|likely to|expected to|poised to|set to|bound to)\b[^.]{0,40}\b(rise|increase|grow|go up|climb|fall|drop|decline|succeed|fail|moon|double|outperform|appreciate)\b/i,
   /\b(price|token)\b[^.]{0,40}\b(cheap|expensive|bargain|good deal|good entry|opportunit\w*)\b/i,
@@ -182,14 +183,21 @@ const ADVICE: RegExp[] = [
 /** Hedged words mark an inference; it may not sit among the observed facts. */
 const HEDGE = /\b(likely|unlikely|probably|possibly|perhaps|suggests?|suggesting|indicat\w*|appears?|seems?|may|might|could|implies|imply|presumably|reflects?)\b/i;
 
-const clean = (s: string): string => s.replace(/[*_`#>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 320);
-const stripCites = (s: string): string => s.replace(/\[?\(?\bE\d{1,3}\b(?:\s*,\s*E\d{1,3}\b)*\)?\]?/g, ' ');
+const clean = (s: string): string => s.replace(/[*`#]/g, '').replace(/\s+/g, ' ').trim().slice(0, 320);
+/** "E2 shows that the account …" → "The account …": the ids live in `cites`, not in the sentence. */
+const LEAD = /^(?:evidence\s+|source\s+)?\(?\[?E\d{1,3}\]?\)?(?:\s*(?:,|and)\s*\[?E\d{1,3}\]?)*\s+(?:shows|states|reports|confirms|notes|lists|records|says|gives|indicates)(?:\s+that)?\s+/i;
+const unlead = (s: string): string => { const t = s.replace(LEAD, ''); return t === s ? s : t.charAt(0).toUpperCase() + t.slice(1); };
+const stripCites = (s: string): string => s.replace(/\s*\b(?:as cited in|cited in|in|from|see|per|source)\s+(?=[[(]?E\d)/gi, ' ').replace(/\[?\(?\bE\d{1,3}\b(?:\s*,\s*E\d{1,3}\b)*\)?\]?/g, ' ');
 
 /** Every number in a line must appear in the evidence it cites (in a fact, a key or a title). */
 function numbersCited(text: string, cites: string[], byId: Map<string, EvidenceItem>): boolean {
-  const nums = stripCites(text).replace(/(\d),(\d{3})/g, '$1$2').match(/\d+(?:\.\d+)?/g) ?? [];
+  let t = stripCites(text).replace(/(\d),(\d{3})/g, '$1$2');
+  const dates = t.match(/\b\d{4}-\d{2}-\d{2}\b/g) ?? [];
+  t = t.replace(/\b\d{4}-\d{2}-\d{2}\b/g, ' ');
+  // standalone numbers only: not the 1112 in an account name, the 413 in NEP-413 or the 3 in v3
+  const nums = [...dates, ...(t.match(/(?<![\w.\-/:])\d+(?:\.\d+)?(?![\w\-/])/g) ?? [])];
   if (!nums.length) return true;
-  const hay = cites.map((c) => { const i = byId.get(c)!; return `${i.title} ${canonical(i.facts)}`; }).join(' ').replace(/(\d),(\d{3})/g, '$1$2');
+  const hay = cites.map((c) => { const i = byId.get(c)!; return `${i.title} ${i.source.label} ${canonical(i.facts)}`; }).join(' ').replace(/(\d),(\d{3})/g, '$1$2');
   return nums.every((n) => hay.includes(n) || hay.includes(n.replace(/\.0+$/, '')));
 }
 
@@ -207,9 +215,10 @@ export function guardBrief(raw: unknown, items: EvidenceItem[]): { brief: Brief;
     const list = Array.isArray(src[section]) ? (src[section] as unknown[]) : [];
     for (const entry of list) {
       const e = (entry && typeof entry === 'object' ? entry : { text: entry }) as { text?: unknown; cites?: unknown };
-      const text = clean(typeof e.text === 'string' ? e.text : '');
+      const original = clean(typeof e.text === 'string' ? e.text : '');
+      const text = unlead(original);
       if (!text) continue;
-      const fromText = [...text.matchAll(/\bE\d{1,3}\b/g)].map((m) => m[0]);
+      const fromText = [...original.matchAll(/\bE\d{1,3}\b/g)].map((m) => m[0]);
       const given = Array.isArray(e.cites) ? e.cites.filter((c): c is string => typeof c === 'string').map((c) => c.trim().toUpperCase()) : [];
       const cites = [...new Set([...given, ...fromText])];
       const valid = cites.filter((c) => byId.has(c));
