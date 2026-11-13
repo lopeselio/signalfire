@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { fmtNear, fmtTokens } from '@signalfire/core';
 import { Terms, useApp } from '../ui.tsx';
+import { ForAgents } from '../live/ForAgents.tsx';
 import { PATHS } from './paths.tsx';
 import { briefsOf } from './state.ts';
 import { startPath, useX } from './useX.ts';
@@ -149,8 +150,10 @@ export function HowItWorks() {
           <p>Every campaign card links its <strong>Proof (JSON)</strong>: the bid openings, pitches and reports the chain holds only hashes of, with their TEE signatures. <code>pnpm verify &lt;campaign&gt; {location.origin}</code> re-checks all of it against the chain it reads itself, without trusting this server. The {link('/dashboard', 'Dashboard')} reads everything live and states the thesis with its evidence; <code>pnpm thesis</code> recomputes it.</p>
         </section>
 
+        <ForAgents hub={s.hub} origin={location.origin} />
+
         <section id="limits">
-          <h2>14. What the chain does not prove</h2>
+          <h2>15. What the chain does not prove</h2>
           <ul>
             <li>That a campaign <em>caused</em> its buys: a result is “a first-time buyer used the link”. The demo’s audience is the operator’s own fan accounts.</li>
             <li>That the operator doesn’t control a creator: the demo creators are the operator’s agents (anyone the scout admits can bid).</li>
