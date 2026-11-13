@@ -678,3 +678,18 @@ details.tech[open] > summary { margin-bottom: 4px; }
 
 /* confetti (celebrate.ts) */
 .confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 80; }
+
+/* a numbered step path for any list (Landing's three steps, Plan's payouts): <ol class="step-path"> with an
+   <li> per step that starts with <span class="sp-node">n</span>. Side by side by default, .vertical stacks it.
+   Tune with --sp-size (node), --sp-pad (the li's padding) and --sp-gap (the gap between steps). */
+.step-path { --sp-size: 36px; --sp-pad: 0px; --sp-gap: 16px; list-style: none; padding: 0; }
+.step-path > li { position: relative; margin: 0; }
+.sp-node { position: relative; z-index: 1; flex: none; width: var(--sp-size); height: var(--sp-size); border-radius: 50%; display: inline-grid; place-items: center; background: var(--fire-btn); color: #fff; font: 900 calc(var(--sp-size) * 0.45) var(--font-display); box-shadow: 0 3px 0 var(--fire-press); }
+.step-path > li:last-child .sp-node { background: var(--go); box-shadow: 0 3px 0 var(--go-press); }
+.step-path > li:not(:last-child)::after { content: ''; position: absolute; border-radius: 999px; background: var(--fire-soft); }
+.step-path:not(.vertical) > li:not(:last-child)::after { top: calc(var(--sp-pad) + var(--sp-size) / 2 - 2px); right: calc(-1 * var(--sp-gap) - 2px); width: calc(var(--sp-gap) + 4px); height: 4px; }
+.step-path.vertical > li:not(:last-child)::after { left: calc(var(--sp-pad) + var(--sp-size) / 2 - 2px); top: calc(var(--sp-pad) + var(--sp-size)); bottom: calc(-1 * (var(--sp-gap) + var(--sp-pad))); width: 4px; }
+@media (max-width: 980px) {
+  /* a side-by-side path of cards that has wrapped into one column joins them downwards, across the gap */
+  .steps3 .step-path > li:not(:last-child)::after { top: calc(100% + 2px); left: calc(var(--sp-pad) + var(--sp-size) / 2 - 2px); right: auto; width: 4px; height: calc(var(--sp-gap) - 4px); }
+}
