@@ -179,7 +179,8 @@ export function profileCheck(items: EvidenceItem[]): ProfileCheck {
     why = `${points} of 8 points, with proven links, active code and a founder account that is not brand new.`;
   } else if (verified && points >= OVERALL.moderatePoints) {
     label = 'moderate';
-    why = `${points} of 8 points with at least one proven link${code.rating !== 'active' ? '; Strong needs active code' : ''}${founder.rating === 'brand-new' || founder.rating === 'unknown' ? '; Strong needs a founder account at least a week old' : ''}${points < OVERALL.strongPoints ? `; Strong needs ${OVERALL.strongPoints} points` : ''}.`;
+    const needs = [code.rating !== 'active' && 'active code', (founder.rating === 'brand-new' || founder.rating === 'unknown') && 'a founder account at least a week old', points < OVERALL.strongPoints && `${OVERALL.strongPoints} points`].filter(Boolean);
+    why = `${points} of 8 points with at least one proven link. Strong would also need ${needs.join(' and ')}.`;
   } else {
     label = 'thin';
     why = verified ? `${points} of 8 points; Moderate needs ${OVERALL.moderatePoints}.` : `${points} of 8 points, but no founder link is proven; Moderate needs at least one.`;
