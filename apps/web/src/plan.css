@@ -15,7 +15,9 @@
 .plan-card.plan-lead { border-color: var(--fire); }
 .plan-ms { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 10px; }
 .plan-ms li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; padding: var(--sp-3); border-radius: var(--r); background: var(--surface-3); }
-.pm-node { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--fire-wash); color: var(--fire-ink); border: 2px solid var(--fire); font: 800 15px var(--font-display); }
+.plan-ms.step-path { --sp-size: 32px; --sp-pad: var(--sp-3); --sp-gap: 10px; }
+.plan-ms li { align-items: start; }
+.plan-ms li > span:not(.sp-node) { align-self: center; }
 .pm-amt { text-align: right; }
 .pm-amt { font-family: var(--font-num); }
 .pm-amt small { display: block; color: var(--ink-2); font-family: var(--font-body); }
@@ -28,6 +30,6 @@
   .plan-controls { position: static; }
 }
 @media (max-width: 520px) {
-  .plan-ms li { grid-template-columns: 30px minmax(0, 1fr); }
+  .plan-ms li { grid-template-columns: 32px minmax(0, 1fr); }
   .pm-amt { grid-column: 2; text-align: left; }
 }
