@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, txUrl, type Me, type State } from './api.ts';
 import { AccountMenu } from './AccountMenu.tsx';
+import { ThemeToggle } from './ThemeToggle.tsx';
 import { Creators } from './Creators.tsx';
 import { Dashboard } from './Dashboard.tsx';
 import { Discover } from './Discover.tsx';
@@ -123,6 +124,7 @@ export function App() {
             {link('/how', 'How it works', route.page === 'how')}
           </nav>
           <div className="who">
+            <ThemeToggle />
             <button className="ghost round" data-tour="help" onClick={() => setHelp(true)} aria-label="Get started: pick your path">?</button>
             {account ? (
               <AccountMenu account={account} me={me} state={state} go={go} onSignOut={() => void signOut().then(() => { setAccount(null); setMe(null); })} />
