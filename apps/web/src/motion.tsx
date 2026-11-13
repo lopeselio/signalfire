@@ -64,3 +64,22 @@ export function useReveal<T extends HTMLElement>(): RefObject<T | null> {
   }, []);
   return ref;
 }
+
+/**
+ * Whether the returned element has scrolled into view yet (true from then on). Under prefers-reduced-motion, or
+ * without IntersectionObserver, it is true at once, so anything keyed on it shows its final state immediately. React
+ * owns the class it drives (`in`), so data reloads never hide what has been shown, and items added later animate on
+ * mount inside a container that is already in view.
+ */
+export function useSeen<T extends HTMLElement>(margin = '0px 0px -10% 0px'): [RefObject<T | null>, boolean] {
+  const ref = useRef<T>(null);
+  const [seen, setSeen] = useState(() => reducedMotion() || typeof IntersectionObserver !== 'function');
+  useEffect(() => {
+    const el = ref.current;
+    if (seen || !el) return;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setSeen(true); io.disconnect(); } }, { rootMargin: margin });
+    io.observe(el);
+    return () => io.disconnect();
+  });
+  return [ref, seen];
+}
