@@ -3,7 +3,8 @@ import {
   BID_BOND, bidStage, credible, fmtNear, fmtTusd, openingMatches, parseNear, score, sealBid, walletRefusal, type BidOpening,
 } from '@signalfire/core';
 import { api, type Campaign, type Startup } from './api.ts';
-import { Acct, Chip, Near, Tx, fmtLeft, useApp, useNow } from './ui.tsx';
+import { refusalText } from './copy.ts';
+import { Acct, Chip, Info, Near, Tx, fmtLeft, useApp, useNow } from './ui.tsx';
 import { lib } from './Attest.tsx';
 import { sealKey, useSealed } from './Sealed.tsx';
 import { call } from './wallet.ts';
@@ -96,23 +97,23 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
     };
     return (
       <div className="mybid" data-tour="my-bid">
-        <h4>Your sealed bid</h4>
-        {teeKey && <p className="small"><strong>Scored privately in a TEE.</strong> This browser also encrypts your price to a key only Signalfire’s scoring program can derive inside an OutLayer TEE. You never reveal: when bidding closes the TEE opens every bid and returns only the winner’s. If you lose, your price is never shown to anyone, us included. Your bond comes back once the TEE has scored the brief.</p>}
-        <p className="small">Your price and pitch stay in this browser; only their hash {teeKey ? 'and the ciphertext go' : 'goes'} onchain, with a 0.02 NEAR bond from your Signalfire wallet{teeKey ? '' : ' that comes back when you reveal'}. Credible prices for this brief: <Near y={floor} d={4} /> to <Near y={budget} d={4} />. The lowest price after your reputation discount ({rep >= 0 ? '+' : ''}{rep / 100}%) wins.</p>
+        <h4>Your sealed offer</h4>
+        {teeKey && <p className="small"><strong>Scored privately.</strong> Your browser encrypts your price so only Signalfire’s scoring program, running in secure hardware (OutLayer), can read it. You don’t need to open your offer: when offers close, the program picks the winner and opens only the winning offer. If you lose, nobody ever sees your price, including us. Your deposit comes back once scoring is done.<Info text="Sealed bid encrypted to a key only Signalfire's scorer can derive inside an OutLayer TEE (commit_sealed_bid)." /></p>}
+        <p className="small">Your price and pitch stay in this browser. Only a sealed fingerprint{teeKey ? ' and an encrypted copy go' : ' goes'} on NEAR, with a 0.02 NEAR deposit from your Signalfire balance{teeKey ? '' : ', returned when you open your offer'}. Offers for this brief must be between <Near y={floor} d={4} /> and <Near y={budget} d={4} />. The lowest price wins, after your track-record bonus ({rep >= 0 ? '+' : ''}{rep / 100}%).</p>
         <label className="field"><span>Your price (NEAR)</span>
           <input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} aria-invalid={!!price && !inRange} placeholder={fmtNear(budget / 2n, 3)} />
         </label>
-        {price && !inRange && <p className="bad-text small">Outside the credible range: the hub would still take the bid, but it can’t win.</p>}
-        {inRange && <p className="muted small">Scored as {fmtNear(score(yocto!, rep), 4)} NEAR after your reputation.</p>}
-        <label className="field"><span>Your pitch (sealed with the price, published at the reveal; max 400 characters)</span>
-          <textarea maxLength={400} value={pitch} onChange={(e) => setPitch(e.target.value)} placeholder="What you will make and where. No promises of returns." />
+        {price && !inRange && <p className="bad-text small">Out of range: you can still send it, but it can’t win.</p>}
+        {inRange && <p className="muted small">Counts as {fmtNear(score(yocto!, rep), 4)} NEAR after your track-record bonus.</p>}
+        <label className="field"><span>Your pitch (sealed with your price and shown when offers are opened; up to 400 characters)</span>
+          <textarea maxLength={400} value={pitch} onChange={(e) => setPitch(e.target.value)} placeholder="What you’ll make and where. No promises about price or profit." />
         </label>
-        {refusal && <p className="bad-text small">Your wallet can’t post the bond: {refusal}.</p>}
+        {refusal && <p className="bad-text small">Your Signalfire balance can’t cover the deposit: <span title={refusal}>{refusalText(refusal)}</span>.</p>}
         <div className="row">
-          {short && <button className="ghost small" disabled={!!busy} onClick={() => void run('Add NEAR to your Signalfire balance', () => call(hub, 'fund_wallet', { account }, BID_BOND), { pending: 'Adding NEAR to your Signalfire balance…', done: 'Your Signalfire balance is topped up.', action: 'fund_wallet' })}>Fund wallet with 0.02 NEAR</button>}
-          <button className="primary small" disabled={!ready || !!busy} onClick={seal}>Seal bid (0.02 NEAR bond)</button>
+          {short && <button className="ghost small" disabled={!!busy} onClick={() => void run('Add NEAR to your Signalfire balance', () => call(hub, 'fund_wallet', { account }, BID_BOND), { pending: 'Adding NEAR to your Signalfire balance…', done: 'Your Signalfire balance is topped up.', action: 'fund_wallet' })}>Add 0.02 NEAR to my Signalfire balance</button>}
+          <button className="primary small" disabled={!ready || !!busy} onClick={seal}>Seal my offer (0.02 NEAR deposit)</button>
         </div>
-        <p className="muted small">Bids close in {fmtLeft(c.commit_ends_ms - now)}. {teeKey ? 'Sealed bids for the TEE need no reveal from you.' : 'Keep this browser’s storage or download the opening after you seal: without it you can’t reveal, and an unrevealed bond goes to the treasury.'}</p>
+        <p className="muted small">Offers close in {fmtLeft(c.commit_ends_ms - now)}. {teeKey ? 'Privately scored offers don’t need opening: nothing more to do.' : 'After you seal, download your offer file as a backup. Without it you can’t open your offer, and an unopened offer’s deposit goes to the marketing fund.'}</p>
       </div>
     );
   }
@@ -138,29 +139,33 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
       const data = JSON.parse(await f.text()) as SavedOpening | SavedOpening[];
       const list = (Array.isArray(data) ? data : [data]).filter((o) => o && openingMatches(o));
       const hit = list.find((o) => o.campaign === c.id && o.creator === account && o.hash === mine.hash);
-      if (!hit) { setImportErr('That file has no opening that matches your sealed bid on this campaign.'); return; }
+      if (!hit) { setImportErr('That file doesn’t match your sealed offer on this campaign.'); return; }
       keepOpening({ ...hit, hub, savedAt: hit.savedAt ?? Date.now() });
       setTick((t) => t + 1);
-    } catch { setImportErr('Not an opening file.'); }
+    } catch { setImportErr('That isn’t a Signalfire offer file.'); }
   };
 
   const settled = c.phase !== 'bidding';
   const won = c.winner === account;
   const steps = [
-    { k: 'committed', on: true },
-    { k: tee ? 'scored in the TEE' : 'revealed', on: tee ? settled : mine.revealed },
-    { k: won ? 'won' : settled && c.winner ? 'lost' : settled ? 'no winner' : 'settled', on: settled },
+    { k: 'sealed', on: true },
+    { k: tee ? 'scored privately' : 'opened', on: tee ? settled : mine.revealed },
+    { k: won ? 'won' : settled && c.winner ? 'lost' : settled ? 'no winner' : 'winner picked', on: settled },
   ];
   return (
     <div className="mybid" data-tour="my-bid">
-      <h4>Your sealed bid</h4>
-      <ol className="timeline small-steps" aria-label="Your bid">
+      <h4>Your sealed offer</h4>
+      <ol className="timeline small-steps" aria-label="Your offer">
         {steps.map((x, i) => <li key={x.k} className={x.on && (i === steps.length - 1 || !steps[i + 1].on) ? 'now' : x.on ? 'past' : ''}>{x.k}</li>)}
       </ol>
-      <p className="small">Commitment onchain <code title={mine.hash}>{mine.hash.slice(0, 16)}…</code>{opening?.committedTx && <> · <Tx h={opening.committedTx} label="commit tx" /></>}{opening?.revealedTx && <> · <Tx h={opening.revealedTx} label="reveal tx" /></>}</p>
+      <p className="small">Sealed on NEAR.</p>
+      <details className="tech">
+        <summary>Proof</summary>
+        <p className="muted small">Fingerprint (commitment) <code>{mine.hash}</code>{opening?.committedTx && <> · <Tx h={opening.committedTx} label="sealing transaction" /></>}{opening?.revealedTx && <> · <Tx h={opening.revealedTx} label="opening transaction" /></>}</p>
+      </details>
       {!mine.revealed && tee && (
         <p className="small">
-          {!settled ? 'Encrypted for the TEE. Nothing more to do: when bidding closes, OutLayer scores every sealed bid and returns only the winner’s.' : 'Your bid was never opened: your price exists only as ciphertext onchain, and nobody (us included) saw it.'}
+          {!settled ? 'Encrypted for private scoring. Nothing more to do: when offers close, every sealed offer is scored and only the winner’s is opened.' : 'Your offer was never opened. Your price exists only in encrypted form, and nobody (including us) has seen it.'}
           {opening && <> You sealed <Near y={opening.price} />.</>}
         </p>
       )}
@@ -168,42 +173,42 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
         opening ? (
           <>
             <p className="small">Sealed: <Near y={opening.price} /> with your pitch “{opening.pitch.slice(0, 120)}{opening.pitch.length > 120 ? '…' : ''}”</p>
-            {stage === 'commit' && <p className="muted small">The reveal window opens in {fmtLeft(c.commit_ends_ms - now)} and lasts until {new Date(c.reveal_ends_ms).toLocaleTimeString()}. Come back then: one click reveals.</p>}
+            {stage === 'commit' && <p className="muted small">Offers open in {fmtLeft(c.commit_ends_ms - now)}, and you’ll have until {new Date(c.reveal_ends_ms).toLocaleTimeString()} to open yours. Come back then: it’s one click.</p>}
             {stage === 'reveal' && (
               <div className="row">
-                <button className="primary small" disabled={!!busy} onClick={() => reveal(opening)}>Reveal my bid</button>
-                <span className="muted small">closes in {fmtLeft(c.reveal_ends_ms - now)}</span>
+                <button className="primary small" disabled={!!busy} onClick={() => reveal(opening)}>Open my offer</button>
+                <span className="muted small">{fmtLeft(c.reveal_ends_ms - now)} left to open it</span>
               </div>
             )}
-            {(stage === 'settle' || stage === 'closed') && <p className="bad-text small">Not revealed in time: the 0.02 NEAR bond went to {s.id.toUpperCase()}’s marketing treasury.</p>}
-            <button className="ghost small" onClick={() => download(fileName(opening), opening)}>Download the opening</button>
+            {(stage === 'settle' || stage === 'closed') && <p className="bad-text small">Not opened in time: the 0.02 NEAR deposit went to {s.id.toUpperCase()}’s marketing fund.</p>}
+            <button className="ghost small" onClick={() => download(fileName(opening), opening)}>Download my offer file</button>
           </>
         ) : (
           <>
-            <p className="bad-text small">This browser doesn’t have the opening for this bid. Import the file you downloaded when you sealed it.</p>
-            <input ref={fileRef} type="file" accept="application/json,.json" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); }} aria-label="Import the opening file" />
+            <p className="bad-text small">This browser doesn’t have the file that opens this offer. Choose the offer file you downloaded when you sealed it.</p>
+            <input ref={fileRef} type="file" accept="application/json,.json" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); }} aria-label="Choose your offer file" />
             {importErr && <p className="bad-text small">{importErr}</p>}
           </>
         )
       )}
       {mine.revealed && (
-        <p className="small">{tee ? 'Opened by the TEE as the winning bid' : 'Revealed'} at <Near y={mine.price!} />: <Chip kind={mine.credible ? 'ok' : 'bad'}>{mine.credible ? 'credible' : 'outside the credible range'}</Chip> reputation {mine.rep >= 0 ? '+' : ''}{mine.rep / 100}%.
-          {!published && opening && <> <button className="link" onClick={() => void publish(opening).then(() => setTick((t) => t + 1))}>Publish the opening</button> so anyone can check it.</>}
+        <p className="small">{tee ? 'Opened by private scoring as the winning offer' : 'Opened'} at <Near y={mine.price!} />: <Chip kind={mine.credible ? 'ok' : 'bad'}>{mine.credible ? 'in range' : 'out of range'}</Chip> · track record {mine.rep >= 0 ? '+' : ''}{mine.rep / 100}%.
+          {!published && opening && <> <button className="link" onClick={() => void publish(opening).then(() => setTick((t) => t + 1))}>Publish your offer</button> so anyone can check it.</>}
         </p>
       )}
       {mine.revealed && !tee && stage === 'settle' && (
         <div className="row">
-          <span className="muted small">The reveal window is over. Anyone may settle the auction (the operator does it within a minute).</span>
-          <button className="ghost small" disabled={!!busy} onClick={() => void run(`Pick the winner of #${c.id}`, () => call(hub, 'settle_auction', { campaign_id: c.id }), { pending: 'Picking the winning offer…', done: 'Winner picked. Holders are voting on it now.', action: 'settle_auction' })}>Settle now</button>
+          <span className="muted small">Offers are open. The winner is picked automatically within a minute, or you can do it now.</span>
+          <button className="ghost small" disabled={!!busy} onClick={() => void run(`Pick the winner of #${c.id}`, () => call(hub, 'settle_auction', { campaign_id: c.id }), { pending: 'Picking the winning offer…', done: 'Winner picked. Holders are voting on it now.', action: 'settle_auction' })}>Pick the winner now</button>
         </div>
       )}
       {settled && (
         won ? (
           <p className="ok-text small">
-            You won at <Near y={c.price} />. {c.phase === 'voting' || c.phase === 'proposing' ? 'The holders are voting on funding it in the DAO.' : c.phase === 'funded' ? `Funded: ${c.results}/${c.target} buyers so far, ${c.milestones_paid}/3 milestones paid (${fmtTusd(c.paid_tusd)} tUSD to you). Share your link: ${location.origin}/s/${s.id}?ref=c${c.id}` : c.phase === 'done' ? `Done: ${fmtTusd(c.paid_tusd)} tUSD paid to you, receipt NFT ${c.receipt ?? ''}.` : c.phase === 'expired' ? 'It expired before reaching the target; the unpaid part went back to the treasury.' : c.phase}
+            You won at <Near y={c.price} />. {c.phase === 'voting' || c.phase === 'proposing' ? 'Holders are voting on funding it…' : c.phase === 'funded' ? `Funded. Your creator link is live: ${c.results}/${c.target} new buyers so far, ${c.milestones_paid} of 3 payouts made (${fmtTusd(c.paid_tusd)} tUSD to you). Share your link: ${location.origin}/s/${s.id}?ref=c${c.id}` : c.phase === 'done' ? `Done: ${fmtTusd(c.paid_tusd)} tUSD paid to you, plus a completion certificate (NFT${c.receipt ? ` ${c.receipt}` : ''}).` : c.phase === 'expired' ? 'The deadline passed before enough new buyers arrived; the unpaid budget went back to the marketing fund.' : c.phase}
           </p>
         ) : (
-          <p className="small">{c.winner ? <>Lost to <Acct a={c.winner} /> at <Near y={c.price} />.</> : 'No credible bid won.'} {mine.revealed || tee ? 'Your bond is back in your wallet.' : ''}</p>
+          <p className="small">{c.winner ? <><Acct a={c.winner} /> won at <Near y={c.price} />.</> : 'No offer in range, so nobody won.'} {mine.revealed || tee ? 'Your deposit is back in your Signalfire balance.' : ''}</p>
         )
       )}
     </div>
