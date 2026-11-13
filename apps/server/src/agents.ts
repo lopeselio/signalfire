@@ -113,7 +113,8 @@ async function seal(s: Snapshot, c: Campaign, p: CreatorPersona): Promise<void> 
   // buying data: an audience brief from the scout, agent to agent
   const briefs = getState<string[]>('briefs-bought', []);
   const key = `${c.id}:${p.account}`;
-  if (!briefs.includes(key)) {
+  // research costs 0.002 NEAR: only worth it when the brief's budget is at least ten times that
+  if (!briefs.includes(key) && BigInt(c.budget) >= parseNear('0.02')) {
     setState('briefs-bought', [...briefs, key].slice(-500));
     await act(p.name, `paid ${SCOUT.name} 0.002 NEAR for an audience brief on #${c.id}`, () =>
       call(p.account, 'agent_pay', { to: SCOUT.account, amount: parseNear('0.002').toString(), memo: `audience brief #${c.id}` }, 20), 'pay', c.id);
@@ -322,7 +323,9 @@ async function campaignStep(s: Snapshot, c: Campaign, opts: TickOptions): Promis
         if (p && !b.revealed && hasKey(p.account)) await reveal(c, p);
       }
     } else if (now >= c.reveal_ends_ms + MARGIN_MS) {
-      await act('Signalfire', `settled the auction for #${c.id} and filed the funding proposal in ${short(st.dao)}`, () =>
+      await act('Signalfire', c.bids.length === 0
+        ? `closed #${c.id}: no creator bid, so no funding proposal`
+        : `settled the auction for #${c.id} and filed the funding proposal in ${short(st.dao)}`, () =>
         call(config.operator, 'settle_auction', { campaign_id: c.id }, 100), 'settle', c.id);
     }
   } else if (c.phase === 'propose_failed' && now >= c.reveal_ends_ms) {
