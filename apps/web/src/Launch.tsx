@@ -3,6 +3,7 @@ import { normalizeTarget, parseNear } from '@signalfire/core';
 import { api } from './api.ts';
 import { SignInHint, Terms, useApp } from './ui.tsx';
 import { call } from './wallet.ts';
+import { NextAction } from './NextAction.tsx';
 
 // Launch a startup: one call creates its attention token (fixed supply, all on the curve) and its DAO.
 
@@ -31,6 +32,7 @@ export function Launch() {
           <summary>What gets created on NEAR</summary>
           <p className="muted small">Token <code>{symbol || 'sym'}.{state!.hub}</code> and Sputnik DAO <code>{symbol || 'sym'}-dao.{state!.hub}</code>.</p>
         </details>
+        <NextAction page="launch" />
       </section>
       <SignInHint what="launch a startup" />
       {account && (

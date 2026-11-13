@@ -5,6 +5,7 @@ import { api, type CreatorDetail, type CreatorRec, type Nft } from './api.ts';
 import { Acct, Chip, Info, Near, SignInHint, TeeBadge, useApp } from './ui.tsx';
 import { call } from './wallet.ts';
 import { PrivateInputs, ReceiptCheck, emptyPrivate, hasPrivate, submitPrivate, type PrivateFields } from './PrivateApply.tsx';
+import { NextAction } from './NextAction.tsx';
 
 // Creators: who may bid on campaigns, their records (from the hub and their NFTs), the scout's vetting
 // reports, and how to apply.
@@ -22,6 +23,7 @@ export function Creators() {
           review fee is paid and the name doesn’t copy an approved creator. Every approved creator gets a creator badge (an
           NFT that can’t be transferred) whose record updates as they work.
         </p>
+        <NextAction page="creators" />
       </section>
       <div className="grid-creators" data-tour="creators">
         {creators.length === 0 && <p className="muted">No approved creators yet. The AI scout reviews applicants within a minute.</p>}

@@ -3,6 +3,7 @@ import { fmtNear } from '@signalfire/core';
 import { acctUrl, type Startup } from './api.ts';
 import { EvidenceChips, EvidenceFilters, NO_FILTER, passes, useEvidenceSummaries, type Summaries } from './EvidenceChips.tsx';
 import { useApp } from './ui.tsx';
+import { NextAction } from './NextAction.tsx';
 
 // Discover: every startup on the hub as a card. One big number per card, the marketing treasury, because that is
 // what trading a startup's attention token builds: a budget for reaching customers that the founders can't pocket.
@@ -126,6 +127,7 @@ export function Discover() {
           Each startup has an attention token and a marketing fund. The big number on each card is what that fund
           holds right now: trading fees that only creators can earn, by bringing in new buyers.
         </p>
+        <NextAction page="discover" />
       </section>
       <div className="d-tools" role="radiogroup" aria-label="Sort startups">
         <span className="muted small">Sort by</span>

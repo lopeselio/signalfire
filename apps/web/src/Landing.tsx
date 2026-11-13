@@ -4,6 +4,7 @@ import { Count, useReveal } from './motion.tsx';
 import { SignalFire } from './SignalFire.tsx';
 import { Wire } from './Wire.tsx';
 import { Terms, useApp } from './ui.tsx';
+import { NextAction } from './NextAction.tsx';
 
 // The landing: the pitch, where trading fees go, a few startups, the totals, the loop told as three small
 // product cards (token terms, the treasury's spend policy, a campaign), and the live wire.
@@ -127,6 +128,7 @@ export function Landing() {
             <button className="primary" onClick={() => go('/discover')}>Discover startups</button>
             <button className="ghost" onClick={() => go(`/s/${s.demo}`)}>Open {s.startups.find((x) => x.id === s.demo)?.name ?? s.demo.toUpperCase()}</button>
           </div>
+          <NextAction page="home" />
           <Terms />
         </div>
         <div className="hero-art">

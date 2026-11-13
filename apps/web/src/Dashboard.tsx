@@ -4,6 +4,7 @@ import { api } from './api.ts';
 import { StartupLogo } from './Discover.tsx';
 import { Count } from './motion.tsx';
 import { Acct, Chip, Info, Near, useApp } from './ui.tsx';
+import { NextAction } from './NextAction.tsx';
 
 // Public data, read live from the chain through /api/state, and the thesis with its evidence (/api/thesis, the same
 // computation as `pnpm thesis`, which anyone can re-run against public RPC).
@@ -22,6 +23,7 @@ export function Dashboard() {
         <p className="eyebrow">Dashboard</p>
         <h1>Where the attention money went</h1>
         <p className="lede">Every number here is read live from Signalfire’s contract<Info text={`The hub contract, ${s.hub}, and each startup’s Sputnik DAO`} /> and the holders’ councils on NEAR’s test network, refreshed every five seconds.</p>
+        <NextAction page="dashboard" />
       </section>
 
       <section className="stats" aria-label="Totals">
