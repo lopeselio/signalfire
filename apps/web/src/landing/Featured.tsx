@@ -52,7 +52,8 @@ export function Featured() {
   const name = nameOf(s, c.startup);
   const pct = Math.round((Math.min(c.results, c.target) / Math.max(1, c.target)) * 100);
   const ends = st === 'offers' ? c.commit_ends_ms : st === 'running' ? c.deadline_ms : c.phase === 'bidding' ? c.reveal_ends_ms : null;
-  const clock = ends ? `${st === 'offers' ? 'Offers close in' : st === 'running' ? 'Ends in' : 'Opening offers:'} ${fmtLeft(ends - now)}` : st === 'picking' ? 'Holders are voting' : null;
+  const clock = ends ? `${st === 'offers' ? 'Offers close in' : st === 'running' ? 'Ends in' : 'Opening offers:'} ${fmtLeft(ends - now)}`
+    : c.phase === 'voting' ? 'Holders are voting' : st === 'picking' ? 'Setting up the vote' : null;
   const creator = !!me?.creator && !me.creator.creator.revoked;
   const big = !account
     ? { label: 'Sign in to take part', act: () => void signIn() }
