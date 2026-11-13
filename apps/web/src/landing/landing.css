@@ -42,7 +42,7 @@ button.ld-big { padding: 13px 24px; font-size: 16.5px; min-height: 52px; border-
 .ld-steps li { background: var(--surface); border: 2px solid var(--line); border-radius: var(--r-xl); padding: var(--sp-5); box-shadow: var(--sh-sm); }
 .ld-steps li h3 { font-size: 19px; margin: 12px 0 6px; }
 .ld-steps li p { margin: 0; color: var(--ink-2); }
-.ld-step-n { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--fire-wash); color: var(--fire-ink); border: 2px solid var(--fire); font: 900 18px var(--font-display); }
+.ld-steps .step-path { --sp-size: 40px; --sp-pad: var(--sp-5); --sp-gap: 16px; }
 .ld-steps .ld-fine { margin-top: 18px; }
 .ld-steps .ld-fine .story-panel { margin-top: 14px; }
 
