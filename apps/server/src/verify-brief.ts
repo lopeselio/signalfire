@@ -1,7 +1,7 @@
 import { DOES_NOT_PROVE, attestModel, replyChecks } from '@signalfire/attest';
-import { canonical, evidenceHash, evidencePrompt, plainBrief, ruleFlags, type EvidenceItem } from '@signalfire/core';
+import { PROFILE_RULE, canonical, evidenceHash, plainBrief, profileCheck, profileInputs, ruleFlags, sha256Hex, type EvidenceItem } from '@signalfire/core';
 import type { BriefRecord } from './evidence/brief.ts';
-import { RESPONSE_FORMAT, SYSTEM, briefFrom } from './evidence/parse.ts';
+import { RESPONSE_FORMAT, SYSTEM, briefFrom, briefPrompt } from './evidence/parse.ts';
 import { RPCS, checkProof, github } from './evidence/proofs.ts';
 import type { FounderLink } from './evidence/store.ts';
 
@@ -11,7 +11,7 @@ import type { FounderLink } from './evidence/store.ts';
 // exchange), then checks: every verified link (re-fetches the gist, file or X post and checks the founder's NEP-413
 // signature against the account's full-access keys over public RPC); the evidence hash; that the model was given
 // exactly that evidence under the published rules; that re-running the guard on the signed reply gives the brief
-// the page shows; the rule checks; the model's TEE attestation (fresh nonce) and the reply's signature. Then it
+// the page shows; the rule checks and the profile check (recomputed from the evidence by the published rule); the model's TEE attestation (fresh nonce) and the reply's signature. Then it
 // re-fetches the sources themselves and reports what changed since the brief was written.
 
 const [startup, base = 'http://localhost:8861'] = process.argv.slice(2);
@@ -66,6 +66,15 @@ async function main(): Promise<void> {
   const ids = br.evidence.map((i) => i.id);
   check(new Set(ids).size === ids.length && br.evidence.every((i) => i.source.url !== undefined && i.fetchedAt > 0), 'every evidence item has a unique id, a source and a fetch time', 'evidence items are malformed');
   check(canonical(ruleFlags(br.evidence)) === canonical(br.flags), `the ${br.flags.length} rule checks recompute from the evidence`, 'the rule checks do not recompute from the evidence');
+  const pc = br.profile ? profileCheck(br.evidence) : null;
+  if (!br.profile || !pc) {
+    pass(`written before profile checks (rule ${PROFILE_RULE}): nothing to recompute`);
+  } else {
+    check(br.profile.rule === PROFILE_RULE, `profile check rule ${br.profile.rule}`, `the profile check uses rule ${br.profile.rule}; this script knows ${PROFILE_RULE}`);
+    check(sha256Hex(canonical(profileInputs(br.evidence))) === br.profile.inputsHash, `the profile check's inputs hash to ${br.profile.inputsHash.slice(0, 16)}… (the facts the rule reads)`, 'the profile check’s inputs do not match their hash');
+    check(canonical(pc) === canonical(br.profile),
+      `the profile check recomputes from the evidence: ${pc.word} (${pc.signals.map((x) => `${x.name} ${x.word}`).join(', ')})`, `the profile check does not recompute: the bundle says ${br.profile.word}, the rule gives ${pc.word}`);
+  }
   for (const l of verified) {
     check(br.evidence.some((i) => i.kind === 'links' && String(i.facts.links).includes(`${l.kind}:${l.target} (verified)`)) || br.at < (l.checkedAt ?? 0),
       `${l.kind}:${l.target} appears in the brief's evidence as verified`, `${l.kind}:${l.target} is verified but the brief's evidence doesn't say so`);
@@ -75,8 +84,9 @@ async function main(): Promise<void> {
   } else {
     const req = JSON.parse(br.proof.request) as { model: string; messages: { role: string; content: string }[]; response_format?: unknown };
     check(req.messages[0]?.content === SYSTEM && canonical(req.response_format) === canonical(RESPONSE_FORMAT), 'the model was given the published rules (no advice, cite every line, inference labelled)', 'the system prompt differs from the published rules');
-    check(req.messages[1]?.content === evidencePrompt({ id: startup, name: br.name }, br.evidence) && req.messages.length === 2, 'the model was given exactly this evidence and nothing else', 'the request holds something other than this evidence');
-    const g0 = briefFrom(br.proof.response, br.evidence);
+    check(req.messages[1]?.content === briefPrompt({ id: startup, name: br.name }, br.evidence, pc) && req.messages.length === 2,
+      `the model was given exactly this evidence${pc ? ' and its profile check' : ''} and nothing else`, 'the request holds something other than this evidence');
+    const g0 = briefFrom(br.proof.response, br.evidence, pc);
     // an unreadable reply leaves only the facts and the rule checks (plainBrief), never the model's text
     const g = g0.parsed ? g0 : { parsed: false, brief: plainBrief(br.evidence), dropped: [] };
     check(g.parsed === br.parsed && canonical(g.brief) === canonical(br.brief) && canonical(g.dropped) === canonical(br.dropped),
@@ -109,7 +119,7 @@ async function main(): Promise<void> {
       }
     } catch (e) { info(`${it.id}: could not re-fetch (${(e as Error).message})`); }
   }
-  console.log(`\nWhat a verified brief does not prove: that the brief is right or complete, or anything about the startup's future. ${DOES_NOT_PROVE}`);
+  console.log(`\nWhat a verified brief does not prove: that the brief is right or complete, or anything about the startup's future. A profile check counts checkable evidence by a published rule; it does not say the startup is good or the founder honest, and it is not advice. ${DOES_NOT_PROVE}`);
 }
 
 main().then(() => {
