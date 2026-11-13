@@ -1,0 +1,106 @@
+/* How it works: one campaign's journey (Journey.tsx). A step path with a filling track, a diagram per step and the
+   step's words. Every animation starts from a `from` keyframe and rests on the element's own style, so with
+   prefers-reduced-motion (animations off) each diagram simply shows its final state. */
+.jr { margin: 26px 0; overflow: hidden; }
+.jr-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.jr-head h2 { margin: 0 0 4px; }
+.jr-src { margin: 0 0 14px; }
+.jr-play { flex: none; min-width: 92px; }
+
+/* the path: equal columns, a track through the node centres that fills up to the current step */
+.jr-path-wrap { position: relative; --sp-size: 38px; }
+.jr-path { --sp-size: 38px; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; margin: 0; position: relative; z-index: 1; }
+.jr-path > li::after { display: none; }
+.jr-path button { width: 100%; display: grid; justify-items: center; gap: 6px; padding: 4px 2px 6px; min-height: 44px; background: none; border: 0; border-radius: var(--r); color: var(--muted); font-size: 13px; line-height: 1.25; }
+.jr-path button:hover .sp-node { transform: translateY(-2px); }
+.panel.jr .jr-path > li .sp-node { background: var(--surface-3); color: var(--muted); box-shadow: 0 3px 0 var(--line-2); transition: background var(--dur-2) var(--ease), color var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease), transform var(--dur-2) var(--ease-bounce); }
+.panel.jr .jr-path > li.past .sp-node { background: var(--fire-btn); color: #fff; box-shadow: 0 3px 0 var(--fire-press); }
+.panel.jr .jr-path > li.on .sp-node { background: var(--fire-btn); color: #fff; box-shadow: 0 3px 0 var(--fire-press), 0 0 0 6px color-mix(in srgb, var(--fire) 22%, transparent); transform: scale(1.14); }
+.panel.jr .jr-path > li:last-child.on .sp-node { background: var(--go); box-shadow: 0 3px 0 var(--go-press), 0 0 0 6px color-mix(in srgb, var(--go) 24%, transparent); }
+.jr-path li.on .jr-short { color: var(--ink); font-weight: 800; }
+.jr-short { text-align: center; font-weight: 700; }
+.jr-track { position: absolute; top: calc(4px + var(--sp-size) / 2 - 3px); left: 6.25%; right: 6.25%; height: 6px; border-radius: 999px; background: var(--surface-3); }
+.jr-track span { position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(90deg, var(--fire), var(--sun)); transform: scaleX(var(--jr-p)); transform-origin: left; transition: transform var(--dur-3) var(--ease); }
+.panel.jr.playing .jr-path > li.on .sp-node { animation: node-glow 1.6s var(--ease) infinite; }
+
+/* the stage: a diagram and the words; every step's words share one grid cell, so the panel never changes height */
+.jr-stage { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 22px; align-items: center; margin-top: 18px; }
+.jr-pic { height: 170px; border-radius: var(--r-lg); background: var(--fire-wash); border: 2px solid var(--fire-soft); display: grid; place-items: center; overflow: hidden; position: relative; }
+.jr-words { display: grid; }
+.jr-word { grid-area: 1 / 1; visibility: hidden; opacity: 0; }
+.jr-word.on { visibility: visible; opacity: 1; animation: jr-up var(--dur-3) var(--ease) both; }
+.jr-word h3 { font-size: 20px; margin: 0 0 6px; }
+.jr-word p { color: var(--ink-2); margin: 0 0 8px; }
+.jr-count { margin: 0 0 4px !important; font-weight: 800; color: var(--fire-ink) !important; letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px; }
+.jr-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0 0 !important; }
+.jr-arrows { display: inline-flex; gap: 8px; }
+
+/* the diagrams */
+.jr-scene { position: relative; display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; height: 100%; padding: 12px; }
+.jr-tag { position: absolute; right: 12px; bottom: 10px; font: 800 13px var(--font-num); background: var(--surface); color: var(--fire-ink); border: 2px solid var(--fire-soft); border-radius: 999px; padding: 2px 10px; animation: jr-pop var(--dur-2) var(--ease-bounce) 700ms both; }
+
+.jr-curve { width: min(240px, 80%); height: auto; overflow: visible; }
+.jr-axis { stroke: var(--line-2); stroke-width: 3; fill: none; stroke-linecap: round; }
+.jr-line { stroke: var(--fire); stroke-width: 5; fill: none; stroke-linecap: round; stroke-dasharray: 1; animation: draw 900ms var(--ease) both; }
+.jr-dot { fill: var(--sun); stroke: var(--fire-btn); stroke-width: 3; transform-box: fill-box; transform-origin: center; animation: jr-pop var(--dur-2) var(--ease-bounce) calc(500ms + var(--i) * 220ms) both; }
+
+.jr-jar { position: relative; width: 92px; height: 120px; border: 4px solid var(--fire-ink); border-top-width: 0; border-radius: 0 0 22px 22px; overflow: hidden; background: var(--surface); }
+.jr-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 58%; background: linear-gradient(180deg, var(--sun), var(--fire)); animation: jr-rise 1400ms var(--ease) 500ms both; }
+.jr-coin { position: absolute; left: calc(18px + var(--i) * 20px); bottom: calc(58% + 2px); width: 18px; height: 18px; border-radius: 50%; background: var(--sun); border: 3px solid var(--sun-press); animation: jr-drop 700ms var(--ease-bounce) calc(var(--i) * 260ms) both; }
+
+.jr-note { width: min(250px, 88%); background: var(--surface); border: 2px solid var(--line-2); border-radius: var(--r); box-shadow: var(--sh-sm); padding: 12px 14px; display: grid; gap: 8px; animation: jr-up 600ms var(--ease-bounce) both; transform: rotate(-1.5deg); }
+.jr-note b { font: 800 13.5px/1.25 var(--font-display); color: var(--ink); }
+.jr-lines { display: grid; gap: 5px; }
+.jr-lines i { display: block; height: 6px; border-radius: 999px; background: var(--surface-3); transform-origin: left; animation: jr-grow 500ms var(--ease) both; }
+.jr-lines i:nth-child(2) { width: 82%; animation-delay: 120ms; }
+.jr-lines i:nth-child(3) { width: 60%; animation-delay: 240ms; }
+.jr-chips { display: flex; flex-wrap: wrap; gap: 4px; animation: jr-pop var(--dur-2) var(--ease-bounce) 500ms both; }
+
+.jr-envs { gap: 10px; }
+.jr-env { position: relative; width: 52px; height: 36px; border-radius: 6px; background: var(--surface); border: 2px solid var(--line-2); box-shadow: var(--sh-sm); animation: jr-drop 600ms var(--ease-bounce) calc(var(--i) * 160ms) both; }
+.jr-env::before { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom right, transparent calc(50% - 1px), var(--line-2) 50%, transparent calc(50% + 1px)), linear-gradient(to bottom left, transparent calc(50% - 1px), var(--line-2) 50%, transparent calc(50% + 1px)); background-size: 100% 60%; background-repeat: no-repeat; }
+.jr-lock { position: absolute; left: 50%; top: 50%; width: 16px; height: 13px; margin: -3px 0 0 -8px; border-radius: 3px; background: var(--fire-btn); animation: jr-pop var(--dur-2) var(--ease-bounce) calc(500ms + var(--i) * 160ms) both; }
+.jr-lock::before { content: ''; position: absolute; left: 3px; top: -7px; width: 6px; height: 7px; border: 2px solid var(--fire-btn); border-bottom: 0; border-radius: 5px 5px 0 0; }
+.jr-score .jr-env:not(.win) { opacity: 0.45; filter: grayscale(0.6); animation: jr-dim 900ms var(--ease) both; }
+.jr-score .jr-env.win { border-color: var(--go); transform: translateY(-14px) scale(1.12); animation: jr-win 900ms var(--ease-bounce) 300ms both; }
+.jr-price { position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; font: 800 12px var(--font-num); background: var(--go); color: #fff; border-radius: 999px; padding: 2px 8px; animation: jr-pop var(--dur-2) var(--ease-bounce) 1000ms both; }
+
+.jr-vote { flex-direction: column; gap: 10px; }
+.jr-ballots { display: flex; gap: 8px; }
+.jr-ballot { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-weight: 900; background: var(--bad-wash); color: var(--bad); animation: jr-pop var(--dur-2) var(--ease-bounce) calc(var(--i) * 280ms) both; }
+.jr-ballot.yes { background: var(--go); color: #fff; box-shadow: 0 3px 0 var(--go-press); }
+.jr-tally { width: min(220px, 80%); height: 12px; border-radius: 999px; background: var(--surface); border: 2px solid var(--line-2); overflow: hidden; }
+.jr-tally span { display: block; height: 100%; background: var(--go); transform: scaleX(var(--jr-w)); transform-origin: left; animation: jr-grow 900ms var(--ease) 400ms both; }
+
+.jr-buyers { gap: 14px; }
+.jr-token { flex: none; width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font: 900 11px var(--font-display); background: var(--sun); color: #4a3000; border: 3px solid var(--sun-press); animation: jr-pop var(--dur-2) var(--ease-bounce) both; }
+.jr-link { flex: none; font: 700 12px var(--font-mono); background: var(--surface); border: 2px dashed var(--fire); color: var(--fire-ink); border-radius: 999px; padding: 4px 10px; }
+.jr-people { display: flex; flex-wrap: wrap; gap: 6px; max-width: 140px; }
+.jr-person { position: relative; width: 22px; height: 30px; animation: jr-walk 700ms var(--ease) calc(var(--i) * 260ms) both; }
+.jr-person::before { content: ''; position: absolute; left: 6px; top: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--go); }
+.jr-person::after { content: ''; position: absolute; left: 2px; top: 12px; width: 18px; height: 16px; border-radius: 9px 9px 4px 4px; background: var(--go); }
+
+.jr-paid { flex-direction: column; align-items: stretch; gap: 8px; padding: 14px 18px; }
+.jr-payout { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 2px solid var(--line); border-radius: 12px; padding: 5px 10px; font-size: 13px; color: var(--ink-2); animation: jr-up 500ms var(--ease) calc(var(--i) * 380ms) both; }
+.jr-payout b { margin-left: auto; font: 800 13px var(--font-num); color: var(--go-ink); white-space: nowrap; }
+.jr-tick { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--go); color: #fff; font-size: 13px; font-weight: 900; animation: jr-pop var(--dur-2) var(--ease-bounce) calc(250ms + var(--i) * 380ms) both; }
+
+@keyframes jr-up { from { opacity: 0; transform: translateY(10px); } }
+@keyframes jr-pop { from { opacity: 0; transform: scale(0.4); } }
+@keyframes jr-drop { from { opacity: 0; transform: translateY(-70px); } }
+@keyframes jr-rise { from { height: 8%; } }
+@keyframes jr-grow { from { transform: scaleX(0); } }
+@keyframes jr-dim { from { opacity: 1; filter: none; } }
+@keyframes jr-win { from { transform: none; } }
+@keyframes jr-walk { from { opacity: 0; transform: translateX(-90px); } }
+
+@media (max-width: 760px) {
+  .jr-stage { grid-template-columns: 1fr; gap: 14px; }
+  .jr-pic { height: 150px; }
+  .jr-short { display: none; }
+  .jr-path-wrap, .jr-path { --sp-size: 30px; }
+  .jr-path { gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jr *, .jr *::before, .jr *::after { animation: none !important; transition: none !important; }
+}
