@@ -90,3 +90,13 @@ export async function accountFromHeaders(headers: Record<string, string | string
   cache.set(cookie, { account, until: Date.now() + 60_000 });
   return account;
 }
+
+/** Transactions our relayer sent for signed-in people (newest 500; memory only, like the sessions). The activity
+ *  tape links a person's trade or vote to its transaction with these. */
+export async function recentRelays(): Promise<{ tx: string; sender: string; receiver: string; at: number }[]> {
+  const ctx = await auth.$context;
+  const rows = await ctx.adapter.findMany<{ txHash: string; senderId: string; receiverId: string; createdAt: Date | string }>({
+    model: 'relayedTransaction', limit: 500, sortBy: { field: 'createdAt', direction: 'desc' },
+  });
+  return rows.map((r) => ({ tx: r.txHash, sender: r.senderId, receiver: r.receiverId, at: new Date(r.createdAt).getTime() }));
+}
