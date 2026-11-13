@@ -1,9 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { evidenceHash, ruleFlags, summarize, type EvidenceSummary } from '@signalfire/core';
+import { evidenceHash, profileCheck, ruleFlags, summarize, type EvidenceSummary, type ProfileLabel } from '@signalfire/core';
 import { config } from '../config.ts';
 import { nearAiEnabled } from '../nearai.ts';
 import { latest as snapshot } from '../snapshot.ts';
-import { EVERY_H, MIN_GAP_MIN, generating, latestBrief, refreshIfStale, requestBrief, type BriefRecord } from './brief.ts';
+import { EVERY_H, MIN_GAP_MIN, briefPendingAt, generating, latestBrief, onLinksChanged, refreshIfStale, requestBrief, type BriefRecord } from './brief.ts';
 import { gather, type Gathered } from './gather.ts';
 import { claim, prove, unlink } from './links.ts';
 import { loadLinks } from './store.ts';
@@ -37,11 +37,11 @@ function evidenceOf(id: string): Promise<Gathered | null> {
 }
 const forget = (id: string): void => { recent.delete(id); summaries = null; };
 
-let summaries: { at: number; p: Promise<Record<string, EvidenceSummary & { briefAt: number | null }>> } | null = null;
+let summaries: { at: number; p: Promise<Record<string, EvidenceSummary & { briefAt: number | null; strength: ProfileLabel }>> } | null = null;
 
 /** What the page shows of a brief: everything but the raw request/response (those are in /proof and /api/reply). */
 const briefView = (b: BriefRecord | null) => b && {
-  at: b.at, trigger: b.trigger, evidence: b.evidence, evidenceHash: b.evidenceHash, parsed: b.parsed, brief: b.brief, dropped: b.dropped, flags: b.flags,
+  at: b.at, trigger: b.trigger, evidence: b.evidence, evidenceHash: b.evidenceHash, parsed: b.parsed, brief: b.brief, dropped: b.dropped, flags: b.flags, profile: b.profile ?? null,
   model: b.proof?.model ?? null, signed: !!b.proof?.signature, signingAddress: b.proof?.signingAddress ?? null,
 };
 
@@ -54,10 +54,10 @@ export async function evidenceRoute(req: IncomingMessage, res: ServerResponse, p
         at: Date.now(),
         p: (async () => {
           const s = await snapshot();
-          const out: Record<string, EvidenceSummary & { briefAt: number | null }> = {};
+          const out: Record<string, EvidenceSummary & { briefAt: number | null; strength: ProfileLabel }> = {};
           for (const st of s.startups.filter((x) => x.status === 'live')) {
             const g = await evidenceOf(st.id).catch(() => null);
-            if (g) out[st.id] = { ...summarize(g.items), briefAt: latestBrief(st.id)?.at ?? null };
+            if (g) out[st.id] = { ...summarize(g.items), briefAt: latestBrief(st.id)?.at ?? null, strength: profileCheck(g.items).label };
           }
           return out;
         })(),
@@ -86,6 +86,7 @@ export async function evidenceRoute(req: IncomingMessage, res: ServerResponse, p
     const b = latestBrief(id);
     json(res, 200, {
       startup: g.startup, items: g.items, errors: g.errors, evidenceHash: evidenceHash(g.items), flags: ruleFlags(g.items), summary: summarize(g.items),
+      profile: profileCheck(g.items), briefPending: briefPendingAt(id),
       links: loadLinks(id, g.startup.founder).links,
       brief: briefView(b), generating: generating(id), nearAi: nearAiEnabled(), everyHours: EVERY_H,
       nextRequestAt: b ? b.at + MIN_GAP_MIN * 60_000 : 0,
@@ -107,11 +108,14 @@ export async function evidenceRoute(req: IncomingMessage, res: ServerResponse, p
   }
   const who = await me();
   const b = await body<{ kind?: unknown; target?: unknown; url?: unknown }>(req);
-  if (what === 'links') json(res, 200, (await claim(id, who, b)).links);
-  else if (what === 'unlink') json(res, 200, (await unlink(id, who, b)).links);
+  // a claimed, proven or removed link changes the evidence: rewrite the brief and its profile check (rate-limited)
+  if (what === 'links') { json(res, 200, (await claim(id, who, b)).links); onLinksChanged(id); }
+  else if (what === 'unlink') { json(res, 200, (await unlink(id, who, b)).links); onLinksChanged(id); }
   else {
     const r = await prove(id, who, b);
-    json(res, r.link.status === 'verified' && !r.link.error ? 200 : 422, { links: r.record.links, link: r.link, error: r.link.error ?? null });
+    const ok = r.link.status === 'verified' && !r.link.error;
+    json(res, ok ? 200 : 422, { links: r.record.links, link: r.link, error: r.link.error ?? null });
+    if (ok) onLinksChanged(id);
   }
   forget(id);
   return true;
