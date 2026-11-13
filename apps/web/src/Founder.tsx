@@ -58,7 +58,7 @@ function BriefForm({ s }: { s: Startup }) {
       <label className="field"><span>Goal (what creators should do; max 600 bytes)</span><textarea value={brief} onChange={(e) => setBrief(e.target.value)} /></label>
       <div className="form-grid">
         <label className="field"><span>New buyers wanted</span><input inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value.replace(/\D/g, ''))} /></label>
-        <label className="field"><span>Budget (NEAR, up to {fmtNear(max, 3)})</span><input inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder={fmtNear((max * 6n) / 10n, 2)} /></label>
+        <label className="field"><span>Budget (NEAR, up to {fmtNear(max, max < 10n ** 22n ? 4 : 3)})</span><input inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder={fmtNear((max * 6n) / 10n, max < 10n ** 22n ? 4 : 2)} /></label>
         <label className="field"><span>Bidding window (minutes)</span><input inputMode="decimal" value={commitMin} onChange={(e) => setCommitMin(e.target.value)} /></label>
         <label className="field"><span>Reveal window (minutes)</span><input inputMode="decimal" value={revealMin} onChange={(e) => setRevealMin(e.target.value)} /></label>
         <label className="field"><span>Deadline after funding (hours)</span><input inputMode="decimal" value={durationH} onChange={(e) => setDurationH(e.target.value)} /></label>
