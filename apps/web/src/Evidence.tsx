@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   linkMessage, linkNonce, normalizeTarget, proofLine, signatureToB58,
-  type Brief, type Dropped, type EvidenceItem, type EvidenceSummary, type Flag, type LinkKind,
+  type Brief, type Dropped, type EvidenceItem, type EvidenceSummary, type Flag, type LinkKind, type ProfileCheck, type ProfileLabel,
 } from '@signalfire/core';
 import { api, type Startup } from './api.ts';
 import { PrivateAiBadge } from './Attest.tsx';
@@ -16,12 +16,13 @@ import './evidence.css';
 
 export interface FounderLink { kind: LinkKind; target: string; status: 'claimed' | 'verified'; claimedAt: number; proofUrl?: string; publicKey?: string; checkedAt?: number; error?: string }
 interface BriefView {
-  at: number; trigger: 'auto' | 'request'; evidence: EvidenceItem[]; evidenceHash: string; parsed: boolean; brief: Brief; dropped: Dropped[]; flags: Flag[];
-  model: string | null; signed: boolean; signingAddress: string | null;
+  at: number; trigger: 'auto' | 'request' | 'links'; evidence: EvidenceItem[]; evidenceHash: string; parsed: boolean; brief: Brief; dropped: Dropped[]; flags: Flag[];
+  profile: ProfileCheck | null; model: string | null; signed: boolean; signingAddress: string | null;
 }
 interface EvidenceView {
   startup: { id: string; name: string; founder: string }; items: EvidenceItem[]; errors: string[]; evidenceHash: string; flags: Flag[]; summary: EvidenceSummary;
   links: FounderLink[]; brief: BriefView | null; generating: boolean; nearAi: boolean; everyHours: number; nextRequestAt: number;
+  profile: ProfileCheck; briefPending: boolean;
 }
 
 const GROUPS: { key: EvidenceItem['group']; title: string; note: string }[] = [
@@ -53,6 +54,7 @@ export function EvidenceTab({ s }: { s: Startup }) {
   const demo = ev.summary.demo;
   return (
     <div className="ev" data-tour="evidence-panel">
+      <ProfileCard ev={ev} />
       <section className="panel ev-intro">
         <p className="small">
           <strong>Evidence about the team, with a source on every item.</strong> It helps you look before you back {s.name}; it isn’t advice, and an
@@ -94,6 +96,53 @@ export function EvidenceTab({ s }: { s: Startup }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ---------- the profile check ----------
+
+const STRENGTH_LEVEL: Record<ProfileLabel, string> = { strong: 'ok', moderate: 'warn', thin: 'smoke', 'not-enough': 'smoke' };
+
+/** A chip that jumps to an evidence card on this page (founder-linked items live in the links panel). */
+function EvidenceRef({ id, items }: { id: string; items: EvidenceItem[] }) {
+  const it = items.find((x) => x.id === id);
+  return <a href={it?.group === 'links' ? '#ev-links' : `#ev-${id}`} title={it ? `${it.title}: ${it.source.label}` : id}>{id}</a>;
+}
+
+/**
+ * At a glance: four ratings and a profile strength, computed by a published rule (packages/core `profileCheck`) from
+ * the evidence on this page, never by the AI. The research brief below explains them; `pnpm verify-brief` recomputes them.
+ */
+function ProfileCard({ ev }: { ev: EvidenceView }) {
+  const now = useNow(30_000);
+  const p = ev.profile;
+  const b = ev.brief;
+  const fetched = ev.items.reduce((a, i) => Math.max(a, i.fetchedAt), 0);
+  return (
+    <section className="panel ev-profile" aria-labelledby="ev-profile-h" data-tour="profile-check">
+      <header className="ev-profile-head">
+        <h2 id="ev-profile-h">Profile check</h2>
+        <span className={`ev-strength chip ${STRENGTH_LEVEL[p.label]}`}>Profile strength: <strong>{p.word}</strong></span>
+        {p.demo && <span className="chip bad">demo startup, run by Signalfire</span>}
+      </header>
+      <p className="small ev-why">{p.why}</p>
+      <ul className="ev-signals">
+        {p.signals.map((x) => (
+          <li key={x.key}>
+            <span className="ev-sig-name">{x.name}</span>
+            <span className={`chip ${x.level}`}>{x.word}</span>
+            <span className="ev-sig-detail small">{x.detail}</span>
+            {x.cites.length > 0 && <span className="ev-cites">{x.cites.map((id) => <EvidenceRef key={id} id={id} items={ev.items} />)}</span>}
+          </li>
+        ))}
+      </ul>
+      <p className="muted small ev-profile-foot">
+        Checked {fetched ? ago(fetched, now) : 'now'} from the evidence below by rule {p.rule}<Info text={`Computed by code, not by the AI. Inputs hash ${p.inputsHash}. Anyone can recompute it from the published evidence: pnpm verify-brief ${ev.startup.id}`} />.
+        {' '}{b ? <>The AI research brief explains it{b.signed && b.model ? <> <PrivateAiBadge src={{ kind: 'brief', startup: ev.startup.id }} model={b.model} what="brief" /></> : null}{b.profile && b.profile.label !== p.label ? ` (it was written when the strength was ${b.profile.word}; ${ev.briefPending || ev.generating ? 'a new one is on its way' : 'a new one follows'})` : ''}.</> : null}
+        {!b?.profile && ev.briefPending ? ' A founder link changed; the brief is being rewritten.' : ''}
+      </p>
+      <p className="small ev-profile-note"><strong>A profile check from public evidence, not advice. Attention tokens are not equity.</strong></p>
+    </section>
   );
 }
 
@@ -167,7 +216,7 @@ function BriefPanel({ ev, reload }: { ev: EvidenceView; reload: () => void }) {
       {b && (
         <>
           <p className="muted small">
-            Written {ago(b.at, now)} {b.trigger === 'request' ? 'on request' : 'automatically'} from {b.evidence.length} sources{b.model ? ' by NEAR AI’s private AI' : ''}<Info text={`Evidence hash ${b.evidenceHash}${b.model ? `; model ${b.model}, in a TEE on NEAR AI Cloud` : ''}`} />. It’s rewritten every {ev.everyHours} hours.
+            Written {ago(b.at, now)} {b.trigger === 'request' ? 'on request' : b.trigger === 'links' ? 'after a founder link changed' : 'automatically'} from {b.evidence.length} sources{b.model ? ' by NEAR AI’s private AI' : ''}<Info text={`Evidence hash ${b.evidenceHash}${b.model ? `; model ${b.model}, in a TEE on NEAR AI Cloud` : ''}`} />. It’s rewritten every {ev.everyHours} hours.
             {!b.parsed && b.signed && ' The model’s reply couldn’t be read, so only the facts and rule checks are shown.'}
           </p>
           <h3 className="ev-sec">Observed <span className="muted small">facts from the sources, each cited</span></h3>
@@ -215,7 +264,7 @@ const where = (kind: LinkKind, target: string): string => {
 function LinksPanel({ ev, s }: { ev: EvidenceView; s: Startup }) {
   const { account } = useApp();
   return (
-    <section className="panel ev-group">
+    <section className="panel ev-group" id="ev-links">
       <h2>Founder-linked sources</h2>
       <p className="muted small">{GROUPS[0].note}</p>
       {ev.links.length === 0 && <p className="small">No GitHub or X account linked{ev.summary.demo ? ' (a demo startup has none)' : ''}.</p>}
