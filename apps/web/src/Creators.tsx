@@ -152,7 +152,7 @@ function Apply() {
         <ol className="apply-steps">
           <li className={wallet >= fee || applied ? 'done' : ''}>
             <strong>Fund your Signalfire wallet</strong> with 0.03 NEAR (the vetting fee plus one bid bond). Your wallet: <Near y={wallet} d={3} />.
-            {wallet < fee && !applied && <button className="primary small" disabled={!!busy} onClick={() => void run('Fund wallet', () => call(state!.hub, 'fund_wallet', { account }, parseNear('0.03')))}>Fund with 0.03 NEAR</button>}
+            {wallet < fee && !applied && <button className="primary small" disabled={!!busy} onClick={() => void run('Add NEAR to your Signalfire balance', () => call(state!.hub, 'fund_wallet', { account }, parseNear('0.03')), { pending: 'Adding NEAR to your Signalfire balance…', done: 'Your Signalfire balance is topped up.', action: 'fund_wallet' })}>Fund with 0.03 NEAR</button>}
           </li>
           <li className={applied ? 'done' : ''}>
             <strong>Apply</strong>: your name and what you make.
@@ -166,14 +166,14 @@ function Apply() {
                   if (hasPrivate(priv)) {
                     // sealed and queued before the onchain application, so the scout has it when it vets
                     try { await submitPrivate(account, state!.nearAiModel, priv, setStep); } finally { setStep(null); }
-                    setStep('Your receipt was downloaded (keep it to prove what the AI saw). Now confirm the application in your wallet.');
+                    setStep('Your receipt file was downloaded. Keep it: it proves exactly what the AI saw. Now confirm the application in your wallet.');
                   }
                   const r = await call(state!.hub, 'apply_creator', { name: name.trim(), profile: profile.trim() });
                   await api('/applied', {}).catch(() => undefined);
                   setQueued(true);
                   refreshMe();
                   return r;
-                })}>Apply</button>
+                }, { pending: 'Sending your application to the AI scout…', done: 'Application sent. The AI scout usually reviews it within a minute.', action: 'apply_creator' })}>Apply</button>
               </div>
             )}
           </li>
