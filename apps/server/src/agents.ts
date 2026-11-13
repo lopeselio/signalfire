@@ -42,6 +42,9 @@ export interface TickOptions { autoBriefs?: boolean; only?: number }
 const short = (a: string): string => a.replace(`.${config.hub}`, '');
 const personaOf = (account: string): CreatorPersona | undefined => CREATORS.find((c) => c.account === account);
 
+/** A held payout's outcome code in plain words, for the wire (the raw code stays in the audit log). */
+const HELD: Record<string, string> = { 'held:over_cap': 'over the largest-payment limit', 'held:rate_limit': 'hourly payment limit reached; it retries', 'held:payee_revoked': 'the creator was removed' };
+
 async function act<T>(who: string, what: string, fn: () => Promise<{ tx: string; value?: T }>, kind: string, campaign?: number): Promise<T | undefined> {
   try {
     const r = await fn();
@@ -101,7 +104,7 @@ export async function vet(s: Snapshot, account: string): Promise<void> {
   const reportHash = sha256Hex(report);
   const rec = { account, name: app.name, profile: app.profile, report, reportHash, proof, at: Date.now(), privateCommitment: commitment, privateVerdict, privateProof, privateDropped: privateDropped || undefined };
   saveVetting(rec);
-  const out = await act<boolean>(SCOUT.name, `vetted ${short(account)} (${looks.length ? 'lookalike: refused by rule' : commitment ? 'private application, report filed' : 'report filed'})`, () =>
+  const out = await act<boolean>(SCOUT.name, `reviewed ${short(account)} (${looks.length ? 'turned away: copies an approved creator\'s name' : commitment ? 'with private details; report filed' : 'report filed'})`, () =>
     call<boolean>(SCOUT.account, 'vet_creator', { account, report_hash: reportHash }, 60), 'vet');
   if (out !== undefined) saveVetting({ ...rec, admitted: out, at: Date.now() });
 }
@@ -116,7 +119,7 @@ async function seal(s: Snapshot, c: Campaign, p: CreatorPersona): Promise<void> 
   // research costs 0.002 NEAR: only worth it when the brief's budget is at least ten times that
   if (!briefs.includes(key) && BigInt(c.budget) >= parseNear('0.02')) {
     setState('briefs-bought', [...briefs, key].slice(-500));
-    await act(p.name, `paid ${SCOUT.name} 0.002 NEAR for an audience brief on #${c.id}`, () =>
+    await act(p.name, `paid ${SCOUT.name} 0.002 NEAR for audience research on #${c.id}`, () =>
       call(p.account, 'agent_pay', { to: SCOUT.account, amount: parseNear('0.002').toString(), memo: `audience brief #${c.id}` }, 20), 'pay', c.id);
   }
   // An opening saved earlier whose commit we never saw confirmed (an RPC error after the transaction may still have
@@ -136,7 +139,7 @@ async function seal(s: Snapshot, c: Campaign, p: CreatorPersona): Promise<void> 
         ? await call(p.account, 'commit_bid', { campaign_id: c.id, hash: prev.hash, ciphertext: prev.ciphertext }, 30) // = commit_sealed_bid; agent keys allow only commit_bid
         : await call(p.account, 'commit_bid', { campaign_id: c.id, hash: prev.hash }, 30);
       saveBid({ ...prev, committedTx: r.tx });
-      addWire({ who: p.name, what: `sealed a bid on #${c.id} "${c.title}" (price and pitch hidden until the reveal)`, tx: r.tx, kind: 'bid', campaign: c.id });
+      addWire({ who: p.name, what: `sealed an offer on #${c.id} "${c.title}" (price and pitch hidden until offers are opened)`, tx: r.tx, kind: 'bid', campaign: c.id });
     } catch (e) {
       // the first commit landed after all: keep the opening, the reveal will match
       if (/one bid per creator/.test((e as Error).message)) saveBid({ ...prev, committedTx: 'landed' });
@@ -162,7 +165,7 @@ async function seal(s: Snapshot, c: Campaign, p: CreatorPersona): Promise<void> 
   const bidKey = await sealedKey(c);
   const ciphertext = bidKey ? sealBid(bidKey, config.hub, c.id, p.account, { price: price.toString(), pitch_hash: ph, salt }) : undefined;
   saveBid({ campaign: c.id, creator: p.account, price: price.toString(), salt, pitch, pitchHash: ph, hash, proof, sealed: !!bidKey, ciphertext });
-  await act(p.name, bidKey ? `sealed a bid on #${c.id} "${c.title}" for the TEE (price and pitch encrypted; only the winner's is ever opened)` : `sealed a bid on #${c.id} "${c.title}" (price and pitch hidden until the reveal)`, async () => {
+  await act(p.name, bidKey ? `sealed an offer on #${c.id} "${c.title}" for private scoring (encrypted; only the winning offer is ever opened)` : `sealed an offer on #${c.id} "${c.title}" (price and pitch hidden until offers are opened)`, async () => {
     const r = bidKey
       ? await call(p.account, 'commit_bid', { campaign_id: c.id, hash, ciphertext }, 30) // = commit_sealed_bid; agent keys allow only commit_bid
       : await call(p.account, 'commit_bid', { campaign_id: c.id, hash }, 30);
@@ -202,7 +205,7 @@ async function scoreSealed(c: Campaign, book: SealedBook, now: number): Promise<
   const retry = book.requested_ms !== null && now - book.requested_ms > 2 * 60_000 + MARGIN_MS;
   if (book.status === 'open' || ((book.status === 'failed' || book.status === 'scoring') && retry)) {
     if (now > c.reveal_ends_ms + 30 * 60_000 + MARGIN_MS && book.status !== 'open') {
-      await act('Signalfire', `ended #${c.id}: OutLayer did not score its sealed bids in time, so every bond went back and no bid was opened`, () =>
+      await act('Signalfire', `closed #${c.id}: private scoring didn't answer in time, so every deposit went back and no offer was opened`, () =>
         call(config.operator, 'abandon_sealed', { campaign_id: c.id }, 60), 'settle', c.id);
       return;
     }
@@ -210,7 +213,7 @@ async function scoreSealed(c: Campaign, book: SealedBook, now: number): Promise<
       const r = await call<unknown>(config.operator, 'score_sealed', { campaign_id: c.id }, 300, parseNear('0.02'));
       const requestId = outlayerRequestId(r.logs);
       setState('outlayer-runs', { ...outlayerRuns(), [c.id]: [...(outlayerRuns()[c.id] ?? []), { requestId, tx: r.tx, at: Date.now() }] });
-      addWire({ who: 'Signalfire', what: `asked OutLayer to score #${c.id}'s ${book.entries.length} sealed bid(s) in a TEE${requestId !== null ? ` (request ${requestId})` : ''}: only the winner's bid is opened`, tx: r.tx, kind: 'settle', campaign: c.id });
+      addWire({ who: 'Signalfire', what: `sent #${c.id}'s ${book.entries.length} sealed offer(s) to private scoring: only the winner's will be opened`, tx: r.tx, kind: 'settle', campaign: c.id });
     } catch (e) { console.warn(`score_sealed #${c.id}: ${(e as Error).message}`); }
   }
 }
@@ -218,7 +221,7 @@ async function scoreSealed(c: Campaign, book: SealedBook, now: number): Promise<
 async function reveal(c: Campaign, p: CreatorPersona): Promise<void> {
   const b = loadBid(c.id, p.account);
   if (!b) return;
-  await act(p.name, `revealed ${fmtNear(b.price)} NEAR on #${c.id}`, async () => {
+  await act(p.name, `opened their offer on #${c.id}: ${fmtNear(b.price)} NEAR`, async () => {
     const r = await call(p.account, 'reveal_bid', { campaign_id: c.id, price: b.price, pitch_hash: b.pitchHash, salt: b.salt }, 30);
     saveBid({ ...b, revealedTx: r.tx });
     return r;
@@ -236,7 +239,7 @@ async function vote(s: Snapshot, c: Campaign, st: Startup): Promise<void> {
     if (p.votes[h.account]) continue;
     const rep = s.creators.find((x) => x.creator.account === c.winner)?.rep_bps ?? 0;
     const yes = holderApproves(h, BigInt(c.price), BigInt(st.available), rep);
-    await act(h.name, `${yes ? 'voted YES' : 'voted NO'} in ${short(st.dao)} on proposal ${c.proposal_id}: fund #${c.id} at ${fmtNear(c.price)} NEAR`, () =>
+    await act(h.name, `voted ${yes ? 'yes' : 'no'} on funding #${c.id} at ${fmtNear(c.price)} NEAR`, () =>
       callOn(`${h.account}#dao`, st.dao, 'act_proposal', { id: c.proposal_id, action: yes ? 'VoteApprove' : 'VoteReject', proposal: p.kind }, 150), 'vote', c.id);
   }
 }
@@ -280,7 +283,7 @@ async function nextFan(st: Startup, s: Snapshot): Promise<string | null> {
       await ensureAgent(fanAccount(i).split('.')[0], { balance: '0.09', wallet: '0.08', capTx: '0.07', capDay: '0.08' }).catch((e) => console.warn(`fan ${i}: ${(e as Error).message}`));
     }
     setState('fan-count', Math.min(MAX_FANS, count + 3));
-    addWire({ who: 'Signalfire', what: 'opened 3 more fan accounts for the simulated audience', kind: 'setup' });
+    addWire({ who: 'Signalfire', what: 'added 3 more simulated buyers to the demo audience', kind: 'setup' });
   }
   setState(`fans-${st.id}`, [...used]);
   return null;
@@ -292,7 +295,7 @@ async function audience(s: Snapshot, c: Campaign, st: Startup): Promise<void> {
   const used = getState<string[]>(`fans-${st.id}`, []);
   setState(`fans-${st.id}`, [...used, f]);
   const winner = personaOf(c.winner ?? '')?.name ?? short(c.winner ?? '');
-  await act(short(f), `bought ${fmtNear(FAN_BUY)} NEAR of ${st.id.toUpperCase()} through ${winner}'s link (c${c.id})`, () =>
+  await act(short(f), `bought ${fmtNear(FAN_BUY)} NEAR of ${st.id.toUpperCase()} through ${winner}'s link (campaign #${c.id})`, () =>
     call(f, 'buy_with_wallet', { startup: st.id, amount: FAN_BUY.toString(), min_tokens_out: '0', ref_code: `c${c.id}` }, 60), 'buy', c.id);
 }
 
@@ -324,17 +327,17 @@ async function campaignStep(s: Snapshot, c: Campaign, opts: TickOptions): Promis
       }
     } else if (now >= c.reveal_ends_ms + MARGIN_MS) {
       await act('Signalfire', c.bids.length === 0
-        ? `closed #${c.id}: no creator bid, so no funding proposal`
-        : `settled the auction for #${c.id} and filed the funding proposal in ${short(st.dao)}`, () =>
+        ? `closed #${c.id}: no creator sent an offer, so there's no funding vote`
+        : `picked the winning offer for #${c.id} and opened the holders' funding vote`, () =>
         call(config.operator, 'settle_auction', { campaign_id: c.id }, 100), 'settle', c.id);
     }
   } else if (c.phase === 'propose_failed' && now >= c.reveal_ends_ms) {
-    await act('Signalfire', `re-filed the funding proposal for #${c.id}`, () => call(config.operator, 'settle_auction', { campaign_id: c.id }, 100), 'settle', c.id);
+    await act('Signalfire', `reopened the holders' funding vote for #${c.id}`, () => call(config.operator, 'settle_auction', { campaign_id: c.id }, 100), 'settle', c.id);
   } else if (c.phase === 'voting') {
     await vote(s, c, st);
   } else if (c.phase === 'funded') {
     if (c.deadline_ms && now > c.deadline_ms + MARGIN_MS) {
-      await act('Signalfire', `expired #${c.id} (${c.results}/${c.target} results): the unpaid part returns to the treasury`, () =>
+      await act('Signalfire', `closed #${c.id} at its deadline (${c.results} of ${c.target} new buyers): the unpaid budget went back to the marketing fund`, () =>
         call(config.operator, 'expire_campaign', { campaign_id: c.id }, 30), 'expire', c.id);
       return;
     }
@@ -343,10 +346,10 @@ async function campaignStep(s: Snapshot, c: Campaign, opts: TickOptions): Promis
       // a held payout is logged onchain each try: wait 5 minutes before asking the policy again
       const heldAt = getState<Record<string, number>>('held', {})[`${c.id}`] ?? 0;
       if (Date.now() - heldAt < 5 * 60_000) return;
-      const out = await act<string>('Signalfire', `claimed milestone ${k} of #${c.id} for ${personaOf(c.winner ?? '')?.name ?? short(c.winner ?? '')}`, () =>
+      const out = await act<string>('Signalfire', `released payout ${k} of 3 on #${c.id} to ${personaOf(c.winner ?? '')?.name ?? short(c.winner ?? '')}`, () =>
         call<string>(config.operator, 'claim_milestone', { campaign_id: c.id }, 120), 'payout', c.id);
       if (out && !out.startsWith('paid')) {
-        addWire({ who: 'spend policy', what: `held milestone ${k} of #${c.id}: ${out}`, kind: 'held', campaign: c.id });
+        addWire({ who: 'spend policy', what: `held payout ${k} on #${c.id}: ${HELD[out] ?? out}`, kind: 'held', campaign: c.id });
         setState('held', { ...getState<Record<string, number>>('held', {}), [`${c.id}`]: Date.now() });
       }
       return;
@@ -379,7 +382,7 @@ async function founder(s: Snapshot): Promise<void> {
     const b = list[n % list.length];
     setState('last-brief', now);
     setState('last-brief-by', { ...lastBy, [st.id]: now });
-    const id = await act<number>(`${st.name} founder`, `posted brief "${b.title}": ${fmtNear(budget)} NEAR budget for ${BRIEF_TARGET} new holder${BRIEF_TARGET === 1 ? '' : 's'}`, () =>
+    const id = await act<number>(`${st.name} founder`, `posted a brief, "${b.title}": ${fmtNear(budget)} NEAR to find ${BRIEF_TARGET} new buyer${BRIEF_TARGET === 1 ? '' : 's'}`, () =>
       call<number>(config.operator, 'create_campaign', {
         startup: st.id, title: b.title, brief: b.brief, target: BRIEF_TARGET, budget: budget.toString(), commit_secs: 90, reveal_secs: 60, duration_secs: 3600,
       }, 30), 'brief');

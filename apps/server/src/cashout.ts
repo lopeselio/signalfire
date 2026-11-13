@@ -87,7 +87,7 @@ export async function settleCashOut(account: string, r: CashOutRequest): Promise
     const desk = signIntents({ privateKey: privateKey(config.desk), saltHex: salt, intents: deskSide as never, nowMs: Date.now(), random: randomBytes(15) });
     await viewOn(VERIFIER, 'simulate_intents', { signed: [creator, desk] }).catch((e: Error) => { throw new Error(`the Verifier would refuse it: ${e.message.slice(0, 200)}`); });
     const x = await callOn(config.desk, VERIFIER, 'execute_intents', { signed: [creator, desk] }, 300);
-    addWire({ who: account.replace(/\.testnet$/, ''), what: `cashed out ${(Number(amount) / 1e6).toFixed(2)} tUSD for ${fmtNear(near, 4)} NEAR through NEAR Intents (${VERIFIER})`, tx: x.tx, kind: 'payout' });
+    addWire({ who: account.replace(/\.testnet$/, ''), what: `cashed out ${(Number(amount) / 1e6).toFixed(2)} tUSD for ${fmtNear(near, 4)} NEAR (through NEAR Intents)`, tx: x.tx, kind: 'payout' });
     return { tx: x.tx, near: near.toString() };
   } finally {
     busy = false;

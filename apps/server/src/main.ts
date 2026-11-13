@@ -294,7 +294,7 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       const had = loadBid(o.campaign, o.creator);
       if (!had) {
         saveBid({ ...opening, human: true, proof: { who: o.creator, text: o.pitch, model: 'none', request: '', response: '', at: Date.now() } });
-        addWire({ who: o.creator.replace(`.${config.hub}`, ''), what: `published the opening of their revealed bid on #${o.campaign}`, kind: 'reveal', campaign: o.campaign });
+        addWire({ who: o.creator.replace(`.${config.hub}`, ''), what: `published their opened offer on #${o.campaign} so anyone can check it`, kind: 'reveal', campaign: o.campaign });
       }
       return json(res, 200, { ok: true, stored: !had });
     }

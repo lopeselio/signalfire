@@ -45,7 +45,7 @@ export async function crankAgent(): Promise<void> {
     const now = Date.now();
     if (now - a.created_ms > AGENT_TIMEOUT_MS + 10_000) {
       await call(config.operator, 'agent_fallback', { id: a.id }, 120)
-        .then((r) => addWire({ who: 'Signalfire', what: `paid milestone ${a.milestone} of #${a.campaign} from the hub's own desk: the keyless agent hadn't delivered in 30 minutes`, tx: r.tx, kind: 'payout', campaign: a.campaign }))
+        .then((r) => addWire({ who: 'Signalfire', what: `paid payout ${a.milestone} on #${a.campaign} straight from Signalfire's contract: the keyless agent hadn't delivered within 30 minutes`, tx: r.tx, kind: 'payout', campaign: a.campaign }))
         .catch((e: Error) => console.warn(`agent_fallback ${a.id}: ${e.message}`));
       continue;
     }
@@ -55,7 +55,7 @@ export async function crankAgent(): Promise<void> {
         const nonce = Math.max(await keyNonce(desk.account, desk.public_key), desk.last_nonce) + 1;
         const block = await rpc<{ header: { hash: string } }>('block', { finality: 'final' });
         const r = await call<boolean>(config.operator, 'agent_sign', { id: a.id, nonce, block_hash: block.header.hash }, 150, 1n);
-        addWire({ who: 'Signalfire', what: `asked NEAR's MPC network to sign the keyless agent's payout of milestone ${a.milestone} of #${a.campaign} (action ${a.id})${r.value === false ? ': no valid signature yet' : ''}`, tx: r.tx, kind: 'agent', campaign: a.campaign });
+        addWire({ who: 'Signalfire', what: `asked NEAR's signing network to approve the keyless agent's payout ${a.milestone} on #${a.campaign}${r.value === false ? ': not signed yet' : ''}`, tx: r.tx, kind: 'agent', campaign: a.campaign });
       } catch (e) { console.warn(`agent_sign ${a.id}: ${(e as Error).message}`); }
       continue;
     }
@@ -68,7 +68,7 @@ export async function crankAgent(): Promise<void> {
         const out = await rpc<{ status: { Failure?: unknown } }>('send_tx', { signed_tx_base64: full.signed_tx, wait_until: 'EXECUTED_OPTIMISTIC' });
         setState('agent-deliveries', { ...deliveries(), [a.id]: hash });
         const tusd = (Number(a.tusd) / 1e6).toFixed(2);
-        addWire({ who: 'keyless agent', what: `paid ${tusd} tUSD for milestone ${a.milestone} of #${a.campaign} to ${a.receiver.replace(`.${config.hub}`, '')} (a transaction only NEAR's MPC network could sign)${out.status?.Failure ? ' — failed' : ''}`, tx: hash, kind: 'payout', campaign: a.campaign });
+        addWire({ who: 'keyless agent', what: `paid ${tusd} tUSD to ${a.receiver.replace(`.${config.hub}`, '')} for payout ${a.milestone} on #${a.campaign} (signed by NEAR's network; no person holds this key)${out.status?.Failure ? ' — failed and undone' : ''}`, tx: hash, kind: 'payout', campaign: a.campaign });
       } catch (e) {
         // an expired block hash or a used nonce: re-sign after RESIGN_AFTER_MS
         console.warn(`agent broadcast ${a.id}: ${(e as Error).message}`);
