@@ -161,7 +161,7 @@ function HowScored({ ways, now, note, label = 'How this is scored' }: { ways: [s
     <details className="ev-how">
       <summary>{label}</summary>
       <div>
-        <ul>{ways.map(([w, t]) => <li key={w} className={w === now ? 'now' : ''}><strong>{w}</strong>{w === now && <span className="sr-only"> (this one)</span>}: {t}</li>)}</ul>
+        <ul>{ways.map(([w, t]) => <li key={w} className={w === now ? 'now' : ''}><strong>{w}</strong>: {t}{w === now && <span className="sr-only"> (this one applies)</span>}</li>)}</ul>
         {note && <p className="muted">{note}</p>}
       </div>
     </details>
