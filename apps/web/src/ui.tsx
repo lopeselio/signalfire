@@ -20,7 +20,8 @@ export interface AppCtx {
   run: (label: string, fn: () => Promise<{ tx: string; gasless: boolean } | void>, copy?: RunCopy) => Promise<boolean>;
   busy: string | null;
 }
-export interface RunCopy { pending?: string; done?: string; action?: string }
+/** Words for an action's busy line and toast. `wallet: false` for actions that never open the wallet (e.g. a comment). */
+export interface RunCopy { pending?: string; done?: string; action?: string; wallet?: boolean }
 export const Ctx = createContext<AppCtx | null>(null);
 export const useApp = (): AppCtx => useContext(Ctx)!;
 

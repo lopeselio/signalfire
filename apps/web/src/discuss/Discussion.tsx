@@ -65,13 +65,13 @@ export function Discussion({ campaign }: { campaign: number }) {
   const post = async (): Promise<void> => {
     const body = text.trim();
     if (!body) return;
-    const ok = await run('Post comment', async () => { await api(`/campaign/${campaign}/discussion/comment`, { text: body }); }, { pending: 'Posting your comment…', done: 'Comment posted.' });
+    const ok = await run('Post comment', async () => { await api(`/campaign/${campaign}/discussion/comment`, { text: body }); }, { pending: 'Posting your comment…', done: 'Comment posted.', wallet: false });
     if (ok) setText('');
     load();
   };
   const hide = async (n: number): Promise<void> => {
     if (!window.confirm('Hide this comment for everyone? It stays listed as hidden by the founder.')) return;
-    await run('Hide comment', async () => { await api(`/campaign/${campaign}/discussion/hide`, { n }); }, { pending: 'Hiding the comment…', done: 'Comment hidden.' });
+    await run('Hide comment', async () => { await api(`/campaign/${campaign}/discussion/hide`, { n }); }, { pending: 'Hiding the comment…', done: 'Comment hidden.', wallet: false });
     load();
   };
   const left = t.limits.comment - [...text].length;

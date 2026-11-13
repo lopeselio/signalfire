@@ -20,12 +20,12 @@ export function ContentLinks({ t, reload }: { t: Thread; reload: () => void }) {
     try { const u = new URL(url.trim()); if (u.protocol !== 'https:' && u.protocol !== 'http:') urlErr = 'Only http:// or https:// links.'; } catch { urlErr = 'That isn’t a web address yet (start with https://).'; }
   }
   const add = async (): Promise<void> => {
-    const ok = await run('Post link', async () => { await api(`/campaign/${t.campaign}/discussion/link`, { url: url.trim(), caption: caption.trim() }); }, { pending: 'Posting your link…', done: 'Link posted on the campaign.' });
+    const ok = await run('Post link', async () => { await api(`/campaign/${t.campaign}/discussion/link`, { url: url.trim(), caption: caption.trim() }); }, { pending: 'Posting your link…', done: 'Link posted on the campaign.', wallet: false });
     if (ok) { setUrl(''); setCaption(''); }
     reload();
   };
   const remove = async (n: number): Promise<void> => {
-    await run('Remove link', async () => { await api(`/campaign/${t.campaign}/discussion/unlink`, { n }); }, { pending: 'Removing the link…', done: 'Link removed.' });
+    await run('Remove link', async () => { await api(`/campaign/${t.campaign}/discussion/unlink`, { n }); }, { pending: 'Removing the link…', done: 'Link removed.', wallet: false });
     reload();
   };
 
