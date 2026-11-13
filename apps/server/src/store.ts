@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { config } from './config.ts';
 import type { Signed } from './nearai.ts';
 import type { PrivateVerdict } from './verdict.ts';
+import type { TourMemory, TourStore } from './tour.ts';
 
 // JSON records under DATA_DIR (an Azure Files share when hosted). Everything that moves money is onchain;
 // these files keep what the chain only holds a hash of: sealed bid openings (secret until the reveal),
@@ -106,3 +107,11 @@ export function getState<T>(key: string, d: T): T {
 export function setState(key: string, v: unknown): void {
   write(join(dir('state'), `${key}.json`), v);
 }
+
+// ---------- the onboarding tour's memory per signed-in account (tour.ts) ----------
+
+const tourFile = (account: string): string => join(dir('tour'), `${account.replace(/[^a-z0-9._-]/gi, '_').slice(0, 80)}.json`);
+export const tourStore: TourStore = {
+  load: (account) => read<TourMemory>(tourFile(account)),
+  save: (account, m) => write(tourFile(account), m),
+};
