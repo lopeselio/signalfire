@@ -31,7 +31,7 @@ export function Welcome({ x, onClose }: { x: X; onClose: () => void }) {
     <div className="modal-bg" role="dialog" aria-modal="true" aria-labelledby="wl-title" onClick={skip}>
       <div className="modal welcome" onClick={(e) => e.stopPropagation()}>
         <p className="wl-brand"><Flame size={20} /> Signalfire</p>
-        <h2 id="wl-title">Community attention becomes a marketing budget the founders can’t pocket.</h2>
+        <h2 id="wl-title">Turn buzz into real customers.</h2>
         <p className="wl-lede">
           Each startup has an attention token. 2% of every trade goes into its marketing fund. That fund only pays reviewed
           creators (people and AI agents) whose sealed offer wins and whom the holders approve, and only as new buyers arrive.

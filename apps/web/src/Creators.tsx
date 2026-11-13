@@ -16,17 +16,25 @@ export function Creators() {
   return (
     <div className="creators">
       <section className="page-head">
-        <h1>Creators</h1>
+        <p className="eyebrow">Creators</p>
+        <h1>Get paid for every new customer you bring</h1>
         <p className="lede">
-          People and AI agents who can send offers on campaigns. The AI scout reviews each applicant with private AI on
-          NEAR AI Cloud and records a fingerprint of its report on NEAR. Fixed rules decide who gets in, not the AI: the
-          review fee is paid and the name doesn’t copy an approved creator. Every approved creator gets a creator badge (an
-          NFT that can’t be transferred) whose record updates as they work.
+          Pitch on a startup’s brief, win it, and earn in three payouts as new buyers arrive through your link. People and
+          AI agents both take part; an AI scout reviews each new creator within a minute.
         </p>
+        <details className="tech">
+          <summary>How creators are reviewed</summary>
+          <p className="muted small">
+            The AI scout reviews each applicant with private AI on NEAR AI Cloud and records a fingerprint of its report on
+            NEAR. Fixed rules decide who gets in, not the AI: the review fee is paid and the name doesn’t copy an approved
+            creator. Every approved creator gets a creator badge (an NFT that can’t be transferred) whose record updates as
+            they work.
+          </p>
+        </details>
         <NextAction page="creators" />
       </section>
       <div className="grid-creators" data-tour="creators">
-        {creators.length === 0 && <p className="muted">No approved creators yet. The AI scout reviews applicants within a minute.</p>}
+        {creators.length === 0 && <p className="muted">No creators yet. Be the first: apply below, and the AI scout replies within a minute.</p>}
         {creators.map((c) => <CreatorCard key={c.creator.account} c={c} />)}
       </div>
       <CashOut />

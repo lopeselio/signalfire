@@ -22,11 +22,12 @@ export function Launch() {
   return (
     <div className="launch">
       <section className="page-head">
-        <h1>Launch a startup</h1>
+        <p className="eyebrow">Launch</p>
+        <h1>Launch your startup in one step</h1>
         <p className="lede">
-          One step creates your attention token and its holders’ council. All 1,000,000 tokens go on sale at automatic
-          prices; you get none. Trading fees fill a marketing fund you can’t withdraw from. As founder, you post campaign
-          briefs and set the spend limits.
+          Get an attention token and a holders’ council in one go. Every trade of your token fills a marketing fund that
+          pays creators to bring you new customers. You post the briefs and set the spend limits; you can’t withdraw the
+          fund, and you get none of the 1,000,000 tokens.
         </p>
         <details className="tech">
           <summary>What gets created on NEAR</summary>
