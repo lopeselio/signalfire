@@ -12,7 +12,7 @@
 .plan-card h2, .plan-card h3 { margin: 0 0 8px; }
 .plan-card h2 { font-size: clamp(20px, 2.4vw, 26px); }
 .plan-card p:last-child { margin-bottom: 0; }
-.plan-card.hero-card { border-color: var(--fire); }
+.plan-card.plan-lead { border-color: var(--fire); }
 .plan-ms { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 10px; }
 .plan-ms li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; padding: var(--sp-3); border-radius: var(--r); background: var(--surface-3); }
 .pm-node { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--fire-wash); color: var(--fire-ink); border: 2px solid var(--fire); font: 800 15px var(--font-display); }
