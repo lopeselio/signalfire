@@ -5,6 +5,8 @@ import { PATHS } from './paths.tsx';
 import { tourStore } from './state.ts';
 import { Tour } from './Tour.tsx';
 import { useX } from './useX.ts';
+import { useTourSync } from './sync.ts';
+import { useApp } from '../ui.tsx';
 import { Welcome } from './Welcome.tsx';
 import './tour.css';
 
@@ -28,6 +30,8 @@ function useFeatures(): void {
 
 export function Onboarding({ open, onOpen, onClose }: { open: boolean; onOpen: () => void; onClose: () => void }) {
   useFeatures();
+  const { account } = useApp();
+  useTourSync(account);
   const x = useX();
   if (!x) return null;
   return (
