@@ -208,7 +208,16 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
             You won at <Near y={c.price} />. {c.phase === 'voting' || c.phase === 'proposing' ? 'Holders are voting on funding it…' : c.phase === 'funded' ? `Funded. Your creator link is live: ${c.results}/${c.target} new buyers so far, ${c.milestones_paid} of 3 payouts made (${fmtTusd(c.paid_tusd)} tUSD to you). Share your link: ${location.origin}/s/${s.id}?ref=c${c.id}` : c.phase === 'done' ? `Done: ${fmtTusd(c.paid_tusd)} tUSD paid to you, plus a completion certificate (NFT${c.receipt ? ` ${c.receipt}` : ''}).` : c.phase === 'expired' ? 'The deadline passed before enough new buyers arrived; the unpaid budget went back to the marketing fund.' : c.phase}
           </p>
         ) : (
-          <p className="small">{c.winner ? <><Acct a={c.winner} /> won at <Near y={c.price} />.</> : 'No offer in range, so nobody won.'} {mine.revealed || tee ? 'Your deposit is back in your Signalfire balance.' : ''}</p>
+          <p className="small">{c.winner ? <><Acct a={c.winner} /> won at <Near y={c.price} />.</> : 'No offer in range, so nobody won.'} {mine.revealed || tee ? 'Your deposit is back in your Signalfire balance.' : ''}
+            {(() => {
+              // why a higher price can win: offers are compared after each creator's track-record bonus
+              const w = c.bids.find((b) => b.creator === c.winner);
+              if (!c.winner || !w || !w.rep) return null;
+              const myPrice = mine.revealed ? mine.price : opening?.price;
+              const myRep = mine.revealed ? mine.rep : 0;
+              return <> Offers are compared after each creator’s track-record bonus: the winner’s +{w.rep / 100}% makes its price count as <Near y={score(BigInt(c.price), w.rep)} d={4} />{myPrice ? <>, and yours counted as <Near y={score(BigInt(myPrice), myRep)} d={4} /></> : null}. Deliver campaigns to earn your own bonus.</>;
+            })()}
+          </p>
         )
       )}
     </div>
