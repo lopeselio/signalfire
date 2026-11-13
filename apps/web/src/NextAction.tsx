@@ -7,7 +7,7 @@ import { useApp } from './ui.tsx';
 // signals the guided tour ticks on (tour/state.ts). Nothing here replaces a flow: the button only takes you to the
 // existing panel (and opens the right tab), and "What can I do here?" starts the matching tour path.
 
-export type Page = 'home' | 'discover' | 'startup' | 'creators' | 'dashboard' | 'launch';
+export type Page = 'home' | 'discover' | 'startup' | 'creators' | 'dashboard' | 'launch' | 'plan';
 
 const LINE: Record<Page, (sym?: string) => string> = {
   home: () => 'See where trading fees go, then pick a startup to back, a campaign to work on, or launch your own.',
@@ -16,12 +16,13 @@ const LINE: Record<Page, (sym?: string) => string> = {
   creators: () => 'Apply to become a creator, see each creator’s record, and cash out tUSD you’ve earned.',
   dashboard: () => 'See where every startup’s trading fees went, and the evidence for why this runs on NEAR.',
   launch: () => 'Launch your own attention token: you post briefs and set spend limits, and holders decide what gets funded.',
+  plan: () => 'Try a budget and a target to see what a campaign would pay, then post the brief from your startup’s page.',
 };
 
-const TOUR_FOR: Record<Page, PathId> = { home: 'explore', discover: 'explore', startup: 'back', creators: 'create', dashboard: 'explore', launch: 'found' };
+const TOUR_FOR: Record<Page, PathId> = { home: 'explore', discover: 'explore', startup: 'back', creators: 'create', dashboard: 'explore', launch: 'found', plan: 'found' };
 
 /** Where a next step leads: a route, the startup tab to open, and the panel to scroll to. */
-interface Action { label: string; path?: string; tab?: 'market' | 'treasury' | 'evidence'; sel?: string; signIn?: boolean; why?: string }
+interface Action { label: string; path?: string; tab?: 'market' | 'treasury' | 'evidence'; sel?: string; signIn?: boolean; why?: string; plan?: boolean }
 
 type Role = 'found' | 'create' | 'back';
 
@@ -42,7 +43,7 @@ function founderAction(x: X): Action {
   if (vote) return { label: `Vote on #${vote.id}`, path: `/s/${m.id}`, tab: 'treasury', sel: '[data-tour="campaigns"]', why: `Your holders’ council is voting on funding #${vote.id}.` };
   if (!x.sig.filled) return { label: 'Fill the marketing fund', path: `/s/${m.id}`, tab: 'market', sel: '[data-tour="trade"]', why: `${sym}’s marketing fund fills from trading fees: buy some ${sym} or share the page.` };
   const running = x.state.campaigns.some((c) => c.startup === m.id && ['bidding', 'proposing', 'voting', 'funded', 'propose_failed'].includes(c.phase));
-  if (!running) return { label: 'Post a brief', path: `/s/${m.id}`, tab: 'treasury', sel: '[data-tour="founder-brief"]', why: `${sym} has no campaign running.` };
+  if (!running) return { label: 'Post a brief', path: `/s/${m.id}`, tab: 'treasury', sel: '[data-tour="founder-brief"]', why: `${sym} has no campaign running.`, plan: true };
   return { label: `Open ${m.name}’s campaign`, path: `/s/${m.id}`, tab: 'treasury', sel: '[data-tour="campaigns"]', why: `${m.name} has a campaign under way.` };
 }
 
@@ -87,9 +88,10 @@ export function NextAction({ page, startup }: { page: Page; startup?: string }) 
   const sym = startup?.toUpperCase();
   const role = roleOf(x);
   const a: Action = !x.account
-    ? { label: page === 'creators' ? 'Sign in to apply' : page === 'launch' ? 'Sign in to launch' : page === 'startup' ? `Sign in to buy ${sym}` : 'Sign in to take part', signIn: true }
+    ? { label: page === 'creators' ? 'Sign in to apply' : page === 'launch' || page === 'plan' ? 'Sign in to launch' : page === 'startup' ? `Sign in to buy ${sym}` : 'Sign in to take part', signIn: true }
     // the page's own purpose first (Creators: apply or bid; Launch: launch), then the visitor's role
     : page === 'launch' && !x.sig.mine ? { label: 'Fill in the form below', sel: '[data-tour="launch"]' }
+      : page === 'plan' && !x.sig.mine ? { label: 'Launch a startup', path: '/launch', sel: '[data-tour="launch"]' }
       : page === 'creators' ? creatorAction(x)
         : role === 'found' && !(page === 'startup' && startup !== x.sig.mine?.id) ? founderAction(x)
           : role === 'create' ? creatorAction(x, startup) : backerAction(x, startup);
@@ -106,6 +108,7 @@ export function NextAction({ page, startup }: { page: Page; startup?: string }) 
       <div className="na-row">
         <button className="primary small" onClick={act}>{a.label}</button>
         {a.why && <span className="muted small">{a.why}</span>}
+        {a.plan && page !== 'plan' && <button className="ghost small" onClick={() => go('/plan')}>Plan a campaign</button>}
         <button className="link small na-help" onClick={() => startPath(x.account && TOUR_FOR[page] === 'explore' ? role : TOUR_FOR[page], x)}>What can I do here?</button>
       </div>
     </div>
