@@ -145,6 +145,8 @@ small { font-size: 0.78em; }
    that the button sinks into on :active. .primary = fire, .go = green, .sun = yellow, .ghost = plain. */
 button { font: inherit; font-weight: 700; cursor: pointer; border-radius: var(--r); border: 2px solid transparent; padding: 9px 18px; min-height: 44px; line-height: 1.2; position: relative; transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease), filter var(--dur-1) var(--ease); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+/* small inline buttons that are badges or close marks keep their own size */
+button:is(.pai, .hint-chip, .tour-x) { min-height: 0; }
 .primary, .go, .sun, .ghost { box-shadow: 0 var(--lip) 0 var(--lip-c, var(--line-2)); }
 .primary { --lip-c: var(--fire-press); background: var(--fire-btn); color: #fff; font-weight: 800; }
 .go { --lip-c: var(--go-press); background: var(--go); color: #fff; font-weight: 800; }
