@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import {
   BID_BOND, bidStage, credible, fmtNear, fmtTusd, openingMatches, parseNear, score, sealBid, walletRefusal, type BidOpening,
 } from '@signalfire/core';
+import { useCelebrate } from './celebrate.ts';
 import { api, type Campaign, type Startup } from './api.ts';
 import { refusalText } from './copy.ts';
 import { Acct, Chip, Info, Near, Tx, fmtLeft, useApp, useNow } from './ui.tsx';
@@ -91,7 +92,7 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
         return r;
       }, {
         pending: 'Sealing your offer…',
-        done: teeKey ? 'Offer sealed for private scoring. Only the winning offer is ever opened.' : 'Offer sealed. Nobody can see your price until offers are opened.',
+        done: teeKey ? 'Nice! Your offer is sealed 🔒 for private scoring. Only the winning offer is ever opened.' : 'Nice! Your offer is sealed 🔒 Nobody can see your price until offers are opened.',
         action: teeKey ? 'commit_sealed_bid' : 'commit_bid',
       }).then((ok) => { if (ok) { setPrice(''); setPitch(''); } });
     };
@@ -147,6 +148,7 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
 
   const settled = c.phase !== 'bidding';
   const won = c.winner === account;
+  useCelebrate(account ? `won:${c.id}` : null, settled && won ? 1 : 0);
   const steps = [
     { k: 'sealed', on: true },
     { k: tee ? 'scored privately' : 'opened', on: tee ? settled : mine.revealed },
