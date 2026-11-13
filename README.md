@@ -160,9 +160,9 @@ fallback text, marked unsigned.
 
    ```
    1. What an agent action costs (gas burnt, read from each transaction's receipts on an archival RPC)
-      Creator seals a bid (bond from its wallet)     commit_bid       median 0.000278 NEAR  max 0.000280  (n=8)
-      Holder votes in the DAO                        act_proposal     median 0.000573 NEAR  max 0.000901  (n=8)
-      Milestone payout through the spend policy      claim_milestone  median 0.000797 NEAR  max 0.001253  (n=8)
+      Creator seals an offer (deposit from balance)  commit_bid       median 0.000278 NEAR  max 0.000280  (n=8)
+      Holder votes on funding                        act_proposal     median 0.000573 NEAR  max 0.000901  (n=8)
+      Milestone payout through the spend limits      claim_milestone  median 0.000797 NEAR  max 0.001253  (n=8)
       one whole campaign (19 transactions): about 0.01003 NEAR of gas
    4. What bounded the agents (audit log, access keys, wallets)
       28/28 agent accounts hold function-call keys only (0 full-access keys among them)
