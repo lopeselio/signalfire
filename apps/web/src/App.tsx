@@ -6,15 +6,16 @@ import { Dashboard } from './Dashboard.tsx';
 import { Discover } from './Discover.tsx';
 import { Landing } from './Landing.tsx';
 import { Launch } from './Launch.tsx';
+import { Plan } from './Plan.tsx';
 import { HowItWorks, Onboarding, seenOnboarding } from './tour/Onboarding.tsx';
 import { StartupPage } from './Startup.tsx';
 import { friendly } from './copy.ts';
 import { Ctx, Flame, shortAcct, type AppCtx, type RunCopy } from './ui.tsx';
 import { signIn as walletSignIn, signOut } from './wallet.ts';
 
-// The shell: routing by path (/, /discover, /s/:id, /creators, /dashboard, /launch, /how), the header, polling and toasts.
+// The shell: routing by path (/, /discover, /s/:id, /creators, /dashboard, /launch, /plan, /how), the header, polling and toasts.
 
-type Route = { page: 'home' } | { page: 'startup'; id: string } | { page: 'creators' } | { page: 'discover' } | { page: 'dashboard' } | { page: 'launch' } | { page: 'how' };
+type Route = { page: 'home' } | { page: 'startup'; id: string } | { page: 'creators' } | { page: 'discover' } | { page: 'dashboard' } | { page: 'launch' } | { page: 'plan' } | { page: 'how' };
 function parse(): Route {
   const p = location.pathname;
   const m = /^\/s\/([a-z0-9]{2,8})\/?$/.exec(p);
@@ -23,6 +24,7 @@ function parse(): Route {
   if (p.startsWith('/discover')) return { page: 'discover' };
   if (p.startsWith('/dashboard')) return { page: 'dashboard' };
   if (p.startsWith('/launch')) return { page: 'launch' };
+  if (p.startsWith('/plan')) return { page: 'plan' };
   if (p.startsWith('/how')) return { page: 'how' };
   return { page: 'home' };
 }
@@ -141,6 +143,7 @@ export function App() {
         {state && route.page === 'creators' && <Creators />}
         {state && route.page === 'dashboard' && <Dashboard />}
         {state && route.page === 'launch' && <Launch />}
+        {state && route.page === 'plan' && <Plan />}
         {state && route.page === 'how' && <HowItWorks />}
       </main>
       <footer className="foot">
