@@ -293,6 +293,25 @@ fallback text, marked unsigned.
     - **Track record on Signalfire**, read from the hub: fees in, paid to creators (and 0 to founders), campaigns posted,
       delivered and missed, cost per new buyer, buyers over time from the trade ring, the creators who ran them.
 
+    At the top, the **Profile check**: four plain ratings and a **Profile strength**, computed by a published rule
+    (`profileCheck` in `packages/core`, rule `profile-check/1`), never by the AI. Each rating shows the figures it
+    rests on and links to its evidence items (E1, E6, …):
+
+    | Signal | Ratings (from the evidence) |
+    | --- | --- |
+    | Code activity (verified repositories only, the most active counts) | **Active**: 5+ commits in 30 days, or 1+ with 2+ contributors, and a push within 30 days of the fetch · **Some**: any commit in 90 days · **None**: no commits in 90 days, or archived · **Not linked**: no verified repository |
+    | Public presence | **Verified**: 1+ GitHub or X link proven with the founder's signature · **Claimed only** · **None** |
+    | Founder account (NearBlocks) | **Established**: 90+ days and 50+ transactions · **New**: 7+ days · **Brand new**: under 7 days |
+    | Track record on Signalfire | **Proven**: 3+ campaigns delivered, at most a third as many missed, and new buyers reached · **Some**: 1+ delivered · **None yet** (the cost per new buyer is shown, not rated) |
+
+    Points: Active, Verified, Established, Proven = 2; Some, New = 1. **Strong**: 6+ of 8 with a verified link, active
+    code and a founder account at least a week old. **Moderate**: 3+ with a verified link. **Thin**: anything else.
+    **Not enough evidence**: no proven link and no delivered campaign. A **demo startup** (founder = the Signalfire
+    operator) is never above Thin. Open `/s/sushi?tab=evidence` and see **Profile strength: Moderate** (active code,
+    verified links, but a brand-new founder account and one delivered campaign); open `/s/glow?tab=evidence` and see
+    **Thin** with "demo startup, run by Signalfire", although its track record is Proven. The card ends with "A
+    profile check from public evidence, not advice. Attention tokens are not equity."
+
     Next to it, the **AI research brief**: the TEE model on NEAR AI Cloud reads only that evidence (each item under an
     id, E1, E2, …) and answers in four sections: **Observed** (facts, each citing ids), **AI reading** (inference,
     labelled as such), **Gaps and red flags** (rule checks computed by code, plus the model's), **What to check
@@ -301,8 +320,11 @@ fallback text, marked unsigned.
     (`guardBrief` in `packages/core`): a line is removed when it has no valid citation, gives buy/sell/hold advice or a
     price prediction, uses fundraising words (invest, returns, equity…), or holds a number its cited sources don't;
     a hedged "observation" is moved to the AI reading. Removed lines are listed under the brief with the reason. The
-    model's output is also constrained to a JSON schema with bounded sections. A brief is rewritten every 6 hours
-    (`BRIEF_EVERY_H`) and on **Write a fresh brief** (once per startup per 15 minutes, 12 an hour in all).
+    model's output is also constrained to a JSON schema with bounded sections. The model also receives the profile
+    check as facts with their evidence ids, to explain it (the first AI reading line); it can't change it, and a line
+    naming a different strength is removed. A brief is rewritten every 6 hours (`BRIEF_EVERY_H`), on **Write a fresh
+    brief** (once per startup per 15 minutes, 12 an hour in all), and when the founder claims, proves or removes a
+    link (same limits: it waits for the 15 minutes rather than being skipped).
 
     The demo startups are fictional and run by the operator, so they honestly show "no verified founder links, no
     verified code" and a red flag that the platform runs them: only their onchain record is real. We link no
@@ -353,9 +375,21 @@ fallback text, marked unsigned.
     ```
 
     For each verified link it also re-fetches the proof and rechecks the signature against the founder's current
-    full-access keys. **Discover** shows evidence chips on each card (verified founder, repo active in 30 days,
-    campaigns delivered) and filters on them, plus a **Most evidence** sort: a count of checkable evidence (`summarize`
-    in `packages/core`), not a judgement of quality.
+    full-access keys. For briefs written with a profile check, it recomputes the ratings and the strength from the
+    bundle's evidence and checks they match, with the rule version and the hash of the facts the rule reads:
+
+    ```
+    ✓ profile check rule profile-check/1
+    ✓ the profile check's inputs hash to 7e2388d890c0173e… (the facts the rule reads)
+    ✓ the profile check recomputes from the evidence: Moderate (Code activity Active, Public presence Verified, Founder account Brand new, Track record on Signalfire Some)
+    ✓ the model was given exactly this evidence and its profile check and nothing else
+    ```
+
+    The label is not stored onchain: anyone can recompute it from the published evidence (`/api/evidence/<sym>/proof`)
+    with the same code. **Discover** shows evidence chips on each card (verified founder, repo active in 30 days,
+    campaigns delivered, and the profile strength, e.g. "profile: Moderate") and filters on them (including
+    **Profile Moderate or Strong**), plus a **Most evidence** sort: profile strength first, then a count of checkable
+    evidence (`summarize` in `packages/core`), not a judgement of quality.
 
 13. **Talk on a campaign, and see what the creator made.** Open any campaign card (`/s/glow?tab=treasury`, click
     **Details**). Under the payouts you see **What the creator made** (once a campaign is funded) and **Discussion**.
@@ -530,6 +564,7 @@ contracts/hub     Rust near-sdk 5.29: launchpad, curve market, treasuries, spend
 - **That the model's report is wise**, only that the TEE produced it unaltered, and it decides nothing.
 - **That the keyless agent is a Shade Agent.** It is not: it runs no code of its own. The hub contract decides; NEAR's MPC network signs what the hub asks. Its tUSD moves only for an approved payout, but the MPC network's participants (a threshold of independent nodes) are trusted to sign only what the contract requests. Shade Agents (agent code in a TEE holding the key) would be the next step.
 - **That a private applicant told the truth**, only that the model saw exactly what they sealed (if they show the receipt). The server still sees the verdict (score and fixed phrases) and knows *that* someone applied privately; it never sees the details.
+- **That a "Strong" profile means a good startup or an honest founder.** The profile check counts checkable evidence by a fixed rule: commits can be busywork, an old account can change hands, and a demo startup's real record still rates Thin. It is not advice.
 - **That a research brief is right or complete.** The guard proves every kept line cites real evidence and that its numbers appear in those sources, not that the model read them correctly (a "0" can be attached to the wrong field), and the evidence is only what we could fetch. A verified link proves the founder controls an account, not who they are or that the work is theirs alone.
 - **That a reply came from the instance we attested.** The badge attests the model now, with a fresh nonce; the reply was signed earlier. Instances of a model share one signing key, so a matching signer proves the key lives only in attested TEEs, not which instance served the reply (docs.near.ai says so too).
 - **That the operator doesn't control a creator.** The demo creators are our agents. Anyone the scout admits can bid, and admission is by rule, but the scout is a registered account we run.
