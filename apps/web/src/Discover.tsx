@@ -169,9 +169,9 @@ export function Discover() {
         </p>
         <NextAction page="discover" />
       </section>
-      <div className="d-stages" role="tablist" aria-label="Campaign stage">
+      <div className="d-stages" role="group" aria-label="Show startups by campaign stage">
         {tabs.map((t) => (
-          <button key={t.id} role="tab" aria-selected={tab === t.id} title={t.tip} className={`pill${tab === t.id ? ' on' : ''}`} onClick={() => setTab(t.id)}>
+          <button key={t.id} aria-pressed={tab === t.id} title={t.tip} className={`pill${tab === t.id ? ' on' : ''}`} onClick={() => setTab(t.id)}>
             {t.label} <span className="d-count">{count(t.id)}</span>
           </button>
         ))}
