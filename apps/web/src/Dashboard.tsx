@@ -5,6 +5,7 @@ import { StartupLogo } from './Discover.tsx';
 import { Count } from './motion.tsx';
 import { Acct, Chip, Info, Near, useApp } from './ui.tsx';
 import { NextAction } from './NextAction.tsx';
+import { Waiting } from './Waiting.tsx';
 
 // Public data, read live from the chain through /api/state, and the thesis with its evidence (/api/thesis, the same
 // computation as `pnpm thesis`, which anyone can re-run against public RPC).
@@ -62,7 +63,7 @@ export function Dashboard() {
       <div className="split even">
         <section className="panel">
           <h2>What each new buyer cost</h2>
-          {done.length === 0 && <p className="muted">No campaign has finished yet.</p>}
+          {done.length === 0 && <p className="empty">No campaign has finished yet. The first one to pay out shows up here.</p>}
           <div className="tbl-wrap">
             <table className="tbl">
               <thead><tr><th>Campaign</th><th>Creator</th><th className="r">Spent (NEAR)</th><th className="r">Buyers</th><th className="r">Per buyer (NEAR)</th></tr></thead>
@@ -150,7 +151,7 @@ function Thesis() {
         the agents doing them can’t move money they shouldn’t. That is the claim; below is the evidence, recomputed from chain data.
       </p>
       {err && <p className="muted">The evidence couldn’t be loaded right now; run <code>pnpm thesis</code> to compute it yourself.</p>}
-      {!t && !err && <p className="muted">Reading transactions from an archival RPC…</p>}
+      {!t && !err && <Waiting lines={['Reading transactions from an archival RPC…']} />}
       {t && (
         <div className="evidence">
           <h3>1. An agent action costs a thousandth of a NEAR or less</h3>

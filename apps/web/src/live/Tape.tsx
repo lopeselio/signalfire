@@ -22,7 +22,7 @@ export function Tape({ id }: { id: string }) {
         <span className="muted small">{err ? 'reconnecting…' : a?.stale ? 'NEAR is slow to answer; showing the last read' : 'updates every 2 seconds'}</span>
       </div>
       {!a && !err && <p className="muted small">Loading trades…</p>}
-      {a && a.trades.length === 0 && <p className="muted small">No trades yet. The first buy sets the price moving.</p>}
+      {a && a.trades.length === 0 && <p className="empty small">No trades yet. The first buy sets the price moving.</p>}
       <ol className="tape-list" aria-live="polite">
         {rows.map((t) => (
           <li key={t.id} className={`tape-row ${t.side}${fresh.has(t.id) ? ' flash' : ''}`}>

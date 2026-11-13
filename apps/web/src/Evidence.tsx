@@ -8,6 +8,7 @@ import { PrivateAiBadge } from './Attest.tsx';
 import { Acct, Info, ago, useApp, useNow } from './ui.tsx';
 import { signMessage } from './wallet.ts';
 import './evidence.css';
+import { Waiting } from './Waiting.tsx';
 
 // The Evidence tab: who is behind this startup, with a source and a fetch time on every item, and the AI research
 // brief written from that evidence alone (a TEE model on NEAR AI Cloud; code drops every line without a valid
@@ -212,7 +213,7 @@ function BriefPanel({ ev, reload }: { ev: EvidenceView; reload: () => void }) {
         {b?.signed && b.model && <PrivateAiBadge src={{ kind: 'brief', startup: ev.startup.id }} model={b.model} what="brief" />}
         {b && !b.signed && <span className="tee off" title="Written without NEAR AI: only the facts and rule checks, nothing to verify">facts only, no AI</span>}
       </header>
-      {!b && <p className="muted">{ev.generating ? 'Writing the first brief from the evidence (about half a minute)…' : 'No brief yet.'}</p>}
+      {!b && (ev.generating ? <Waiting lines={['Writing the first brief from the evidence (about half a minute)…']} /> : <p className="muted">No brief yet.</p>)}
       {b && (
         <>
           <p className="muted small">

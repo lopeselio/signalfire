@@ -12,6 +12,7 @@ import { StartupPage } from './Startup.tsx';
 import { friendly } from './copy.ts';
 import { Ctx, Flame, shortAcct, type AppCtx, type RunCopy } from './ui.tsx';
 import { signIn as walletSignIn, signOut } from './wallet.ts';
+import { Waiting } from './Waiting.tsx';
 
 // The shell: routing by path (/, /discover, /s/:id, /creators, /dashboard, /launch, /plan, /how), the header, polling and toasts.
 
@@ -135,7 +136,7 @@ export function App() {
         </div>
       </header>
       <main>
-        {!state && !stateError && <div className="loading">Loading live numbers from NEAR…</div>}
+        {!state && !stateError && <div className="loading"><Waiting lines={['Loading live numbers from NEAR…']} /></div>}
         {!state && stateError && <div className="error-box" title={stateError}>Signalfire isn’t responding right now. We’ll keep trying every few seconds.</div>}
         {state && route.page === 'home' && <Landing />}
         {state && route.page === 'startup' && <StartupPage id={route.id} />}
