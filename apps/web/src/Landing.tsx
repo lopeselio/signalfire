@@ -159,8 +159,8 @@ export function Landing() {
 
       <section className="ld-steps rv" aria-label="How it works in 3 steps">
         <h2>How it works, in 3 steps</h2>
-        <ol>
-          {STEPS.map((x, i) => <li key={x.t}><span className="ld-step-n" aria-hidden="true">{i + 1}</span><h3>{x.t}</h3><p>{x.b}</p></li>)}
+        <ol className="step-path">
+          {STEPS.map((x, i) => <li key={x.t}><span className="sp-node" aria-hidden="true">{i + 1}</span><h3>{x.t}</h3><p>{x.b}</p></li>)}
         </ol>
         <details className="tech ld-fine">
           <summary>The fine print: token terms, spend limits and a real campaign</summary>

@@ -691,5 +691,5 @@ details.tech[open] > summary { margin-bottom: 4px; }
 .step-path.vertical > li:not(:last-child)::after { left: calc(var(--sp-pad) + var(--sp-size) / 2 - 2px); top: calc(var(--sp-pad) + var(--sp-size)); bottom: calc(-1 * (var(--sp-gap) + var(--sp-pad))); width: 4px; }
 @media (max-width: 980px) {
   /* a side-by-side path of cards that has wrapped into one column joins them downwards, across the gap */
-  .steps3 .step-path > li:not(:last-child)::after { top: calc(100% + 2px); left: calc(var(--sp-pad) + var(--sp-size) / 2 - 2px); right: auto; width: 4px; height: calc(var(--sp-gap) - 4px); }
+  .ld-steps .step-path > li:not(:last-child)::after { top: calc(100% + 2px); left: calc(var(--sp-pad) + var(--sp-size) / 2 - 2px); right: auto; width: 4px; height: calc(var(--sp-gap) - 4px); }
 }
