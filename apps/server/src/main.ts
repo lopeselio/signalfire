@@ -4,10 +4,9 @@ import { extname, join, normalize } from 'node:path';
 import { fmtTusd, openingMatches, pitchHash, priceAt } from '@signalfire/core';
 import { BRIEF_EVERY_MS, BRIEF_SAME_STARTUP_MS, outlayerRequestId, outlayerRuns, startAgents } from './agents.ts';
 import { BA_PATH, accountFromHeaders, authHandler } from './ba.ts';
-import { rpc, view } from './chain.ts';
+import { rpc, view, viewNow } from './chain.ts';
 import { config, explorerTx, hasKey } from './config.ts';
 import { evidenceRoute } from './evidence/routes.ts';
-import { ftBalance } from './hub.ts';
 import { NRAS_URL } from '@signalfire/attest';
 import { attestation, modelE2eeKey, nearAiEnabled, type Signed } from './nearai.ts';
 import { BRIEFS, CREATORS, HOLDERS, SCOUT } from './personas.ts';
@@ -314,15 +313,15 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (p === '/api/me') {
       if (!me) return json(res, 401, { error: 'not signed in' });
       const s = await snapshot();
-      const tokens = await Promise.all(s.startups.map(async (st) => ({ startup: st.id, balance: await ftBalance(st.token, me), holder: (s.holders[st.id] ?? []).includes(me), founder: st.founder === me })));
-      return json(res, 200, {
-        accountId: me,
-        tokens,
-        wallet: await view('get_wallet', { account: me }).catch(() => null),
-        creator: s.creators.find((x) => x.creator.account === me) ?? null,
-        application: await view('get_application', { account: me }).catch(() => null),
-        tusd: s.config.tusd ? await ftBalance(s.config.tusd, me) : '0',
-      });
+      // the person is waiting: these reads skip the background queue (viewNow) and run together
+      const bal = (token: string): Promise<string> => viewNow<string>(token, 'ft_balance_of', { account_id: me }).catch(() => '0');
+      const [tokens, wallet, application, tusd] = await Promise.all([
+        Promise.all(s.startups.map(async (st) => ({ startup: st.id, balance: await bal(st.token), holder: (s.holders[st.id] ?? []).includes(me), founder: st.founder === me }))),
+        viewNow(config.hub, 'get_wallet', { account: me }).catch(() => null),
+        viewNow(config.hub, 'get_application', { account: me }).catch(() => null),
+        s.config.tusd ? bal(s.config.tusd) : Promise.resolve('0'),
+      ]);
+      return json(res, 200, { accountId: me, tokens, wallet, creator: s.creators.find((x) => x.creator.account === me) ?? null, application, tusd });
     }
     if (p === '/api/e2ee-key') {
       // the model key this server would seal to; browsers verify the model's attestation themselves and must match it
