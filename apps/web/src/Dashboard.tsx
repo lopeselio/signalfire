@@ -21,7 +21,7 @@ export function Dashboard() {
     <div className="dashboard">
       <section className="page-head">
         <p className="eyebrow">Dashboard</p>
-        <h1>Where the attention money went</h1>
+        <h1>Follow every fee to where it went</h1>
         <p className="lede">Every number here is read live from Signalfire’s contract<Info text={`The hub contract, ${s.hub}, and each startup’s Sputnik DAO`} /> and the holders’ councils on NEAR’s test network, refreshed every five seconds.</p>
         <NextAction page="dashboard" />
       </section>
@@ -61,7 +61,7 @@ export function Dashboard() {
 
       <div className="split even">
         <section className="panel">
-          <h2>Cost per new buyer</h2>
+          <h2>What each new buyer cost</h2>
           {done.length === 0 && <p className="muted">No campaign has finished yet.</p>}
           <div className="tbl-wrap">
             <table className="tbl">
@@ -81,7 +81,7 @@ export function Dashboard() {
           </div>
         </section>
         <section className="panel">
-          <h2>Creators’ records</h2>
+          <h2>How each creator has done</h2>
           <div className="tbl-wrap">
             <table className="tbl">
               <thead><tr><th>Creator</th><th className="r">Won</th><th className="r">Done</th><th className="r">Missed</th><th className="r">Buyers</th><th className="r">tUSD</th><th className="r">Rep.</th></tr></thead>

@@ -40,7 +40,7 @@ export function HowItWorks() {
     <div className="how">
       <section className="page-head">
         <p className="eyebrow">How it works</p>
-        <h1>From a trade to a paid campaign, <em>end to end</em></h1>
+        <h1>Follow one trade all the way to <em>a paid creator</em></h1>
         <p className="lede">
           Signalfire turns trading in a startup’s attention token into a marketing budget that only creators can earn, by
           bringing in new buyers. One contract, the hub, enforces every rule below; agents and people act on it.
