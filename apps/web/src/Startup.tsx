@@ -14,6 +14,7 @@ import { FLAG, auditNote, auditResult, auditWhat } from './copy.ts';
 import { founderOf } from './Discover.tsx';
 import { Acct, Chip, Info, Near, SignInHint, TeeBadge, Terms, ago, flagKind, fmtLeft, useApp, useNow } from './ui.tsx';
 import { call } from './wallet.ts';
+import { NextAction } from './NextAction.tsx';
 
 // A startup: its market (chart, trade, supply and fees) and its treasury (ledger, constraints, campaigns,
 // DAO votes, milestones, the audit log).
@@ -35,6 +36,12 @@ export function StartupPage({ id }: { id: string }) {
     const t = setInterval(load, 5000);
     return () => { on = false; clearInterval(t); };
   }, [id]);
+  useEffect(() => {
+    // NextAction (and anything else) can switch the tab when it takes you to a panel on this page
+    const on = (e: Event): void => { const t = (e as CustomEvent<string>).detail; if (t === 'market' || t === 'treasury' || t === 'evidence') setTab(t); };
+    window.addEventListener('signalfire:tab', on);
+    return () => window.removeEventListener('signalfire:tab', on);
+  }, []);
   if (!s) return <div className="error-box">There’s no startup called “{id}” on Signalfire.</div>;
   const sym = s.id.toUpperCase();
   return (
@@ -54,6 +61,7 @@ export function StartupPage({ id }: { id: string }) {
           <span className="l">per {sym}, current price<Info text="Set by the price curve (bonding curve): it rises as people buy and falls as they sell." /></span>
         </div>
       </section>
+      <NextAction page="startup" startup={s.id} />
       <div className="tabs" role="tablist">
         <button role="tab" data-tour="tab-market" aria-selected={tab === 'market'} className={tab === 'market' ? 'on' : ''} onClick={() => setTab('market')}>Market</button>
         <button role="tab" data-tour="tab-treasury" aria-selected={tab === 'treasury'} className={tab === 'treasury' ? 'on' : ''} onClick={() => setTab('treasury')}>Marketing fund and campaigns</button>
