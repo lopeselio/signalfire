@@ -141,8 +141,8 @@ function Thesis() {
       <p className="eyebrow">Thesis</p>
       <h2>Why agent-run marketing treasuries belong on NEAR</h2>
       <p>
-        Attention tokens work: people trade a token because a project is interesting. On most launchpads the fees and the
-        founders’ allocation go to the founders, so the community that bought the story pays for an exit. Signalfire changes
+        Attention tokens work: people trade a token because a project is interesting. On most launchpads the fees and a share of the
+        tokens go to the founders, so the community that bought the story pays for the founders’ exit. Signalfire changes
         where the money can go: fees can only buy reach, through campaigns creators bid for and holders approve, paid as new
         buyers arrive. That only works if many small actions (bids, votes, buys, payouts) are cheap, fast and checkable, and if
         the agents doing them can’t move money they shouldn’t. That is the claim; below is the evidence, recomputed from chain data.
