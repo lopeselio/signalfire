@@ -3,7 +3,7 @@ import { fmtNear, fmtTokens, fmtTusd } from '@signalfire/core';
 import { api } from './api.ts';
 import { StartupLogo } from './Discover.tsx';
 import { Count } from './motion.tsx';
-import { Acct, Chip, Near, useApp } from './ui.tsx';
+import { Acct, Chip, Info, Near, useApp } from './ui.tsx';
 
 // Public data, read live from the chain through /api/state, and the thesis with its evidence (/api/thesis, the same
 // computation as `pnpm thesis`, which anyone can re-run against public RPC).
@@ -21,12 +21,12 @@ export function Dashboard() {
       <section className="page-head">
         <p className="eyebrow">Dashboard</p>
         <h1>Where the attention money went</h1>
-        <p className="lede">Every number here is read from <Acct a={s.hub} full /> and the startups’ DAOs on NEAR testnet, refreshed every five seconds.</p>
+        <p className="lede">Every number here is read live from Signalfire’s contract<Info text={`The hub contract, ${s.hub}, and each startup’s Sputnik DAO`} /> and the holders’ councils on NEAR’s test network, refreshed every five seconds.</p>
       </section>
 
       <section className="stats" aria-label="Totals">
         <div><span className="n"><Count value={fmtNear(t.volume, 2)} /><small> NEAR</small></span><span className="l">traded</span></div>
-        <div><span className="n"><Count value={fmtNear(t.feesIn, 3)} /><small> NEAR</small></span><span className="l">into marketing treasuries (fees and bonds)</span></div>
+        <div><span className="n"><Count value={fmtNear(t.feesIn, 3)} /><small> NEAR</small></span><span className="l">into marketing funds (fees and kept deposits)</span></div>
         <div><span className="n"><Count value={fmtNear(t.paid, 3)} /><small> NEAR</small></span><span className="l">paid to creators ({fmtTusd(t.tusdPaid)} tUSD)</span></div>
         <div><span className="n">{t.done}/{t.funded}</span><span className="l">campaigns paid out / funded</span></div>
         <div><span className="n"><Count value={String(t.results)} /></span><span className="l">new buyers from completed campaigns</span></div>
@@ -37,7 +37,7 @@ export function Dashboard() {
         <h2>Startups</h2>
         <div className="tbl-wrap">
           <table className="tbl">
-            <thead><tr><th>Startup</th><th className="r">Price (NEAR)</th><th className="r">Circulating</th><th className="r">Fees in (NEAR)</th><th className="r">Treasury free (NEAR)</th><th className="r">Paid out (NEAR)</th><th className="r">Campaigns</th><th className="r">Buyers</th><th className="r">Holders</th></tr></thead>
+            <thead><tr><th>Startup</th><th className="r">Price (NEAR)</th><th className="r">Tokens held</th><th className="r">Fees collected (NEAR)</th><th className="r">Available in fund (NEAR)</th><th className="r">Paid out (NEAR)</th><th className="r">Campaigns</th><th className="r">Buyers</th><th className="r">Holders</th></tr></thead>
             <tbody>
               {s.startups.map((st) => (
                 <tr key={st.id} className="clickable" onClick={() => go(`/s/${st.id}`)}>
@@ -59,11 +59,11 @@ export function Dashboard() {
 
       <div className="split even">
         <section className="panel">
-          <h2>Cost per result</h2>
+          <h2>Cost per new buyer</h2>
           {done.length === 0 && <p className="muted">No campaign has finished yet.</p>}
           <div className="tbl-wrap">
             <table className="tbl">
-              <thead><tr><th>Campaign</th><th>Creator</th><th className="r">Spend (NEAR)</th><th className="r">Buyers</th><th className="r">Per buyer (NEAR)</th></tr></thead>
+              <thead><tr><th>Campaign</th><th>Creator</th><th className="r">Spent (NEAR)</th><th className="r">Buyers</th><th className="r">Per buyer (NEAR)</th></tr></thead>
               <tbody>
                 {done.map((c) => (
                   <tr key={c.id}>
@@ -102,17 +102,17 @@ export function Dashboard() {
       </div>
 
       <section className="panel solvency">
-        <h2>Can the hub pay everyone?</h2>
-        <p className="small">What the hub owes in NEAR (curve reserves, treasuries, agent wallets, the tUSD desk’s backing) next to what it holds.</p>
+        <h2>Can Signalfire pay everyone?</h2>
+        <p className="small">What Signalfire’s contract owes in NEAR (buy-back pools, marketing funds, Signalfire balances, the NEAR behind tUSD) next to what it holds.</p>
         <dl className="facts">
-          <div><dt>Curve reserves</dt><dd><Near y={s.solvency.reserves ?? '0'} /></dd></div>
-          <div><dt>Marketing treasuries</dt><dd><Near y={s.solvency.treasuries ?? '0'} /></dd></div>
-          <div><dt>Agent and creator wallets</dt><dd><Near y={s.solvency.wallets ?? '0'} /></dd></div>
-          <div><dt>tUSD desk backing</dt><dd><Near y={s.solvency.desk_reserve ?? '0'} /></dd></div>
+          <div><dt>Buy-back pools</dt><dd><Near y={s.solvency.reserves ?? '0'} /></dd></div>
+          <div><dt>Marketing funds</dt><dd><Near y={s.solvency.treasuries ?? '0'} /></dd></div>
+          <div><dt>Signalfire balances (agents and creators)</dt><dd><Near y={s.solvency.wallets ?? '0'} /></dd></div>
+          <div><dt>NEAR behind tUSD</dt><dd><Near y={s.solvency.desk_reserve ?? '0'} /></dd></div>
           <div className="strong"><dt>Owed in total</dt><dd><Near y={owed} /></dd></div>
-          <div className="strong"><dt>Hub balance</dt><dd><Near y={balance} /> <small className="muted">({fmtNear(storage, 2)} NEAR of it locked for contract storage)</small></dd></div>
+          <div className="strong"><dt>Contract balance</dt><dd><Near y={balance} /> <small className="muted">({fmtNear(storage, 2)} NEAR of it reserved by NEAR for data storage)</small></dd></div>
         </dl>
-        <p className={balance - storage >= owed ? 'ok-text small' : 'bad-text small'}>{balance - storage >= owed ? 'Covered: the hub’s free balance exceeds everything it owes.' : 'Not covered: the hub owes more than its free balance.'}</p>
+        <p className={balance - storage >= owed ? 'ok-text small' : 'bad-text small'}>{balance - storage >= owed ? 'Covered: Signalfire holds more than everything it owes.' : 'Not covered: Signalfire owes more than it holds right now.'}</p>
       </section>
 
       <Thesis />
