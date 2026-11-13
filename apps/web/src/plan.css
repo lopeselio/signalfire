@@ -1,23 +1,24 @@
-/* The Plan page's layout. Colours and type come from style.css's variables. */
-.plan .muted { color: var(--ash-2); }
-.plan-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr); gap: 18px; align-items: start; }
-.plan-controls { position: sticky; top: 76px; display: grid; gap: 18px; }
+/* The Plan page's layout. Colours, radii, type and spacing come from style.css's theme tokens. */
+.plan .muted { color: var(--ink-2); }
+.plan-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr); gap: var(--sp-4); align-items: start; }
+.plan-controls { position: sticky; top: 76px; display: grid; gap: var(--sp-4); }
 .plan-controls h2 { margin: 0; }
 .plan-controls select { width: 100%; }
 .plan-slider { display: grid; gap: 6px; }
-.ps-top { display: flex; justify-content: space-between; gap: 10px; font-weight: 600; }
-.ps-top b { font: 600 17px var(--display); color: var(--ember-2); white-space: nowrap; }
-.plan-slider input[type='range'] { width: 100%; accent-color: var(--ember); height: 28px; margin: 0; }
+.ps-top { display: flex; justify-content: space-between; gap: var(--sp-3); font-weight: 800; }
+.ps-top b { font: 700 17px var(--font-num); color: var(--fire-ink); white-space: nowrap; }
+.plan-slider input[type='range'] { width: 100%; accent-color: var(--fire-btn); height: 28px; margin: 0; }
 .plan-out { display: grid; gap: 0; min-width: 0; }
 .plan-card h2, .plan-card h3 { margin: 0 0 8px; }
 .plan-card h2 { font-size: clamp(20px, 2.4vw, 26px); }
 .plan-card p:last-child { margin-bottom: 0; }
-.plan-card.hero-card { border: 2px solid var(--ember); }
+.plan-card.hero-card { border-color: var(--fire); }
 .plan-ms { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 10px; }
-.plan-ms li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--night-3); }
-.pm-node { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--ember); color: #fff; font: 700 15px var(--display); }
+.plan-ms li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; padding: var(--sp-3); border-radius: var(--r); background: var(--surface-3); }
+.pm-node { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--fire-wash); color: var(--fire-ink); border: 2px solid var(--fire); font: 800 15px var(--font-display); }
 .pm-amt { text-align: right; }
-.pm-amt small { display: block; color: var(--ash-2); }
+.pm-amt { font-family: var(--font-num); }
+.pm-amt small { display: block; color: var(--ink-2); font-family: var(--font-body); }
 .plan-rep { width: 100%; font-size: 13.5px; }
 .plan-rep td:last-child, .plan-rep th:last-child { text-align: right; }
 .plan-time { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
