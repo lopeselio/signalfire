@@ -5,7 +5,7 @@ import {
 } from '@signalfire/core';
 import { api, type Startup } from './api.ts';
 import { PrivateAiBadge } from './Attest.tsx';
-import { Acct, ago, useApp, useNow } from './ui.tsx';
+import { Acct, Info, ago, useApp, useNow } from './ui.tsx';
 import { signMessage } from './wallet.ts';
 import './evidence.css';
 
@@ -25,10 +25,10 @@ interface EvidenceView {
 }
 
 const GROUPS: { key: EvidenceItem['group']; title: string; note: string }[] = [
-  { key: 'links', title: 'Founder-linked sources', note: 'GitHub and X accounts the founder linked. Verified means the founder’s NEAR wallet signed the link and that account published the signature.' },
+  { key: 'links', title: 'Founder-linked sources', note: 'GitHub and X accounts the founder linked. Verified means the founder’s wallet signed a note naming the account, and the account posted it.' },
   { key: 'founder', title: 'Founder history', note: 'The founder’s NEAR account and what they launched here before.' },
-  { key: 'shipped', title: 'Shipped work', note: 'Read only for verified links: a claimed repository is the founder’s say-so.' },
-  { key: 'onchain', title: 'Onchain track record', note: 'Read from the hub contract: the treasury, campaigns, buyers and the creators who ran them.' },
+  { key: 'shipped', title: 'Shipped work', note: 'Shown only for verified links. A claimed but unproven link is only the founder’s word.' },
+  { key: 'onchain', title: 'Track record on Signalfire', note: 'Read from Signalfire’s contract: the marketing fund, campaigns, buyers and the creators who ran them.' },
 ];
 
 export function useEvidence(id: string) {
@@ -56,14 +56,14 @@ export function EvidenceTab({ s }: { s: Startup }) {
       <section className="panel ev-intro">
         <p className="small">
           <strong>Evidence about the team, with a source on every item.</strong> It helps you look before you back {s.name}; it isn’t advice, and an
-          attention token is not equity or a claim on anything. The research brief below is a model’s reading of this evidence and nothing else:
-          facts and inference are kept apart, every line cites its sources, and lines without one are removed by code.
+          attention token is not equity or a claim on anything. The research brief below is an AI’s reading of this evidence and nothing else:
+          facts and the AI’s interpretation are kept apart, every line cites its sources, and code removes any line that doesn’t.
         </p>
         <SummaryChips sum={ev.summary} />
         {demo && (
           <p className="ev-demo small">
-            <strong>Demo startup.</strong> {s.name}’s founder is fictional and the Signalfire operator (<Acct a={state!.operator} />) runs it on testnet,
-            so it has no verified repository or founder links: only its onchain record is real.
+            <strong>Demo startup.</strong> {s.name}’s founder is fictional and the Signalfire team<Info text={`Operator account ${state!.operator}`} /> runs it on the test network,
+            so it has no verified code or founder links. Only its record on Signalfire is real.
           </p>
         )}
       </section>
@@ -86,7 +86,11 @@ export function EvidenceTab({ s }: { s: Startup }) {
             );
           })}
           {ev.errors.length > 0 && <p className="muted small">Couldn’t fetch: {ev.errors.join('; ')} (shown again when the source answers).</p>}
-          <p className="muted small">Evidence hash <code>{ev.evidenceHash.slice(0, 16)}…</code> · full bundle: <a href={`/api/evidence/${s.id}/proof`} target="_blank" rel="noreferrer">proof (JSON)</a> · recheck it with <code>pnpm verify-brief {s.id}</code></p>
+          <p className="muted small">All evidence: <a href={`/api/evidence/${s.id}/proof`} target="_blank" rel="noreferrer">proof (JSON)</a></p>
+          <details className="tech">
+            <summary>Check it yourself</summary>
+            <p className="muted small">Evidence fingerprint <code>{ev.evidenceHash}</code> · <code>pnpm verify-brief {s.id}</code></p>
+          </details>
         </div>
       </div>
     </div>
@@ -97,11 +101,11 @@ function SummaryChips({ sum }: { sum: EvidenceSummary }) {
   return (
     <p className="ev-chips">
       <span className={`chip ${sum.verifiedLinks ? 'ok' : 'smoke'}`}>{sum.verifiedLinks ? `${sum.verifiedLinks} verified founder link${sum.verifiedLinks > 1 ? 's' : ''}` : 'no verified founder links'}</span>
-      <span className={`chip ${sum.verifiedRepos ? 'ok' : 'smoke'}`}>{sum.verifiedRepos ? `${sum.verifiedRepos} verified repo${sum.verifiedRepos > 1 ? 's' : ''}` : 'no verified repository'}</span>
-      {sum.verifiedRepos > 0 && <span className={`chip ${sum.repoActive30 ? 'ok' : 'warn'}`}>{sum.repoActive30 ? 'commits in the last 30 days' : 'no commits in 30 days'}</span>}
+      <span className={`chip ${sum.verifiedRepos ? 'ok' : 'smoke'}`}>{sum.verifiedRepos ? `${sum.verifiedRepos} verified code repositor${sum.verifiedRepos > 1 ? 'ies' : 'y'}` : 'no verified code'}</span>
+      {sum.verifiedRepos > 0 && <span className={`chip ${sum.repoActive30 ? 'ok' : 'warn'}`}>{sum.repoActive30 ? 'code updated in the last 30 days' : 'no code updates in 30 days'}</span>}
       {sum.claimed > 0 && <span className="chip warn">{sum.claimed} claimed, not proven</span>}
       <span className={`chip ${sum.delivered ? 'ok' : 'smoke'}`}>{sum.delivered} campaign{sum.delivered === 1 ? '' : 's'} delivered</span>
-      {sum.ageDays !== null && <span className={`chip ${sum.ageDays < 7 ? 'bad' : 'smoke'}`}>founder account {sum.ageDays} day{sum.ageDays === 1 ? '' : 's'} old</span>}
+      {sum.ageDays !== null && <span className={`chip ${sum.ageDays < 7 ? 'bad' : 'smoke'}`}>founder’s NEAR account is {sum.ageDays} day{sum.ageDays === 1 ? '' : 's'} old</span>}
     </p>
   );
 }
@@ -157,24 +161,23 @@ function BriefPanel({ ev, reload }: { ev: EvidenceView; reload: () => void }) {
       <header className="ev-brief-head">
         <h2>AI research brief</h2>
         {b?.signed && b.model && <PrivateAiBadge src={{ kind: 'brief', startup: ev.startup.id }} model={b.model} what="brief" />}
-        {b && !b.signed && <span className="tee off" title="Written without NEAR AI: the facts and rule checks only, unsigned">facts only, no AI</span>}
+        {b && !b.signed && <span className="tee off" title="Written without NEAR AI: only the facts and rule checks, nothing to verify">facts only, no AI</span>}
       </header>
       {!b && <p className="muted">{ev.generating ? 'Writing the first brief from the evidence (about half a minute)…' : 'No brief yet.'}</p>}
       {b && (
         <>
           <p className="muted small">
-            Written {ago(b.at, now)} {b.trigger === 'request' ? 'on request' : 'automatically'} from {b.evidence.length} sources
-            (evidence hash <code>{b.evidenceHash.slice(0, 12)}…</code>){b.model ? ` by ${b.model} in a TEE on NEAR AI Cloud` : ''}. It is rewritten every {ev.everyHours} hours.
+            Written {ago(b.at, now)} {b.trigger === 'request' ? 'on request' : 'automatically'} from {b.evidence.length} sources{b.model ? ' by NEAR AI’s private AI' : ''}<Info text={`Evidence hash ${b.evidenceHash}${b.model ? `; model ${b.model}, in a TEE on NEAR AI Cloud` : ''}`} />. It’s rewritten every {ev.everyHours} hours.
             {!b.parsed && b.signed && ' The model’s reply couldn’t be read, so only the facts and rule checks are shown.'}
           </p>
           <h3 className="ev-sec">Observed <span className="muted small">facts from the sources, each cited</span></h3>
           <Lines lines={b.brief.observed} items={b.evidence} empty="No observations." />
-          <h3 className="ev-sec ev-ai">AI reading <span className="small">inference by the model, not fact</span></h3>
+          <h3 className="ev-sec ev-ai">AI reading <span className="small">the AI’s interpretation, not fact</span></h3>
           <div className="ev-reading"><Lines lines={b.brief.reading} items={b.evidence} empty="No inference offered." /></div>
           <h3 className="ev-sec">Gaps and red flags</h3>
           <p className="muted small ev-sub">Rule checks (computed by code, not the model)</p>
           <ul className="ev-lines ev-flags">{b.flags.length ? b.flags.map((f, k) => <li key={k} className={f.level}>{f.text} <Cites ids={f.cites} items={b.evidence} /></li>) : <li className="muted">None.</li>}</ul>
-          {b.brief.gaps.length > 0 && <><p className="muted small ev-sub">Noted by the model</p><Lines lines={b.brief.gaps} items={b.evidence} empty="" /></>}
+          {b.brief.gaps.length > 0 && <><p className="muted small ev-sub">Noted by the AI</p><Lines lines={b.brief.gaps} items={b.evidence} empty="" /></>}
           <h3 className="ev-sec">What to check yourself</h3>
           <Lines lines={b.brief.check} items={b.evidence} empty="Open each source on the right." />
           {b.dropped.length > 0 && (
@@ -191,9 +194,9 @@ function BriefPanel({ ev, reload }: { ev: EvidenceView; reload: () => void }) {
         {askErr && <span className="bad-text small">{askErr}</span>}
       </div>
       <p className="muted small">
-        The model sees only the evidence on this page. It never decides anything here and gives no buy, sell or price advice; code removes any line
-        that does, any line without a valid citation, and any number its sources don’t hold, and keeps the model’s inference apart from the facts.
-        Recheck all of it without trusting us: <code>pnpm verify-brief {ev.startup.id}</code>.
+        The AI sees only the evidence on this page. It decides nothing and gives no buy, sell or price advice. Code removes any line that does,
+        any line without a source, and any number the sources don’t contain, and keeps the AI’s interpretation apart from the facts.
+        {' '}<a href="/how#verify">Check it yourself</a><Info text={`pnpm verify-brief ${ev.startup.id}`} />.
       </p>
     </section>
   );
@@ -226,8 +229,8 @@ function LinksPanel({ ev, s }: { ev: EvidenceView; s: Startup }) {
         ))}
       </ul>
       {account === s.founder
-        ? <p className="small">You’re the founder: link and prove your accounts in the <strong>Founder’s desk</strong> (tab Treasury and campaigns).</p>
-        : <p className="muted small">A founder gets the full brief by linking their GitHub and X and proving each one: their wallet signs a message naming this startup and the account, and they publish the signature from that account.</p>}
+        ? <p className="small">You’re the founder: link and prove your accounts in the <strong>Founder’s desk</strong> (tab Marketing fund and campaigns).</p>
+        : <p className="muted small">A founder gets the full brief by linking their GitHub and X and proving each one: their wallet signs a short note naming this startup and the account, and they post that note from the account.</p>}
     </section>
   );
 }
