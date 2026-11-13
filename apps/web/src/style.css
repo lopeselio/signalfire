@@ -489,3 +489,11 @@ main > * { animation: page-in var(--dur-2) var(--ease) both; }
 .thesis .evidence h3 { margin-top: 26px; }
 .thesis .evidence .tbl { font-size: 13px; }
 .thesis .evidence ul.plain li { color: var(--ash-2); }
+
+/* plain labels keep their technical term in a hover/focus tooltip */
+.info { display: inline-block; margin-left: 4px; font-size: 0.85em; color: var(--smoke); cursor: help; vertical-align: baseline; }
+.info:focus-visible { outline: 2px solid var(--ember); border-radius: 50%; }
+details.tech { margin-top: 6px; font-size: 13px; }
+details.tech > summary { cursor: pointer; color: var(--smoke); }
+details.tech[open] > summary { margin-bottom: 4px; }
+.raw-toggle { float: right; }

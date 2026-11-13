@@ -107,3 +107,64 @@ const REFUSAL: Record<string, string> = {
   'not enough NEAR in the wallet': "there isn't enough NEAR in your Signalfire balance",
 };
 export const refusalText = (raw: string): string => REFUSAL[raw] ?? raw;
+
+/** An audit entry's action and outcome in plain words (the raw values stay in the audit log's Raw view). */
+export function auditWhat(action: string, outcome: string): string {
+  if (action === 'constraints') return 'Spend limits changed';
+  if (action === 'vet') return outcome === 'admitted' ? 'Creator approved' : outcome === 'rejected' ? 'Creator turned away: copycat name' : `Creator review: ${outcome}`;
+  if (action === 'revoke') return 'Creator removed';
+  if (action === 'bond_forfeit') return 'Deposit kept for the marketing fund';
+  if (action === 'fund') return 'Campaign funded by the holders’ vote';
+  if (action === 'payout') {
+    const p: Record<string, string> = {
+      paid: 'Payout sent', 'held:over_cap': 'Payout held: over the payment limit', 'held:rate_limit': 'Payout held: hourly limit reached',
+      'held:payee_revoked': 'Payout held: creator removed', 'failed:transfer': 'Payout failed and was undone',
+    };
+    return p[outcome] ?? `Payout: ${outcome}`;
+  }
+  if (action === 'expire') return 'Deadline passed: unpaid budget returned';
+  if (action === 'agent_setup') return 'Keyless payout agent set up';
+  if (action === 'agent_enabled') return outcome === 'off' ? 'Keyless payout agent switched off' : 'Keyless payout agent switched on';
+  if (action === 'scorer_set') return 'Private scoring program set';
+  if (action === 'scorer_key') return 'Private scoring key published';
+  if (action === 'sealed_abandoned') return 'Private scoring timed out: deposits returned';
+  return action;
+}
+
+/** An audit entry's note in plain words. */
+export function auditNote(action: string, note: string): string {
+  if (action === 'constraints') return 'Spend limits updated';
+  if (action === 'vet') {
+    if (note.startsWith('report ')) return 'Review report on file';
+    const m = /^lookalike of (.+)$/.exec(note);
+    if (m) return `Name too close to ${m[1]}`;
+  }
+  if (action === 'bond_forfeit') {
+    if (note === 'bid never revealed') return 'Offer never opened';
+    if (note === 'sealed bid did not open to its commitment') return 'Sealed offer didn’t match what was sealed';
+  }
+  if (action === 'fund') { const m = /^DAO proposal (\d+)$/.exec(note); if (m) return `Funding vote #${m[1]}`; }
+  if (action === 'payout') {
+    const m = /^milestone (\d+): ([^·]+?)(?: ·.*)?$/.exec(note);
+    if (m) return `Payout ${m[1]} of 3: ${m[2]}`;
+  }
+  if (action === 'expire') return note.replace(/(\d+) of (\d+) results/, '$1 of $2 new buyers');
+  if (action === 'agent_setup') return 'Key created by NEAR’s signing network';
+  if (action === 'sealed_abandoned') return 'No winner; every deposit returned';
+  if (action === 'scorer_set' || action === 'scorer_key') return 'Fingerprints in Raw view';
+  return note;
+}
+
+/** An audit flag in plain words (the raw code is kept as the chip's title). */
+export const FLAG: Record<string, string> = {
+  burst: 'rapid payments', new_payee: 'first payment to this creator', over_cap: 'over limit', rate_limit: 'hourly limit',
+  lookalike: 'copycat name', keyless_agent: 'sent by keyless agent', outlayer: 'private scoring',
+};
+
+/** An audit outcome as a short plain chip (colour still comes from the raw value). */
+export function auditResult(outcome: string): string {
+  const m: Record<string, string> = { admitted: 'approved', committed: 'funded', set: 'done', to_treasury: 'kept', rejected: 'turned away' };
+  if (outcome.startsWith('held')) return 'held';
+  if (outcome.startsWith('failed')) return 'failed';
+  return m[outcome] ?? outcome;
+}
