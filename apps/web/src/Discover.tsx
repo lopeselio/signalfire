@@ -6,6 +6,7 @@ import { useApp, useNow } from './ui.tsx';
 import { STAGES, activeCampaign, campaignStage, delivered, stagesOf, useTrades24h, type Stage } from './landing/stage.ts';
 import { whenNext } from './tour/state.ts';
 import { NextAction } from './NextAction.tsx';
+import { FireMark } from './FireMark.tsx';
 import './landing/landing.css';
 
 // Discover: every startup on the hub as a card, in tabs by where its campaign stands (landing/stage.ts). One big
@@ -64,10 +65,7 @@ const Arrow = () => (
 function CardFlame({ level, lit }: { level: number; lit: boolean }) {
   const k = 0.45 + 0.55 * Math.max(0, Math.min(1, level));
   return (
-    <svg className={`s-flame${lit ? ' lit' : ''}`} viewBox="0 0 24 30" width="22" height="28" style={{ ['--k' as string]: k.toFixed(2) }} role="img" aria-label={`Marketing fund at ${Math.round(level * 100)}% of the largest${lit ? ', campaign open' : ''}`}>
-      <path className="f-out" d="M12 1.5c3.4 5 8 8.300 8 15.200a8 8 0 0 1-16 0c0-4.300 3.100-6.600 4.600-10.400 1.900 2.300 2.300 4.300 2.300 6.200C12.600 9 12.800 5.200 12 1.500z" />
-      <path className="f-in" d="M12 13c1.700 2.400 3.600 3.800 3.600 6.600a3.600 3.600 0 0 1-7.200 0c0-1.900 1.300-3 2-4.600.9 1 1.100 1.900 1.100 2.800.5-1.600.8-3.200.5-4.800z" />
-    </svg>
+    <FireMark className="s-flame" dim={!lit} style={{ ['--k' as string]: k.toFixed(2) }} label={`Marketing fund at ${Math.round(level * 100)}% of the largest${lit ? ', campaign open' : ''}`} />
   );
 }
 
