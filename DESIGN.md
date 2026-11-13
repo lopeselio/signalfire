@@ -9,7 +9,7 @@ campaigns paid from that treasury. Token holders vote in the startup's **Sputnik
 The treasury pays the creator in milestones, only as **attributable results** arrive onchain (new buyers who came
 through the campaign's referral code), in a testnet stablecoin, through a **spend policy** with an audit log.
 
-> Community attention becomes a marketing budget the founders can't pocket.
+> **Turn buzz into real customers.** Community attention becomes a marketing budget that creators earn only by bringing in new buyers, and the founders can't pocket.
 
 The attention token is **not equity and not a claim on revenue or on the treasury**. It says so in the token's
 name, in the contract (`terms()`), and in the UI. Testnet only: no real money anywhere.

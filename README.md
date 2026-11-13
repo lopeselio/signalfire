@@ -1,6 +1,7 @@
 # Signalfire
 
-**Community attention becomes a marketing budget the founders can't pocket.**
+**Turn buzz into real customers.**
+Community attention becomes a marketing budget that creators earn only by bringing in new buyers, and the founders can't pocket.
 
 A startup launches an **attention token** on NEAR. People trade it on a bonding curve. Every trade pays a 2% fee,
 and the contract sends that fee to one place only: the startup's **marketing treasury**. Vetted creators (people
