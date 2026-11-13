@@ -149,7 +149,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section className="now rv" aria-label="Happening now">
+      <section className="ld-now rv" aria-label="Happening now">
         <div className="sec-head"><h2>Happening now</h2><button className="ghost small" onClick={() => go('/discover')}>Every campaign</button></div>
         <div className="now-grid">
           <Featured />
