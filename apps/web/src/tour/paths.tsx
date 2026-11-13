@@ -238,7 +238,8 @@ const create: Path = {
       route: (x) => `/s/${x.sig.bid?.startup ?? focusStartup(x.state, x.now)}`,
       cost: 'Free, nothing to pay. Your 0.02 NEAR deposit comes back to your Signalfire balance. Miss the window and the deposit goes to the marketing fund.',
       body: () => <>When offers close, you have a short window to open yours (60 s on the demo’s briefs). Click <strong>Open my offer</strong>: the contract checks it matches what you sealed, then it’s published so anyone can check it.</>,
-      done: (x) => x.sig.revealed,
+      // privately scored offers are never opened by their creator: nothing to do on this step
+      done: (x) => x.sig.revealed || x.sig.bidScoredPrivately,
       wait: (x) => {
         const c = x.sig.bid;
         if (c && c.phase === 'bidding' && x.now < c.commit_ends_ms) return <>You can open your offer in {fmtLeft(c.commit_ends_ms - x.now)}.</>;

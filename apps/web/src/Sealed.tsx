@@ -21,6 +21,9 @@ export interface SealedInfo {
 
 const cache = new Map<number, SealedInfo>();
 /** The sealed-brief record of a campaign (null while loading). Re-read while the brief is still open. */
+/** Whether a campaign's offers are scored privately (no opening step), once this page has loaded its record. */
+export const scoredPrivately = (id: number): boolean => !!cache.get(id)?.book;
+
 export function useSealed(c: Campaign): SealedInfo | null {
   const [info, setInfo] = useState<SealedInfo | null>(cache.get(c.id) ?? null);
   const settled = info?.book ? ['scored', 'abandoned'].includes(info.book.status) : c.phase !== 'bidding' && info !== null;

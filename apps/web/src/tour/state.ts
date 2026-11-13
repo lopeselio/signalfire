@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { parseNear } from '@signalfire/core';
 import { api, type AuditEntry, type Campaign, type Me, type Startup, type State } from '../api.ts';
 import { recently, recentStartups } from '../recent.ts';
+import { scoredPrivately } from '../Sealed.tsx';
 
 // The onboarding's memory (which path, which step, what was already seen, which hints were dismissed), kept in
 // localStorage, which may be unavailable (private windows): then it lives for this page load only.
@@ -84,6 +85,8 @@ export interface Signals {
   /** the latest campaign the visitor sealed a bid on */
   bid: Campaign | null;
   revealed: boolean;
+  /** the visitor's latest offer is scored privately (OutLayer): it is never opened by its creator */
+  bidScoredPrivately: boolean;
   /** that campaign's auction is settled (won, lost or no winner) */
   settled: boolean;
   /** the latest startup the visitor founded */
@@ -128,6 +131,7 @@ export function signals(state: State | null, me: Me | null, account: string | nu
     admitted: !!myMe?.creator && !myMe.creator.creator.revoked,
     bid,
     revealed: bids.some((c) => c.bids.some((b) => b.creator === account && b.revealed)),
+    bidScoredPrivately: !!bid && scoredPrivately(bid.id),
     settled: !!bid && bid.phase !== 'bidding',
     mine,
     filled: !!mine && (BigInt(mine.fees_in) > 0n || recently('buy', mine.id)),
