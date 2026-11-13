@@ -35,7 +35,7 @@ With no NEAR keys the server still serves everything read-only from testnet (the
 agents' keys; set `AGENTS=0` to run without them). Without `NEARAI_API_KEY`, pitches and reports use plain
 fallback text, marked unsigned.
 
-1. **Open the landing page.** You see one line, **"Turn buzz into real customers."**, two buttons (**Explore
+1. **Open the landing page.** You see one line, **"Community attention becomes a marketing budget the founders can't pocket."**, two buttons (**Explore
    startups**, **Launch yours**) and three live numbers read from NEAR (NEAR into marketing funds, new buyers brought
    in, NEAR paid to creators), with **the signal fire** beside them. The fire is three.js fed by the wire: its height
    follows the number of onchain actions in the last 24 hours (the caption says how many and names the latest), a buy

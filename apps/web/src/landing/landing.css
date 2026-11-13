@@ -71,3 +71,7 @@ button.ld-big { padding: 13px 24px; font-size: 16.5px; min-height: 52px; border-
 @media (prefers-reduced-motion: reduce) {
   .ld-now-tag .ld-pulse::after { animation: none; }
 }
+
+/* the tagline is a full sentence: smaller and wider than a four-word headline */
+.landing .hero h1 { font-size: clamp(32px, 4.2vw, 54px); line-height: 1.06; max-width: 19ch; }
+@media (max-width: 640px) { .landing .hero h1 { font-size: 30px; max-width: none; } }
