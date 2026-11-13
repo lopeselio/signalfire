@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fmtTokens } from '@signalfire/core';
 import { api, txUrl, type Me, type State } from './api.ts';
+import { AccountMenu } from './AccountMenu.tsx';
 import { Creators } from './Creators.tsx';
 import { Dashboard } from './Dashboard.tsx';
 import { Discover } from './Discover.tsx';
@@ -101,8 +101,6 @@ export function App() {
     } finally { setBusy(null); setBusyCopy(null); }
   }, [toast, loadState, refreshMe]);
 
-  const demo = state?.demo ?? 'glow';
-  const demoBal = me?.tokens.find((t) => t.startup === demo);
   const ctx: AppCtx = { state, stateError, me, account, go, signIn, refreshMe, run, busy };
   const link = (path: string, text: string, active: boolean) => (
     <a href={path} className={active ? 'on' : ''} aria-current={active ? 'page' : undefined} onClick={(e) => { e.preventDefault(); go(path); }}>{text}</a>
@@ -124,11 +122,7 @@ export function App() {
           <div className="who">
             <button className="ghost round" data-tour="help" onClick={() => setHelp(true)} aria-label="Get started: pick your path">?</button>
             {account ? (
-              <span className="me">
-                <span className="me-acct" title={account}>{shortAcct(account)}</span>
-                {demoBal && <span className="me-bal">{fmtTokens(demoBal.balance)} {demo.toUpperCase()}</span>}
-                <button className="ghost small" onClick={() => void signOut().then(() => { setAccount(null); setMe(null); })}>Sign out</button>
-              </span>
+              <AccountMenu account={account} me={me} state={state} go={go} onSignOut={() => void signOut().then(() => { setAccount(null); setMe(null); })} />
             ) : (
               <button className="primary small" data-tour="sign-in" onClick={() => void signIn()}>Sign in</button>
             )}
