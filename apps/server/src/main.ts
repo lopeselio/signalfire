@@ -10,7 +10,7 @@ import { llmsTxt } from './llms.ts';
 import { rpc, view, viewNow } from './chain.ts';
 import { config, explorerTx, hasKey } from './config.ts';
 import { evidenceRoute } from './evidence/routes.ts';
-import { discussRoute, rolesFrom } from './discuss.ts';
+import { discussRoute, loadThread, rolesFrom } from './discuss.ts';
 import { NRAS_URL } from '@signalfire/attest';
 import { attestation, modelE2eeKey, nearAiEnabled, type Signed } from './nearai.ts';
 import { BRIEFS, CREATORS, HOLDERS, SCOUT } from './personas.ts';
@@ -162,6 +162,7 @@ const activity = createActivity({
   audit: () => peek()?.audit ?? [],
   wire: () => getWire(),
   relays: () => recentRelays(),
+  discussion: (id) => loadThread({ dataDir: config.dataDir, roles: async () => null, me: async () => null, writes: false, origin: null }, id),
   creators: CREATORS,
   holderAgents: HOLDERS,
 });
