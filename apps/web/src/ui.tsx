@@ -13,10 +13,14 @@ export interface AppCtx {
   go: (path: string) => void;
   signIn: () => Promise<void>;
   refreshMe: () => void;
-  /** run a wallet action with a busy flag and a toast; returns true on success */
-  run: (label: string, fn: () => Promise<{ tx: string; gasless: boolean } | void>) => Promise<boolean>;
+  /**
+   * run a wallet action with a busy flag and a toast; returns true on success. `copy` gives the plain words shown
+   * while it's in flight (`pending`) and when it lands (`done`); `action` is the contract method, kept in a tooltip.
+   */
+  run: (label: string, fn: () => Promise<{ tx: string; gasless: boolean } | void>, copy?: RunCopy) => Promise<boolean>;
   busy: string | null;
 }
+export interface RunCopy { pending?: string; done?: string; action?: string }
 export const Ctx = createContext<AppCtx | null>(null);
 export const useApp = (): AppCtx => useContext(Ctx)!;
 
@@ -95,15 +99,15 @@ export function Flame({ size = 22 }: { size?: number }) {
 export function SignInHint({ what }: { what: string }) {
   const { signIn, account } = useApp();
   if (account) return null;
-  return <p className="hint">Browsing as a guest. <button className="link" onClick={() => void signIn()}>Sign in with a NEAR wallet</button> to {what}.</p>;
+  return <p className="hint">You’re browsing as a guest. <button className="link" onClick={() => void signIn()}>Sign in with a NEAR test wallet</button> to {what}.</p>;
 }
 
 export function Terms({ compact }: { compact?: boolean }) {
   const { state } = useApp();
   return (
     <aside className={`terms${compact ? ' compact' : ''}`} role="note">
-      <strong>Not equity. Not a claim on revenue or the treasury. Testnet only.</strong>
-      {!compact && <span> {(state?.terms ?? '').split('. ').slice(1).join('. ') || 'Its trading fees can only fund marketing campaigns chosen by holders.'}</span>}
+      <strong>Not equity. Not a claim on revenue or on the marketing fund. Test network only: no real money.</strong>
+      {!compact && <span> {(state?.terms ?? '').split('. ').slice(1).join('. ') || 'Its trading fees can only pay for marketing campaigns the holders choose.'}</span>}
     </aside>
   );
 }

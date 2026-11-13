@@ -8,7 +8,8 @@ import { Landing } from './Landing.tsx';
 import { Launch } from './Launch.tsx';
 import { HowItWorks, Onboarding, seenOnboarding } from './tour/Onboarding.tsx';
 import { StartupPage } from './Startup.tsx';
-import { Ctx, Flame, shortAcct, type AppCtx } from './ui.tsx';
+import { friendly } from './copy.ts';
+import { Ctx, Flame, shortAcct, type AppCtx, type RunCopy } from './ui.tsx';
 import { signIn as walletSignIn, signOut } from './wallet.ts';
 
 // The shell: routing by path (/, /discover, /s/:id, /creators, /dashboard, /launch, /how), the header, polling and toasts.
@@ -26,7 +27,7 @@ function parse(): Route {
   return { page: 'home' };
 }
 
-interface Toast { id: number; kind: 'ok' | 'bad' | 'info'; text: string; tx?: string }
+interface Toast { id: number; kind: 'ok' | 'bad' | 'info'; text: string; tx?: string; title?: string }
 
 export function App() {
   const [route, setRoute] = useState<Route>(parse());
@@ -35,6 +36,7 @@ export function App() {
   const [me, setMe] = useState<Me | null>(null);
   const [account, setAccount] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [busyCopy, setBusyCopy] = useState<RunCopy | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [help, setHelp] = useState(() => !seenOnboarding());
   const [menu, setMenu] = useState(false);
@@ -77,21 +79,26 @@ export function App() {
       const a = await walletSignIn();
       setAccount(a);
       refreshMe();
-      toast({ kind: 'ok', text: `Signed in as ${a}` });
-    } catch (e) { toast({ kind: 'bad', text: (e as Error).message }); }
+      toast({ kind: 'ok', text: `You're signed in as ${shortAcct(a)}.`, title: a });
+    } catch (e) { const m = (e as Error).message; toast({ kind: 'bad', text: friendly(m), title: m }); }
   }, [refreshMe, toast]);
 
-  const run: AppCtx['run'] = useCallback(async (label, fn) => {
+  const run: AppCtx['run'] = useCallback(async (label, fn, copy) => {
     setBusy(label);
+    setBusyCopy(copy ?? null);
+    const title = copy?.action ? `${label} (${copy.action})` : label;
     try {
       const r = await fn();
-      toast({ kind: 'ok', text: r ? `${label}: done${r.gasless ? ' (gasless, our relayer paid the gas)' : ''}` : `${label}: done`, tx: r ? r.tx : undefined });
+      const done = copy?.done ?? `${label}: done.`;
+      toast({ kind: 'ok', text: `${done}${r && r.gasless ? ' Free: Signalfire covered the network fee.' : ''}`, tx: r ? r.tx : undefined, title: r && r.gasless ? `${title}: gasless, Signalfire's relayer paid the gas` : title });
       setTimeout(() => { loadState(); refreshMe(); }, 1500);
       return true;
     } catch (e) {
-      toast({ kind: 'bad', text: `${label}: ${(e as Error).message}` });
+      const m = (e as Error).message;
+      toast({ kind: 'bad', text: `${label} didn't go through: ${friendly(m)}`, title: `${title}: ${m}` });
+      console.warn(`${title}:`, m);
       return false;
-    } finally { setBusy(null); }
+    } finally { setBusy(null); setBusyCopy(null); }
   }, [toast, loadState, refreshMe]);
 
   const demo = state?.demo ?? 'glow';
@@ -106,7 +113,7 @@ export function App() {
       <header className="top">
         <div className="top-in">
           <a href="/" className="brand" onClick={(e) => { e.preventDefault(); go('/'); }}><Flame /> Signalfire</a>
-          <span className="testnet" title="Everything here runs on NEAR testnet. No real money.">testnet</span>
+          <span className="testnet" title="Everything here runs on NEAR's test network. No real money.">testnet</span>
           <nav className={`nav${menu ? ' open' : ''}`}>
             {link('/discover', 'Discover', route.page === 'discover' || route.page === 'startup')}
             {link('/creators', 'Creators', route.page === 'creators')}
@@ -132,8 +139,8 @@ export function App() {
         </div>
       </header>
       <main>
-        {!state && !stateError && <div className="loading">Reading the chain…</div>}
-        {!state && stateError && <div className="error-box">Couldn’t reach the Signalfire server ({stateError}). It retries every 5 seconds.</div>}
+        {!state && !stateError && <div className="loading">Loading live numbers from NEAR…</div>}
+        {!state && stateError && <div className="error-box" title={stateError}>Signalfire isn’t responding right now. We’ll keep trying every few seconds.</div>}
         {state && route.page === 'home' && <Landing />}
         {state && route.page === 'startup' && <StartupPage id={route.id} />}
         {state && route.page === 'discover' && <Discover />}
@@ -143,18 +150,18 @@ export function App() {
         {state && route.page === 'how' && <HowItWorks />}
       </main>
       <footer className="foot">
-        <p>Signalfire runs on NEAR testnet. The hub contract is <a href={`https://testnet.nearblocks.io/address/${state?.hub ?? 'signalfire.testnet'}`} target="_blank" rel="noreferrer">{state?.hub ?? 'signalfire.testnet'}</a>. Attention tokens are not equity and not a claim on revenue.</p>
+        <p>Signalfire runs on NEAR’s test network. Attention tokens are not equity and not a claim on revenue. <a href={`https://testnet.nearblocks.io/address/${state?.hub ?? 'signalfire.testnet'}`} target="_blank" rel="noreferrer" title={`The hub contract, ${state?.hub ?? 'signalfire.testnet'}`}>See Signalfire’s contract on NEAR</a></p>
       </footer>
       <Onboarding open={help} onOpen={() => setHelp(true)} onClose={() => setHelp(false)} />
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast ${t.kind}`}>
+          <div key={t.id} className={`toast ${t.kind}`} title={t.title}>
             {t.text}
-            {t.tx && <> <a href={txUrl(t.tx)} target="_blank" rel="noreferrer">View transaction</a></>}
+            {t.tx && <> <a href={txUrl(t.tx)} target="_blank" rel="noreferrer" title="The public transaction on nearblocks">View on NEAR</a></>}
           </div>
         ))}
       </div>
-      {busy && <div className="busy" role="status">{busy}… check your wallet</div>}
+      {busy && <div className="busy" role="status" title={busyCopy?.action ? `${busy} (${busyCopy.action})` : busy}>{busyCopy?.pending ?? `${busy}…`} Confirm in your wallet if it asks.</div>}
     </Ctx.Provider>
   );
 }
