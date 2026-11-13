@@ -19,13 +19,13 @@
 .tape-meta a:hover { color: var(--ember-2); }
 
 .tag { font: 500 11px var(--body); padding: 1px 7px; border-radius: 999px; background: var(--night-3); color: var(--ash-2); white-space: nowrap; }
-.tag.ai { background: #e7eef9; color: #2a4f86; }
+.tag.ai { background: color-mix(in srgb, var(--focus) 14%, var(--surface)); color: color-mix(in srgb, var(--focus) 70%, var(--ink)); }
 .tag.ref { background: var(--ember-wash); color: var(--ember-2); }
-.tag.ref.counted { background: var(--ember); color: #fff; }
+.tag.ref.counted { background: var(--fire-btn); color: #fff; }
 .tag.you { background: var(--ash); color: var(--night-2); }
 
 @keyframes arrive { 0% { background: var(--ember-dim); } 100% { background: transparent; } }
-@keyframes arrive-sell { 0% { background: #f6d2cd; } 100% { background: transparent; } }
+@keyframes arrive-sell { 0% { background: var(--bad-wash); } 100% { background: transparent; } }
 .flash { animation: arrive 1.6s ease-out; }
 .tape-row.sell.flash { animation-name: arrive-sell; }
 

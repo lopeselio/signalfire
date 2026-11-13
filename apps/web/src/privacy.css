@@ -4,8 +4,8 @@
 .pai-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 35%, var(--line)); }
 .pai-bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 35%, var(--line)); }
 .pai:hover { background: var(--night-3); }
-.pai-dialog { border: 1px solid var(--line); border-radius: 10px; padding: 0; width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); background: var(--night-2); color: var(--ash); box-shadow: var(--shadow); }
-.pai-dialog::backdrop { background: rgba(25, 22, 17, 0.35); }
+.pai-dialog { border: 2px solid var(--line); border-radius: var(--r-lg); padding: 0; width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); background: var(--night-2); color: var(--ash); box-shadow: var(--shadow); }
+.pai-dialog::backdrop { background: var(--scrim); }
 .pai-body { padding: 16px 18px; }
 .pai-body header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .pai-body h3 { margin: 0; }
