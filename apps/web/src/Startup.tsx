@@ -10,6 +10,7 @@ import { KeylessAgent } from './KeylessAgent.tsx';
 import { SealedPanel } from './Sealed.tsx';
 import { FounderForms } from './Founder.tsx';
 import { Wire } from './Wire.tsx';
+import { Discussion } from './discuss/Discussion.tsx';
 import { FLAG, auditNote, auditResult, auditWhat } from './copy.ts';
 import { founderOf } from './Discover.tsx';
 import { Acct, Chip, Info, Near, SignInHint, TeeBadge, Terms, ago, flagKind, fmtLeft, useApp, useNow } from './ui.tsx';
@@ -423,6 +424,7 @@ function CampaignCard({ c, s, isHolder }: { c: Campaign; s: Startup; isHolder: b
               )}
             </>
           )}
+          <Discussion campaign={c.id} />
           <p className="small proof-row">
             <a href={`/api/campaign/${c.id}/proof`} target="_blank" rel="noreferrer">Proof (JSON)</a> · <a href="/how#verify">Check this campaign yourself</a>
           </p>
