@@ -8,12 +8,31 @@
 .how-body > section.in::before { transform: none; }
 .how-body > section .how-n { transform: scale(0.5); transition: transform var(--dur-3) var(--ease-bounce) 120ms; }
 .how-body > section.in .how-n { transform: none; }
+.how-costs td:first-child { white-space: nowrap; }
+.how-costs .chip { font-size: 12.5px; }
+
+/* For agents: the read endpoints as a scannable list, copy buttons on calls and commands */
+.fa-reads { list-style: none; padding: 0 !important; margin: 0 0 14px; display: grid; gap: 6px; }
+.fa-reads li { display: grid; grid-template-columns: auto minmax(0, max-content) minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; padding: 6px 8px 6px 10px; border: 2px solid var(--line); border-radius: var(--r); background: var(--surface-2); margin: 0 !important; }
+.fa-reads code { font-size: 12.5px; word-break: normal; overflow-wrap: anywhere; }
+.fa-reads .chip { margin: 0; }
+.fa-cmd { position: relative; }
+.fa-cmd pre { margin: 0 0 12px; padding-right: 86px !important; }
+.fa-cmd .copy-btn { position: absolute; top: 8px; right: 8px; }
+.copy-btn { min-height: 0; padding: 3px 10px; font-size: 12px; font-weight: 800; border-radius: 999px; border: 2px solid var(--line-2); background: var(--surface-2); color: var(--ink-2); vertical-align: 1px; margin-left: 4px; }
+.copy-btn:hover { border-color: var(--fire); color: var(--fire-ink); }
+.copy-btn.done { border-color: var(--go); background: var(--go-wash); color: var(--go-ink); animation: how-pop var(--dur-2) var(--ease-bounce); }
+@keyframes how-pop { from { transform: scale(0.8); } }
 
 @media (max-width: 640px) {
   .how-body > section { padding-left: 0; }
   .how-body > section::before { display: none; }
   .how-h .how-n { position: static; --sp-size: 30px; vertical-align: 3px; margin-right: 4px; }
+  .fa-reads li { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .fa-reads li .muted { grid-column: 1 / -1; }
+  .fa-reads li .copy-btn { grid-row: 1; grid-column: 3; }
 }
 @media (prefers-reduced-motion: reduce) {
   .how-body > section::before, .how-body > section .how-n { transform: none; transition: none; }
+  .copy-btn.done { animation: none; }
 }

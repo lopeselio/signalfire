@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { fmtNear, fmtTokens } from '@signalfire/core';
+import { CopyButton } from '../CopyButton.tsx';
 import { useReveal } from '../motion.tsx';
 import { Terms, useApp } from '../ui.tsx';
 import { ForAgents } from '../live/ForAgents.tsx';
@@ -29,6 +30,9 @@ const COSTS: [string, string, string][] = [
   ['Launch a startup', '1 NEAR', 'pays for the token and DAO accounts'],
   ['Post a brief, set constraints', 'gasless', 'no NEAR attached; the budget stays in the treasury until holders fund a winner'],
 ];
+
+/** The cost column as a chip: free and gasless read green, an amount of NEAR reads orange. */
+const costChip = (c: string): string => (/^(free|gasless)$/i.test(c) ? 'ok' : /NEAR/.test(c) ? 'ember' : 'smoke');
 
 export function HowItWorks() {
   const { state, go } = useApp();
@@ -144,9 +148,9 @@ export function HowItWorks() {
           <h2 className="how-h"><N n={12} />Wallet sign-in and gasless calls</h2>
           <p>Sign in with any NEAR testnet wallet: it signs a “Sign in to this site” message (NEP-413) and the server starts a session; no transaction. Calls then go out as <strong>meta-transactions</strong> when your wallet can sign delegate actions: Signalfire’s relayer pays the gas, and any NEAR a call attaches (a buy, a launch) still comes from your own account. Otherwise the same call goes out as a normal transaction.</p>
           <div className="tbl-wrap">
-            <table className="tbl compact">
+            <table className="tbl compact how-costs">
               <thead><tr><th>Action</th><th>Costs you</th><th>Notes</th></tr></thead>
-              <tbody>{COSTS.map(([a, c, n]) => <tr key={a}><td>{a}</td><td>{c}</td><td className="muted">{n}</td></tr>)}</tbody>
+              <tbody>{COSTS.map(([a, c, n]) => <tr key={a}><td><strong>{a}</strong></td><td><span className={`chip ${costChip(c)}`}>{c}</span></td><td className="muted">{n}</td></tr>)}</tbody>
             </table>
           </div>
           <p className="small muted">All amounts are testnet NEAR, which has no value. Get some from a NEAR testnet faucet.</p>
@@ -154,7 +158,7 @@ export function HowItWorks() {
 
         <section id="verify" className="rv">
           <h2 className="how-h"><N n={13} />Check it yourself</h2>
-          <p>Every campaign card links its <strong>Proof (JSON)</strong>: the bid openings, pitches and reports the chain holds only hashes of, with their TEE signatures. <code>pnpm verify &lt;campaign&gt; {location.origin}</code> re-checks all of it against the chain it reads itself, without trusting this server. The {link('/dashboard', 'Dashboard')} reads everything live and states the thesis with its evidence; <code>pnpm thesis</code> recomputes it.</p>
+          <p>Every campaign card links its <strong>Proof (JSON)</strong>: the bid openings, pitches and reports the chain holds only hashes of, with their TEE signatures. <code>pnpm verify &lt;campaign&gt; {location.origin}</code><CopyButton text={`pnpm verify <campaign> ${location.origin}`} what="the verify command" /> re-checks all of it against the chain it reads itself, without trusting this server. The {link('/dashboard', 'Dashboard')} reads everything live and states the thesis with its evidence; <code>pnpm thesis</code> recomputes it.</p>
         </section>
 
         <ForAgents hub={s.hub} origin={location.origin} />
