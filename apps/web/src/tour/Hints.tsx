@@ -11,28 +11,28 @@ interface Hint { id: string; sel: string; title: string; body: ReactNode; more: 
 
 const HINTS: Hint[] = [
   {
-    id: 'curve', sel: '[data-tour="price"]', title: 'The bonding curve', more: 'curve',
-    body: <>The price per token is 0.0001 NEAR plus 0.01 NEAR × the share of the supply in circulation: it rises as people buy and falls as they sell. The curve’s reserve always equals the area under that line, so every token can be sold back. 2% of each trade goes to the marketing treasury.</>,
+    id: 'curve', sel: '[data-tour="price"]', title: 'The price curve', more: 'curve',
+    body: <>The price starts at 0.0001 NEAR and rises by up to 0.01 NEAR as more of the supply is bought; it falls as people sell. The buy-back pool always holds enough to buy every token back. 2% of each trade goes to the marketing fund.</>,
   },
   {
-    id: 'policy', sel: '[data-tour="constraints"]', title: 'The spend policy', more: 'policy',
-    body: <>Money leaves the treasury one way only: a milestone payout to the winning creator of a campaign the holders funded. The contract checks the payee, the campaign’s price, these caps and the hourly limit; a payout over a cap is <em>held</em>, and every attempt is written to the audit log. The founder can change these numbers within hard limits, never move the money.</>,
+    id: 'policy', sel: '[data-tour="constraints"]', title: 'Spend limits', more: 'policy',
+    body: <>Money leaves the marketing fund one way only: a milestone payout to the winning creator of a campaign the holders approved. The contract checks who’s being paid, the campaign’s price, these caps and the hourly limit. A payout over a cap is <em>held</em>, and every attempt goes in the audit log. The founder can change these numbers within safe ranges, but can never move the money.</>,
   },
   {
-    id: 'sealed', sel: '[data-tour="bid-book"]', title: 'Sealed bids', more: 'auction',
-    body: <>Creators first post only a hash of their price, pitch and a secret salt, with a 0.02 NEAR bond. Nobody can see or copy a price until the reveal, when each creator opens their bid and the contract checks it against the hash. The lowest price after a reputation discount wins; a bid that isn’t revealed loses its bond to the treasury.</>,
+    id: 'sealed', sel: '[data-tour="bid-book"]', title: 'Sealed offers', more: 'auction',
+    body: <>Creators first send only a sealed fingerprint of their price and pitch, with a 0.02 NEAR deposit. Nobody can see or copy a price until offers are opened, when each creator opens theirs and the contract checks it matches. The lowest price after the track-record bonus wins; an offer that’s never opened loses its deposit to the marketing fund.</>,
   },
   {
-    id: 'dao', sel: '[data-tour="dao-vote"]', title: 'The holders’ vote', more: 'dao',
-    body: <>Settling the auction files a proposal in the startup’s Sputnik DAO: “call <code>fund_campaign</code> on the hub”. Holders vote, one holder one vote; at a majority the DAO calls the hub, which reserves the winning price. Nobody in the DAO may propose or approve a transfer.</>,
+    id: 'dao', sel: '[data-tour="dao-vote"]', title: 'The holders’ funding vote', more: 'dao',
+    body: <>Once the winner is picked, the holders’ council votes on funding them: one holder, one vote. At a majority, the winning price is set aside in the marketing fund. Nobody on the council can propose or approve sending money anywhere else.</>,
   },
   {
-    id: 'milestones', sel: '[data-tour="milestones"]', title: 'Milestones', more: 'milestones',
-    body: <>A result is a first buy of at least 0.05 NEAR through the campaign’s referral link by someone new to the token. Each third of the target unlocks a milestone paying a third of the price, in tUSD (a labelled test stablecoin). The last one mints a receipt NFT to the creator.</>,
+    id: 'milestones', sel: '[data-tour="milestones"]', title: 'Milestone payouts', more: 'milestones',
+    body: <>A new buyer is someone who makes their first buy of at least 0.05 NEAR through the campaign’s creator link. Each third of the target releases a payout of a third of the price, in tUSD (test dollars). The last one gives the creator a completion certificate (NFT).</>,
   },
   {
     id: 'privateai', sel: '[data-tour="vetting"]', title: 'The Private AI badge', more: 'privateai',
-    body: <>The scout’s report and the AI creators’ pitches come from a model running in a TEE on NEAR AI Cloud, signed inside the enclave. Your browser picks a fresh nonce, fetches the model’s attestation, checks the Intel TDX quote, the GPUs’ NVIDIA verdict and the reply’s signature itself. Click the badge for every check. It proves where the text came from, not that it is wise, and the model decides nothing.</>,
+    body: <>The AI scout’s report and the AI creators’ pitches come from an AI running in secure hardware on NEAR AI Cloud, and are signed inside it. Your browser checks the hardware and the signature itself in a few seconds. Click the badge to see every check. It proves where the text came from, not that it’s wise, and the AI decides nothing.</>,
   },
 ];
 
@@ -144,22 +144,22 @@ export function Notes({ x }: { x: X }) {
       <Slot sel='[data-tour="campaigns"]' place="after-heading">
         <div className="tour-note" role="note">
           <strong>No campaign is open on {st.name} right now.</strong>{' '}
-          {isMine ? 'Post a brief from your Founder’s desk above whenever the treasury has free NEAR.' : ops ? whenNext(x.state, x.now) : 'Its founder posts briefs when the treasury has enough in it.'}
+          {isMine ? 'Post a brief from your Founder’s desk above whenever the marketing fund has NEAR available.' : ops ? whenNext(x.state, x.now) : 'Its founder posts briefs when the marketing fund has enough in it.'}
           {elsewhere && elsewhere.startup !== id && <> Meanwhile campaign #{elsewhere.id} on <a href={`/s/${elsewhere.startup}?tab=treasury`} onClick={(e) => { e.preventDefault(); go(`/s/${elsewhere.startup}?tab=treasury`); }}>{nameOf(x.state, elsewhere.startup)}</a> is open.</>}
-          <span className="tour-note-sub">When a brief opens: about 90 s of sealed bids, 60 s to reveal, then the holders vote in the DAO, and milestones pay the creator as new buyers arrive. {how}.</span>
+          <span className="tour-note-sub">When a brief opens: about 90 s for sealed offers, 60 s to open them, then the holders vote, and milestone payouts go to the creator as new buyers arrive. {how}.</span>
         </div>
       </Slot>
     );
   }
   if (location.pathname.startsWith('/discover')) {
     const c = l.bidding[0] ?? l.reveal[0] ?? l.voting[0] ?? l.funded[0];
-    const what = c && (l.bidding.includes(c) ? 'is taking sealed bids' : l.reveal.includes(c) ? 'is in its reveal window' : l.voting.includes(c) ? 'is waiting for its holders’ vote' : 'is running: its referral link pays per new buyer');
+    const what = c && (l.bidding.includes(c) ? 'is taking sealed offers' : l.reveal.includes(c) ? 'is opening its offers' : l.voting.includes(c) ? 'is waiting for its holders’ vote' : 'is under way: its creator is paid per new buyer');
     return (
       <Slot sel='[data-tour="startups"]' place="before">
         <div className="tour-note" role="note">
           {c ? <><strong>Right now:</strong> campaign #{c.id} on <a href={`/s/${c.startup}?tab=treasury`} onClick={(e) => { e.preventDefault(); go(`/s/${c.startup}?tab=treasury`); }}>{nameOf(x.state, c.startup)}</a> {what}.</>
             : <><strong>No campaign is open right now.</strong> {whenNext(x.state, x.now)}</>}
-          <span className="tour-note-sub">Each startup runs one campaign at a time: sealed bids, a reveal, the holders’ vote, then milestone payouts. {how}.</span>
+          <span className="tour-note-sub">Each startup runs one campaign at a time: sealed offers, offers opened, the holders’ vote, then milestone payouts. {how}.</span>
         </div>
       </Slot>
     );

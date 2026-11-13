@@ -60,7 +60,7 @@ export function Checklist({ x, onWelcome }: { x: X; onWelcome: () => void }) {
               );
             })}
           </div>
-          <p className="gs-blurb">{path.blurb}{path.wallet && !x.account && ' Needs a NEAR testnet wallet.'}</p>
+          <p className="gs-blurb">{path.blurb}{path.wallet && !x.account && ' Needs a NEAR test wallet (free).'}</p>
           <ol className="gs-steps">
             {steps.map(({ s, i }) => {
               const ok = complete(s, x, t.seen);
