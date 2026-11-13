@@ -28,10 +28,17 @@ export async function signIn(): Promise<string> {
       onError: (e: Error) => reject(new Error(e?.message || 'the wallet didn’t sign')),
     }).catch(reject);
   });
-  const r = (await authClient().getSession()) as { data?: { user?: { nearAccount?: { accountId?: string } } } | null };
-  const account = r.data?.user?.nearAccount?.accountId ?? authClient().near.getAccountId();
-  if (!account) throw new Error('Signed in, but no NEAR account came back. Try again.');
-  return account;
+  // The session's user record doesn't carry the NEAR account (better-near-auth keeps it in its own table), and
+  // some wallets return the account only inside the signed message, so the client may not know it yet. The server
+  // does: it reads the account behind the session cookie. Ask it, with a couple of retries.
+  const fromClient = authClient().near.getAccountId();
+  if (fromClient) return fromClient;
+  for (let k = 0; k < 3; k++) {
+    const me = await fetch('/api/me', { credentials: 'same-origin' }).then((x) => (x.ok ? x.json() : null)).catch(() => null) as { accountId?: string } | null;
+    if (me?.accountId) return me.accountId;
+    await sleep(700);
+  }
+  throw new Error('Your wallet signed, but the session didn’t start. Sign in again; if it repeats, try another wallet.');
 }
 
 export async function signOut(): Promise<void> {
