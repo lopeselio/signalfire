@@ -59,6 +59,12 @@ fallback text, marked unsigned.
    apart, so the tour's waiting steps point to the quickest route: launch your own startup, post a brief, and the
    AI creators send offers within seconds; you can seal an offer on it too and vote as its first holder. **How it works**
    (`/how`) covers every flow end to end with a cost table.
+   **Without the tour:** every page (landing, Discover, a startup, Creators, Dashboard, Launch) opens with one line
+   saying what you can do there and a button for your next step, read from the same signals the tour ticks on: a
+   guest gets **Sign in to …**; a backer **Buy GLOW tokens**, **Join the holders** or **Vote on #N**; a creator
+   **Apply as a creator** or **Seal an offer on #N**; a founder **Fill the marketing fund**, **Post a brief** or
+   **Vote on #N**. The button opens the right tab and scrolls to the panel; **What can I do here?** starts the
+   matching tour path.
 2. **Open Glowpath (`/s/glow`), tab Market.** A price chart from the onchain trade ring; the trades table tags buys
    that counted for a campaign ("via campaign #1"). The **Supply and fees** panel shows a fixed 1,000,000 GLOW supply,
    **Tokens for the founder: 0**, the buy-back pool (the curve reserve), and "2% of every trade, to the marketing fund
