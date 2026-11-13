@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import {
-  linkMessage, linkNonce, normalizeTarget, proofLine, signatureToB58,
-  type Brief, type Dropped, type EvidenceItem, type EvidenceSummary, type Flag, type LinkKind, type ProfileCheck, type ProfileLabel,
+  CODE, FOUNDER, OVERALL, PROFILE_RANK, PROFILE_WORDS, TRACK, linkMessage, linkNonce, normalizeTarget, proofLine, signatureToB58,
+  type Brief, type Dropped, type EvidenceItem, type EvidenceSummary, type Flag, type LinkKind, type ProfileCheck, type ProfileLabel, type Signal, type SignalKey,
 } from '@signalfire/core';
 import { api, type Startup } from './api.ts';
 import { PrivateAiBadge } from './Attest.tsx';
-import { Acct, Info, ago, useApp, useNow } from './ui.tsx';
+import { Count, useSeen } from './motion.tsx';
+import { Info, ago, useApp, useNow } from './ui.tsx';
 import { signMessage } from './wallet.ts';
 import './evidence.css';
 import { Waiting } from './Waiting.tsx';
@@ -110,38 +111,139 @@ function EvidenceRef({ id, items }: { id: string; items: EvidenceItem[] }) {
   return <a href={it?.group === 'links' ? '#ev-links' : `#ev-${id}`} title={it ? `${it.title}: ${it.source.label}` : id}>{id}</a>;
 }
 
+const at = (i: number): CSSProperties => ({ '--i': i } as CSSProperties);
+
+/** How each rating is set, from the rule's own thresholds (packages/core profile.ts); read-only. */
+const RULES: Record<SignalKey, { ways: [string, string][]; note: string }> = {
+  code: {
+    ways: [
+      ['Active', `2 points: a push in the last ${CODE.activePushDays} days and ${CODE.activeCommits30}+ commits in 30 days, or ${CODE.activeCommits30Team}+ with ${CODE.activeTeam}+ contributors`],
+      ['Some', '1 point: any commit in 90 days'],
+      ['None', '0: no commits in 90 days, or the repository is archived'],
+      ['Not linked', '0: no verified repository'],
+    ],
+    note: 'Verified repositories only; the most active one counts.',
+  },
+  presence: {
+    ways: [
+      ['Verified', '2 points: at least one GitHub or X account proven with the founder’s wallet signature'],
+      ['Claimed only', '0: linked but not proven, so only the founder’s word'],
+      ['None', '0: nothing linked'],
+    ],
+    note: 'A link is proven when the account posts a note the founder’s wallet signed.',
+  },
+  founder: {
+    ways: [
+      ['Established', `2 points: ${FOUNDER.establishedDays}+ days old and ${FOUNDER.establishedTxns}+ transactions`],
+      ['New', `1 point: ${FOUNDER.newDays}+ days old`],
+      ['Brand new', `0: under ${FOUNDER.newDays} days old`],
+      ['Unknown', '0: the account couldn’t be read'],
+    ],
+    note: 'The founder’s NEAR account, read from NearBlocks.',
+  },
+  track: {
+    ways: [
+      ['Proven', `2 points: ${TRACK.provenDelivered}+ campaigns delivered, at most a third as many missed, and new buyers reached`],
+      ['Some', '1 point: 1+ campaign delivered'],
+      ['None yet', '0: nothing delivered yet'],
+    ],
+    note: 'Read from Signalfire’s contract. The cost per new buyer is shown, not rated.',
+  },
+};
+const OVERALL_WAYS: [ProfileLabel, string][] = [
+  ['strong', `${OVERALL.strongPoints}+ of 8 points, a verified link, active code and a founder account at least ${FOUNDER.newDays} days old`],
+  ['moderate', `${OVERALL.moderatePoints}+ points and a verified link`],
+  ['thin', 'anything else; a demo startup run by Signalfire is never rated above Thin'],
+  ['not-enough', 'no proven founder link and no delivered campaign'],
+];
+
+/** A read-only "How this is scored" that opens under a rating; the rating that applies is marked. */
+function HowScored({ ways, now, note, label = 'How this is scored' }: { ways: [string, string][]; now: string; note?: string; label?: string }) {
+  return (
+    <details className="ev-how">
+      <summary>{label}</summary>
+      <div>
+        <ul>{ways.map(([w, t]) => <li key={w} className={w === now ? 'now' : ''}><strong>{w}</strong>{w === now && <span className="sr-only"> (this one)</span>}: {t}</li>)}</ul>
+        {note && <p className="muted">{note}</p>}
+      </div>
+    </details>
+  );
+}
+
+const LADDER: ProfileLabel[] = ['not-enough', 'thin', 'moderate', 'strong'];
+
+/** Profile strength as a ladder that fills to the label, and the points as eight pips, two per rating. */
+function StrengthMeter({ p }: { p: ProfileCheck }) {
+  const rank = PROFILE_RANK[p.label];
+  return (
+    <div className="ev-meter">
+      <ol className="ev-ladder" aria-label={`Profile strength: ${p.word}`}>
+        {LADDER.map((l, k) => (
+          <li key={l} className={`${k <= rank ? 'lit' : ''}${k === rank ? ' now' : ''} l-${l}`} style={at(k)} aria-current={k === rank ? 'true' : undefined}>
+            <span className="ev-rung" aria-hidden="true" />{PROFILE_WORDS[l]}
+          </li>
+        ))}
+      </ol>
+      <p className="ev-points">
+        <span className="ev-pips" aria-hidden="true">
+          {p.signals.map((x, g) => (
+            <span key={x.key} className="ev-pair" title={`${x.name}: ${x.points} of 2`}>
+              {[0, 1].map((k) => <i key={k} className={k < x.points ? `on ${x.level}` : ''} style={at(g * 2 + k)} />)}
+            </span>
+          ))}
+        </span>
+        <span className="ev-pts"><strong><Count value={String(p.points)} /></strong> of 8 points</span>
+      </p>
+      <HowScored label="How the strength is set" ways={OVERALL_WAYS.map(([l, t]) => [PROFILE_WORDS[l], t])} now={p.word} />
+    </div>
+  );
+}
+
+/** One rating: its word, a two-pip meter for its points, the figures it rests on, and how it is scored. */
+function SignalRow({ x, i, items }: { x: Signal; i: number; items: EvidenceItem[] }) {
+  return (
+    <li style={at(i)}>
+      <span className="ev-sig-name">{x.name}</span>
+      <span className="ev-sig-rate">
+        <span className={`chip ${x.level}`}>{x.word}</span>
+        <span className="ev-bar" aria-hidden="true">{[0, 1].map((k) => <i key={k} className={k < x.points ? `on ${x.level}` : ''} style={at(i * 2 + k)} />)}</span>
+        <span className="sr-only">{x.points} of 2 points</span>
+      </span>
+      <span className="ev-sig-detail small">{x.detail}</span>
+      {x.cites.length > 0 && <span className="ev-cites">{x.cites.map((id) => <EvidenceRef key={id} id={id} items={items} />)}</span>}
+      <HowScored ways={RULES[x.key].ways} now={x.word} note={RULES[x.key].note} />
+    </li>
+  );
+}
+
 /**
  * At a glance: four ratings and a profile strength, computed by a published rule (packages/core `profileCheck`) from
  * the evidence on this page, never by the AI. The research brief below explains them; `pnpm verify-brief` recomputes them.
+ * The meters fill once the card is in view (at once, and still, under reduced motion).
  */
 function ProfileCard({ ev }: { ev: EvidenceView }) {
   const now = useNow(30_000);
+  const [ref, seen] = useSeen<HTMLElement>();
   const p = ev.profile;
   const b = ev.brief;
   const fetched = ev.items.reduce((a, i) => Math.max(a, i.fetchedAt), 0);
   return (
-    <section className="panel ev-profile" aria-labelledby="ev-profile-h" data-tour="profile-check">
+    <section ref={ref} className={`panel ev-profile${seen ? ' in' : ''}`} aria-labelledby="ev-profile-h" data-tour="profile-check">
       <header className="ev-profile-head">
         <h2 id="ev-profile-h">Profile check</h2>
         <span className={`ev-strength chip ${STRENGTH_LEVEL[p.label]}`}>Profile strength: <strong>{p.word}</strong></span>
         {p.demo && <span className="chip bad">demo startup, run by Signalfire</span>}
       </header>
+      <StrengthMeter p={p} />
       <p className="small ev-why">{p.why}</p>
       <ul className="ev-signals">
-        {p.signals.map((x) => (
-          <li key={x.key}>
-            <span className="ev-sig-name">{x.name}</span>
-            <span className={`chip ${x.level}`}>{x.word}</span>
-            <span className="ev-sig-detail small">{x.detail}</span>
-            {x.cites.length > 0 && <span className="ev-cites">{x.cites.map((id) => <EvidenceRef key={id} id={id} items={ev.items} />)}</span>}
-          </li>
-        ))}
+        {p.signals.map((x, k) => <SignalRow key={x.key} x={x} i={k} items={ev.items} />)}
       </ul>
-      <p className="muted small ev-profile-foot">
+      <div className="muted small ev-profile-foot">
         Checked {fetched ? ago(fetched, now) : 'now'} from the evidence below by rule {p.rule}<Info text={`Computed by code, not by the AI. Inputs hash ${p.inputsHash}. Anyone can recompute it from the published evidence: pnpm verify-brief ${ev.startup.id}`} />.
         {' '}{b ? <>The AI research brief explains it{b.signed && b.model ? <> <PrivateAiBadge src={{ kind: 'brief', startup: ev.startup.id }} model={b.model} what="brief" /></> : null}{b.profile && b.profile.label !== p.label ? ` (it was written when the strength was ${b.profile.word}; ${ev.briefPending || ev.generating ? 'a new one is on its way' : 'a new one follows'})` : ''}.</> : null}
         {!b?.profile && ev.briefPending ? ' A founder link changed; the brief is being rewritten.' : ''}
-      </p>
+      </div>
       <p className="small ev-profile-note"><strong>A profile check from public evidence, not advice. Attention tokens are not equity.</strong></p>
     </section>
   );
