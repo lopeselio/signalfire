@@ -3,10 +3,11 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { extname, join, normalize } from 'node:path';
 import { fmtTusd, openingMatches, pitchHash, priceAt } from '@signalfire/core';
 import { BRIEF_EVERY_MS, BRIEF_SAME_STARTUP_MS, outlayerRequestId, outlayerRuns, startAgents } from './agents.ts';
-import { BA_PATH, accountFromHeaders, authHandler } from './ba.ts';
+import { BA_PATH, accountFromHeaders, authHandler, authOrigin } from './ba.ts';
 import { rpc, view, viewNow } from './chain.ts';
 import { config, explorerTx, hasKey } from './config.ts';
 import { evidenceRoute } from './evidence/routes.ts';
+import { discussRoute, rolesFrom } from './discuss.ts';
 import { NRAS_URL } from '@signalfire/attest';
 import { attestation, modelE2eeKey, nearAiEnabled, type Signed } from './nearai.ts';
 import { BRIEFS, CREATORS, HOLDERS, SCOUT } from './personas.ts';
@@ -155,6 +156,10 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (p === '/api/health') return json(res, 200, { ok: true, version: process.env.APP_VERSION ?? 'dev' });
     if (p === '/api/state') return json(res, 200, publicState(await snapshot()));
     if ((p.startsWith('/api/evidence') || p.startsWith('/api/reply/brief/')) && (await evidenceRoute(req, res, p, () => accountFromHeaders(req.headers)))) return;
+    if (p.startsWith('/api/campaign/') && p.includes('/discussion') && (await discussRoute(req, res, p, {
+      dataDir: config.dataDir, roles: async (id) => rolesFrom(await snapshot(), id), me: () => accountFromHeaders(req.headers),
+      writes: config.discussWrites, origin: authOrigin,
+    }))) return;
     if (p === '/api/wire') return json(res, 200, getWire().slice(0, 80).map((w) => ({ ...w, what: w.what.replace(/"(E2E [^"]+)"/, (_, t: string) => `"${showTitle({ id: w.campaign ?? 0, title: t })}"`), url: w.tx ? explorerTx(w.tx) : null })));
     if (p === '/api/thesis') {
       // recomputed at most every 10 minutes (it reads ~50 transactions from an archival RPC)

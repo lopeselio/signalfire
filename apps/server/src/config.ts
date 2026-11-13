@@ -26,6 +26,8 @@ export const config = {
   extraOrigins: env('EXTRA_ORIGINS').split(',').map((x) => x.trim()).filter(Boolean),
   webDist: env('WEB_DIST', join(import.meta.dirname, '../../web/dist')),
   dataDir: env('DATA_DIR', join(import.meta.dirname, '../../../data')),
+  /** campaign content links and discussion: DISCUSS_WRITES=off turns posting off (reading keeps working) */
+  discussWrites: env('DISCUSS_WRITES', 'on') !== 'off',
   sessionSecret: env('SESSION_SECRET', 'dev-only-secret-change-me'),
   /** OutLayer's request id of the run that published the scorer's bid key (its attestation is checked against the hub) */
   scorerKeyRequest: Number(env('SCORER_KEY_REQUEST', '31532')),
