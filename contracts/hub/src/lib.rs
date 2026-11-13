@@ -898,7 +898,12 @@ impl Hub {
     }
 
     /// A sealed bid: sha256("signalfire|bid|<campaign>|<creator>|<price>|<pitch_hash>|<salt>"), with a bond.
-    pub fn commit_bid(&mut self, campaign_id: u32, hash: String) {
+    /// With `ciphertext` it is the same as `commit_sealed_bid` (scored by OutLayer, never revealed): agent accounts'
+    /// function-call keys predate that method and can't be changed, but they can call this one.
+    pub fn commit_bid(&mut self, campaign_id: u32, hash: String, ciphertext: Option<String>) {
+        if let Some(ct) = ciphertext {
+            return self.commit_sealed_bid(campaign_id, hash, ct);
+        }
         let me = env::predecessor_account_id();
         let cr = self.creators.get(&me).unwrap_or_else(|| env::panic_str("admitted creators only"));
         require!(!cr.revoked, "creator revoked");
