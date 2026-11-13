@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { fmtNear } from '@signalfire/core';
 import { acctUrl, txUrl, type Me, type State } from './api.ts';
 import { PrivateAiBadge, type ReplySource } from './Attest.tsx';
+import { FireMark } from './FireMark.tsx';
 
 // Shared bits: the app context, links, amounts, chips, countdowns.
 
@@ -88,13 +89,9 @@ export function TeeBadge({ signed, model, src, what }: { signed: boolean; model?
   );
 }
 
-export function Flame({ size = 22 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="flame">
-      <path d="M12 2.5c2.3 3.2 5.2 5.3 5.2 9.6A5.2 5.2 0 0 1 6.8 12.1c0-2.7 2-4.2 3-6.6 1.2 1.5 1.5 2.7 1.5 3.9C12.9 7 12.6 4.6 12 2.5z" fill="currentColor" />
-      <rect x="4" y="19" width="16" height="2" rx="1" fill="var(--smoke)" />
-    </svg>
-  );
+/** The brand flame (the logo, the welcome card): Signalfire's flame mark. */
+export function Flame({ size = 26 }: { size?: number }) {
+  return <FireMark size={size} className="flame" />;
 }
 
 export function SignInHint({ what }: { what: string }) {
