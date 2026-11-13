@@ -33,13 +33,13 @@ export function privateText(f: PrivateFields): string {
 /** Verifies the model, seals the details to it, hands the ciphertext to the scout's queue, and saves a receipt. */
 export async function submitPrivate(account: string, model: string, f: PrivateFields, step: (s: string) => void): Promise<Receipt> {
   const a = await lib();
-  step('Verifying the model’s TEE in this browser…');
+  step('Checking the AI’s secure hardware from your browser…');
   const v = await attest(model, true, 'ed25519');
-  if (!v.ok || v.trustedSigners.length !== 1) throw new Error('the model’s attestation did not verify here, so nothing was sent');
+  if (!v.ok || v.trustedSigners.length !== 1) throw new Error('Your browser couldn’t verify the AI’s secure hardware, so nothing was sent.');
   const key = v.trustedSigners[0].replace(/^0x/, '');
   const server = await api<{ key: string }>('/e2ee-key');
-  if (server.key !== key) throw new Error('the server’s model key differs from the one this browser verified, so nothing was sent');
-  step('Encrypting your private details to the model’s key…');
+  if (server.key !== key) throw new Error('The server named a different AI key from the one your browser verified, so nothing was sent.');
+  step('Encrypting your private details so only the AI can read them…');
   const text = privateText(f);
   const salt = a.newSalt();
   const commitment = a.privateCommitment(account, salt, text);
