@@ -112,6 +112,16 @@
 .ev-how li.now strong { background: var(--sun-wash); border-radius: 4px; padding: 0 3px; }
 .ev-how p { margin: 4px 0 0; }
 
+/* evidence cards rise in, in turn, once their panel is in view; items added later rise in as they mount */
+.ev-rv .ev-item { opacity: 0; }
+.ev-rv.in .ev-item { opacity: 1; animation: ev-rise var(--dur-3) var(--ease) calc(var(--i, 0) * 90ms) both; }
+/* a verified link draws its tick */
+.ev-tick { width: 11px; height: 11px; margin-right: 3px; vertical-align: -1px; }
+.ev-tick path { fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; animation: draw 600ms var(--ease) 400ms both; }
+/* the research brief: the badge pops and the sections fade in, in turn */
+.ev-brief.in .ev-brief-head :is(.pai, .tee) { animation: ev-pop var(--dur-2) var(--ease-bounce) 200ms both; }
+.ev-bsec { opacity: 0; }
+.ev-brief.in .ev-bsec { opacity: 1; animation: ev-rise var(--dur-3) var(--ease) calc(300ms + var(--i) * 140ms) both; }
 
 @keyframes ev-rise { from { opacity: 0; transform: translateY(8px); } }
 @keyframes ev-pop { from { opacity: 0; transform: scale(0.6); } }
@@ -119,7 +129,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ev *, .ev *::before, .ev *::after { animation: none !important; transition: none !important; }
-  .ev-profile .ev-signals > li { opacity: 1; transform: none; }
+  .ev-profile .ev-signals > li, .ev-rv .ev-item, .ev-bsec { opacity: 1; transform: none; }
 }
 
 @media (max-width: 980px) {
