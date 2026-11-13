@@ -1,0 +1,20 @@
+/* A campaign's posted links and discussion (discuss/). Uses style.css variables. */
+.talk { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 4px; }
+.made { margin-bottom: 8px; }
+.made-note { margin-top: -4px; }
+.made-list { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 6px; }
+.made-list li { overflow-wrap: anywhere; }
+.made-list a:first-child { font-weight: 500; }
+.made-list button.link { margin-left: 8px; }
+.made-form, .talk-form { display: grid; gap: 6px; margin-top: 8px; }
+.made-form .row, .talk-form .row { margin: 4px 0 0; gap: 8px; }
+.made-form .bad-text { margin: 0; }
+.talk-list { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 10px; }
+.talk-list li { background: var(--night-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.talk-list li.hidden { background: transparent; border-style: dashed; }
+.talk-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.talk-meta .chip { margin: 0; }
+.talk-hide { margin-left: auto; }
+.talk-text { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.talk-form textarea { min-height: 72px; }
+.warn-text { color: var(--warn); }
