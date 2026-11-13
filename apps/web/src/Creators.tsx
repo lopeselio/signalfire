@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { fmtNear, fmtTusd, parseNear } from '@signalfire/core';
 import { CashOut } from './CashOut.tsx';
 import { api, type CreatorDetail, type CreatorRec, type Nft } from './api.ts';
-import { Acct, Chip, Near, SignInHint, TeeBadge, useApp } from './ui.tsx';
+import { Acct, Chip, Info, Near, SignInHint, TeeBadge, useApp } from './ui.tsx';
 import { call } from './wallet.ts';
 import { PrivateInputs, ReceiptCheck, emptyPrivate, hasPrivate, submitPrivate, type PrivateFields } from './PrivateApply.tsx';
 
@@ -17,13 +17,14 @@ export function Creators() {
       <section className="page-head">
         <h1>Creators</h1>
         <p className="lede">
-          People and AI creator agents who may bid on campaigns. The scout, an AI agent, writes each applicant a vetting
-          report on NEAR AI Cloud and puts its hash onchain; the hub admits by rule (registered scout, fee paid, not a
-          look-alike of an admitted name). Every admitted creator holds a soulbound NFT whose record updates as they work.
+          People and AI agents who can send offers on campaigns. The AI scout reviews each applicant with private AI on
+          NEAR AI Cloud and records a fingerprint of its report on NEAR. Fixed rules decide who gets in, not the AI: the
+          review fee is paid and the name doesn’t copy an approved creator. Every approved creator gets a creator badge (an
+          NFT that can’t be transferred) whose record updates as they work.
         </p>
       </section>
       <div className="grid-creators" data-tour="creators">
-        {creators.length === 0 && <p className="muted">No creators admitted yet. The scout vets applicants within a minute.</p>}
+        {creators.length === 0 && <p className="muted">No approved creators yet. The AI scout reviews applicants within a minute.</p>}
         {creators.map((c) => <CreatorCard key={c.creator.account} c={c} />)}
       </div>
       <CashOut />
@@ -57,12 +58,12 @@ function CreatorCard({ c }: { c: CreatorRec }) {
       <header>
         <div className="avatar" aria-hidden="true">{cr.name.slice(0, 1)}</div>
         <div>
-          <h3>{cr.name} {isAgent && <Chip kind="smoke">AI agent</Chip>}{cr.revoked && <Chip kind="bad">revoked</Chip>}</h3>
+          <h3>{cr.name} {isAgent && <Chip kind="smoke">AI agent</Chip>}{cr.revoked && <Chip kind="bad">removed</Chip>}</h3>
           <Acct a={cr.account} />
         </div>
-        <div className="rep" title="Reputation: +5% per completed campaign, −10% per miss, between −20% and +30%. It discounts the bid in the auction.">
+        <div className="rep" title="Track record (reputation): +5% per completed campaign, −10% per miss, between −20% and +30%. A better track record makes the creator’s offer count as lower.">
           <span className="n">{c.rep_bps >= 0 ? '+' : ''}{c.rep_bps / 100}%</span>
-          <span className="l">reputation</span>
+          <span className="l">track record</span>
         </div>
       </header>
       <p className="small">{cr.profile}</p>
@@ -73,8 +74,8 @@ function CreatorCard({ c }: { c: CreatorRec }) {
         <div><dt>buyers</dt><dd>{cr.results}</dd></div>
       </dl>
       <p className="small">Earned <strong>{fmtTusd(c.tusd)} tUSD</strong> (holds now) · paid <Near y={cr.paid} d={3} /> from treasuries{c.wallet && <> · wallet <Near y={c.wallet.balance} d={3} /></>}</p>
-      <button className="ghost small" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? 'Hide record' : 'NFTs and vetting report'}</button>
-      {open && !detail && <p className="muted small">Reading the NFTs…</p>}
+      <button className="ghost small" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? 'Hide record' : 'Record and review'}</button>
+      {open && !detail && <p className="muted small">Loading the record…</p>}
       {open && detail && (
         <div className="c-detail">
           {badge && (
@@ -97,7 +98,7 @@ function CreatorCard({ c }: { c: CreatorRec }) {
           })}
           {detail.vetting ? (
             <div className="vetting">
-              <h4 data-tour="vetting">Scout’s vetting report <TeeBadge signed={detail.vetting.signed} model={detail.vetting.model} src={{ kind: 'vetting', account: cr.account }} what="vetting report" /></h4>
+              <h4 data-tour="vetting">AI scout’s review <TeeBadge signed={detail.vetting.signed} model={detail.vetting.model} src={{ kind: 'vetting', account: cr.account }} what="vetting report" /></h4>
               {report?.summary ? (
                 <>
                   <p className="small">{report.summary}</p>
@@ -145,14 +146,14 @@ function Apply() {
   return (
     <section className="panel apply" data-tour="apply">
       <h2>Become a creator</h2>
-      <p className="small">Admitted creators can bid on any startup’s campaigns and are paid in tUSD as their results come in. Applying costs a 0.01 NEAR vetting fee, paid to the scout from your Signalfire wallet; bids need a 0.02 NEAR bond from the same wallet, returned when you reveal.</p>
+      <p className="small">Approved creators can send offers on any startup’s campaigns and are paid in tUSD (test dollars) as new buyers arrive. Applying costs a 0.01 NEAR review fee, paid to the AI scout from your Signalfire balance. Each offer needs a 0.02 NEAR deposit from the same balance, returned when you open your offer.</p>
       <SignInHint what="apply" />
-      {account && admitted && <p className="ok-text">You’re an admitted creator. Open a startup’s Treasury tab: each campaign taking bids shows <strong>Your sealed bid</strong>.</p>}
+      {account && admitted && <p className="ok-text">You’re an approved creator. Open a startup’s Marketing fund and campaigns tab: each campaign taking offers shows <strong>Your sealed offer</strong>.</p>}
       {account && !admitted && (
         <ol className="apply-steps">
           <li className={wallet >= fee || applied ? 'done' : ''}>
-            <strong>Fund your Signalfire wallet</strong> with 0.03 NEAR (the vetting fee plus one bid bond). Your wallet: <Near y={wallet} d={3} />.
-            {wallet < fee && !applied && <button className="primary small" disabled={!!busy} onClick={() => void run('Add NEAR to your Signalfire balance', () => call(state!.hub, 'fund_wallet', { account }, parseNear('0.03')), { pending: 'Adding NEAR to your Signalfire balance…', done: 'Your Signalfire balance is topped up.', action: 'fund_wallet' })}>Fund with 0.03 NEAR</button>}
+            <strong>Add 0.03 NEAR to your Signalfire balance</strong> (the review fee plus one offer deposit). Your Signalfire balance<Info text="A balance held for you inside Signalfire’s contract (your hub wallet), with spending caps." />: <Near y={wallet} d={3} />.
+            {wallet < fee && !applied && <button className="primary small" disabled={!!busy} onClick={() => void run('Add NEAR to your Signalfire balance', () => call(state!.hub, 'fund_wallet', { account }, parseNear('0.03')), { pending: 'Adding NEAR to your Signalfire balance…', done: 'Your Signalfire balance is topped up.', action: 'fund_wallet' })}>Add 0.03 NEAR</button>}
           </li>
           <li className={applied ? 'done' : ''}>
             <strong>Apply</strong>: your name and what you make.
@@ -178,8 +179,8 @@ function Apply() {
             )}
           </li>
           <li className={queued || applied ? 'now' : ''}>
-            <strong>The scout vets you</strong> within a minute: it files a report and the hub admits you by rule.
-            {applied && !queued && <button className="ghost small" onClick={() => void api('/applied', {}).then(() => setQueued(true)).catch(() => undefined)}>Remind the scout</button>}
+            <strong>The AI scout reviews you</strong> within a minute: it files a report, and fixed rules decide whether you’re in.
+            {applied && !queued && <button className="ghost small" onClick={() => void api('/applied', {}).then(() => setQueued(true)).catch(() => undefined)}>Remind the AI scout</button>}
           </li>
         </ol>
       )}
