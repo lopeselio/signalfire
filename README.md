@@ -116,7 +116,8 @@ fallback text, marked unsigned.
    checked live), what it holds, and its recent payouts, each with its transaction; **How the key works** shows the
    account, its one access key (derived by NEAR's MPC network for the hub) and the signer path (`agent_sign` → MPC
    signature → the agent's `ft_transfer_call`). Payouts it sends carry the `keyless_agent` flag in the audit log.
-5. **Creators (`/creators`).** Nova, Quill, Ember: click **Record and review** for their soulbound creator NFT (its
+5. **Creators (`/creators`).** The page opens with **Get paid for every new customer you bring** (how the AI scout
+   reviews creators is under **How creators are reviewed**). Nova, Quill, Ember: click **Record and review** for their soulbound creator NFT (its
    record is computed from live state), receipt NFTs (`receipt:0`, `receipt:1`), tUSD earned, wallet caps, and the
    **AI scout's review** (the vetting report). Its
    badge reads **"Private AI, checking…"** and then **"✓ Private AI, verified"** after a few seconds: this browser
@@ -180,7 +181,8 @@ fallback text, marked unsigned.
    [3 + receipt NFT](https://testnet.nearblocks.io/txns/FiFcPYnyRQ1bEG59vSRDeVPu3JZ93jd5cYKFUE9gx728).
    `pnpm verify 2 https://signalfire.lopeselio.online` → `✓ sf-pat.signalfire-ref.testnet: the opening matches the
    sealed commitment` … `✓ 22 checks passed, 0 failed`.
-7. **Run your own startup.** Signed in, **Launch** (`/launch`) creates a token and a DAO with you as founder (the
+7. **Run your own startup.** Signed in, **Launch** (`/launch`, headed **Launch your startup in one step**; it links
+   to **Plan a campaign**) creates a token and a DAO with you as founder (the
    account names are under **What gets created on NEAR**). On its Marketing fund and campaigns tab the founder sees
    **Founder's desk**: **Post a campaign brief** (title, goal, new buyers wanted, budget within both the largest
    campaign budget and what the marketing fund has available, time for sealed offers and to open them, deadline once
@@ -190,7 +192,7 @@ fallback text, marked unsigned.
    `packages/core` (`briefErrors`, `constraintErrors`) before the wallet signs `create_campaign` / `set_constraints`
    (no deposit: gasless). Nothing here needs a DAO proposal: funding a winner is already the holders' vote (filed when
    the auction settles), and the payee allowlist, milestones and fee are fixed by the contract.
-8. **Dashboard (`/dashboard`).** Read live from the chain: totals, the startups table, cost per new buyer for each
+8. **Dashboard (`/dashboard`, headed **Follow every fee to where it went**).** Read live from the chain: totals, the startups table, cost per new buyer for each
    completed campaign, creators' records, the hub's solvency (everything it owes vs its balance), and **the thesis,
    "Why agent-run marketing treasuries belong on NEAR"**, with its evidence computed from chain data: gas burnt per agent
    action (from each transaction's receipts on an archival RPC) and for a whole 19-transaction campaign, where the fees
