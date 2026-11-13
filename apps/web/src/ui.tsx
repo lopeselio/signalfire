@@ -108,7 +108,7 @@ export function Terms({ compact }: { compact?: boolean }) {
   return (
     <aside className={`terms${compact ? ' compact' : ''}`} role="note">
       <strong>Not equity. Not a claim on revenue or on the marketing fund. Test network only: no real money.</strong>
-      {!compact && <span> {(state?.terms ?? '').split('. ').slice(1).join('. ') || 'Its trading fees can only pay for marketing campaigns the holders choose.'}</span>}
+      {!compact && <span> {(state?.terms ?? '').split('. ').slice(1).filter((x) => !/no real money/i.test(x)).join('. ').replace(/\.?$/, '.').replace(/^\.$/, '') || 'Its trading fees can only pay for marketing campaigns the holders choose.'}</span>}
     </aside>
   );
 }
