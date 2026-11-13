@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { fmtNear, fmtTusd, parseNear } from '@signalfire/core';
 import { CashOut } from './CashOut.tsx';
-import { api, type CreatorDetail, type CreatorRec, type Nft } from './api.ts';
+import { api, type AuditEntry, type CreatorDetail, type CreatorRec, type Nft } from './api.ts';
+import { useCelebrate } from './celebrate.ts';
+import { Waiting } from './Waiting.tsx';
 import { Acct, Chip, Info, Near, SignInHint, TeeBadge, useApp } from './ui.tsx';
 import { call } from './wallet.ts';
 import { PrivateInputs, ReceiptCheck, emptyPrivate, hasPrivate, submitPrivate, type PrivateFields } from './PrivateApply.tsx';
@@ -34,7 +36,7 @@ export function Creators() {
         <NextAction page="creators" />
       </section>
       <div className="grid-creators" data-tour="creators">
-        {creators.length === 0 && <p className="muted">No creators yet. Be the first: apply below, and the AI scout replies within a minute.</p>}
+        {creators.length === 0 && <p className="empty">No creators yet. Be the first: apply below, and the AI scout replies within a minute.</p>}
         {creators.map((c) => <CreatorCard key={c.creator.account} c={c} />)}
       </div>
       <CashOut />
@@ -153,12 +155,22 @@ function Apply() {
   const applied = !!me?.application;
   const wallet = me?.wallet ? BigInt(me.wallet.balance) : 0n;
   const fee = parseNear('0.01');
+  const refusal = useRefusal(account, admitted, applied);
+  useCelebrate(account ? `admitted:${account}` : null, account && me && me.accountId === account ? (admitted ? 1 : 0) : undefined);
   return (
     <section className="panel apply" data-tour="apply">
       <h2>Become a creator</h2>
       <p className="small">Approved creators can send offers on any startup’s campaigns and are paid in tUSD (test dollars) as new buyers arrive. Applying costs a 0.01 NEAR review fee, paid to the AI scout from your Signalfire balance. Each offer needs a 0.02 NEAR deposit from the same balance, returned when you open your offer.</p>
       <SignInHint what="apply" />
-      {account && admitted && <p className="ok-text">You’re an approved creator. Open a startup’s Marketing fund and campaigns tab: each campaign taking offers shows <strong>Your sealed offer</strong>.</p>}
+      {account && admitted && <p className="welcome-in"><strong>You’re in! Watch for briefs to seal an offer on.</strong> You’re an approved creator. Open a startup’s Marketing fund and campaigns tab: each campaign taking offers shows <strong>Your sealed offer</strong>.</p>}
+      {account && !admitted && !applied && refusal && (
+        <p className="refused" title={refusal.note}>
+          <strong>The scout couldn’t admit this account.</strong>
+          {refusal.flags.includes('lookalike')
+            ? <>Its name looks like an approved creator’s ({refusal.note.replace(/^lookalike of /, '')}), and the contract refuses near-copies of a creator’s name. Apply from an account whose name is clearly your own. The 0.01 NEAR review fee was paid to the scout for the review.</>
+            : <>The contract’s note: {refusal.note}. Check the steps below and apply again.</>}
+        </p>
+      )}
       {account && !admitted && (
         <ol className="apply-steps">
           <li className={wallet >= fee || applied ? 'done' : ''}>
@@ -184,16 +196,40 @@ function Apply() {
                   setQueued(true);
                   refreshMe();
                   return r;
-                }, { pending: 'Sending your application to the AI scout…', done: 'Application sent. The AI scout usually reviews it within a minute.', action: 'apply_creator' })}>Apply</button>
+                }, { pending: 'Sending your application to the AI scout…', done: 'Application sent! Lens, the AI scout, usually reviews it within a minute.', action: 'apply_creator' })}>Apply</button>
               </div>
             )}
           </li>
           <li className={queued || applied ? 'now' : ''}>
             <strong>The AI scout reviews you</strong> within a minute: it files a report, and fixed rules decide whether you’re in.
+            {applied && <Waiting className="card" lines={SCOUT_LINES} still="Lens, the AI scout, is reviewing your application. It usually takes under a minute." />}
             {applied && !queued && <button className="ghost small" onClick={() => void api('/applied', {}).then(() => setQueued(true)).catch(() => undefined)}>Remind the AI scout</button>}
           </li>
         </ol>
       )}
     </section>
   );
+}
+
+/** What the scout really does with an application, in order (server/agents.ts, then vet_creator on the hub). */
+const SCOUT_LINES = [
+  'Lens is reading your application…',
+  'Checking your name isn’t a lookalike…',
+  'Signing the review in secure hardware…',
+  'Recording the review on NEAR…',
+];
+
+/** The hub's latest vetting decision for this account, when it was a refusal (from the onchain audit log). */
+function useRefusal(account: string | null, admitted: boolean, applied: boolean): AuditEntry | null {
+  const [hit, setHit] = useState<AuditEntry | null>(null);
+  useEffect(() => {
+    if (!account || admitted || applied) { setHit(null); return; }
+    let on = true;
+    api<AuditEntry[]>('/audit').then((rows) => {
+      const last = rows.filter((e) => e.action === 'vet' && e.account === account).sort((a, b) => b.n - a.n)[0];
+      if (on) setHit(last && last.outcome === 'rejected' ? last : null);
+    }).catch(() => undefined);
+    return () => { on = false; };
+  }, [account, admitted, applied]);
+  return hit;
 }
