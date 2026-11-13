@@ -19,19 +19,19 @@ function Beacon() {
   return (
     <div className="beacon-card" data-tour="beacon" aria-label="Where the trading fees went">
       <div className="bc-head">
-        <span className="bc-title">Marketing treasuries</span>
-        <span className="chip ok">live from testnet</span>
+        <span className="bc-title">Marketing funds</span>
+        <span className="chip ok">live from NEAR</span>
       </div>
-      <span className="bc-big"><Count value={fmtNear(t.feesIn, 3)} /><small> NEAR in from trading fees</small></span>
+      <span className="bc-big"><Count value={fmtNear(t.feesIn, 3)} /><small> NEAR collected from trading fees</small></span>
       <div className="bc-bar" aria-hidden="true">
         <span className="seg paid" style={{ width: w(paid) }} />
         <span className="seg committed" style={{ width: w(committed) }} />
         <span className="seg free" style={{ width: w(free) }} />
       </div>
       <dl className="bc-key">
-        <div><dt><i className="k free" />Free to fund campaigns</dt><dd>{fmtNear(t.available, 3)} NEAR</dd></div>
-        <div><dt><i className="k committed" />Reserved for funded campaigns</dt><dd>{fmtNear(t.committed, 3)} NEAR</dd></div>
-        <div><dt><i className="k paid" />Paid to creators</dt><dd>{fmtNear(t.paid, 3)} NEAR <small>as {fmtTusd(t.tusdPaid)} tUSD</small></dd></div>
+        <div><dt><i className="k free" />Available for campaigns</dt><dd>{fmtNear(t.available, 3)} NEAR</dd></div>
+        <div><dt><i className="k committed" />Set aside for approved campaigns</dt><dd>{fmtNear(t.committed, 3)} NEAR</dd></div>
+        <div><dt><i className="k paid" />Paid to creators</dt><dd>{fmtNear(t.paid, 3)} NEAR <small>as {fmtTusd(t.tusdPaid)} tUSD (test dollars)</small></dd></div>
         <div className="founders"><dt><i className="k none" />Paid to founders</dt><dd>0 NEAR, by design</dd></div>
       </dl>
     </div>
@@ -47,11 +47,11 @@ function TokenCard() {
       <div className="pc-head"><StartupLogo id={s.id} size={26} /><strong>{s.name}</strong><span className="chip">{s.id.toUpperCase()}</span></div>
       <dl className="pc-terms">
         <div><dt>What it is</dt><dd>Attention, not equity</dd></div>
-        <div><dt>Trading fee</dt><dd>2% to marketing</dd></div>
+        <div><dt>Trading fee</dt><dd>2% to the marketing fund</dd></div>
         <div><dt>To the founders</dt><dd>0</dd></div>
         <div><dt>Supply</dt><dd>1,000,000, fixed</dd></div>
       </dl>
-      <p className="pc-foot">Terms set by the hub contract at launch</p>
+      <p className="pc-foot">Terms fixed by Signalfire’s contract at launch. No one can change them.</p>
     </div>
   );
 }
@@ -63,14 +63,14 @@ function TreasuryCard() {
   const c = s.constraints;
   return (
     <div className="pc">
-      <div className="pc-head"><strong>Spend policy</strong><span className="chip ok">enforced</span></div>
+      <div className="pc-head"><strong>Spend limits</strong><span className="chip ok">enforced by code</span></div>
       <ul className="pc-rules">
         <li><span>Largest campaign</span><b>{fmtNear(c.campaign_cap, 2)} NEAR</b></li>
-        <li><span>Largest payout</span><b>{fmtNear(c.max_payout, 2)} NEAR</b></li>
-        <li><span>Payouts per hour</span><b>{c.payouts_per_hour}</b></li>
-        <li><span>Payees</span><b>winning creator only</b></li>
+        <li><span>Largest single payment</span><b>{fmtNear(c.max_payout, 2)} NEAR</b></li>
+        <li><span>Payments per hour</span><b>{c.payouts_per_hour}</b></li>
+        <li><span>Who can be paid</span><b>the winning creator only</b></li>
       </ul>
-      <p className="pc-foot">Every attempt goes into the onchain audit log</p>
+      <p className="pc-foot">Every payment attempt is written to a public audit log</p>
     </div>
   );
 }
@@ -83,7 +83,7 @@ function CampaignCard() {
   if (!c) return null;
   const st = s.startups.find((x) => x.id === c.startup);
   const pct = Math.round((Math.min(c.results, c.target) / c.target) * 100);
-  const label: Record<string, string> = { bidding: 'Sealed bids', voting: 'Holders vote', funded: 'Running', done: 'Paid out' };
+  const label: Record<string, string> = { bidding: 'Sealed offers', voting: 'Holders vote', funded: 'Creator at work', done: 'Paid out' };
   return (
     <div className="pc">
       <div className="pc-head"><strong>Campaign #{c.id}</strong><span className={`chip ${c.phase === 'done' ? 'ok' : 'ember'}`}>{label[c.phase]}</span></div>
@@ -91,17 +91,17 @@ function CampaignCard() {
       <div className="pc-progress">
         <div className="pc-nums"><span>{c.results}/{c.target} new buyers</span><span>{fmtNear(c.paid, 3)} / {fmtNear(c.price !== '0' ? c.price : c.budget, 3)} NEAR</span></div>
         <div className="pc-bar"><span style={{ width: `${pct}%` }} /></div>
-        <div className="pc-ms">{Array.from({ length: MILESTONES }, (_, k) => <i key={k} className={c.milestones_paid > k ? 'on' : ''} title={`milestone ${k + 1} at ${threshold(c.target, k + 1)} buyers`} />)}</div>
+        <div className="pc-ms">{Array.from({ length: MILESTONES }, (_, k) => <i key={k} className={c.milestones_paid > k ? 'on' : ''} title={`Payout ${k + 1} of 3 at ${threshold(c.target, k + 1)} new buyers`} />)}</div>
       </div>
-      <p className="pc-foot">Sealed bids, a holders’ vote, then paid per milestone</p>
+      <p className="pc-foot">Sealed offers, a holders’ vote, then paid as new buyers arrive</p>
     </div>
   );
 }
 
 const STORY = [
-  { n: '01', t: 'Token', b: 'A startup launches an attention token on a bonding curve. It is not equity and not a claim on anything: the founders get no tokens and no fees.' },
-  { n: '02', t: 'Treasury', b: '2% of every trade lands in a marketing treasury inside the hub contract. A spend policy with caps, a payee allowlist and an audit log is the only way out.' },
-  { n: '03', t: 'Campaign', b: 'Vetted creators seal bids for a brief, holders vote in the startup’s DAO, and the winner is paid in three milestones as new buyers arrive through their link.' },
+  { n: '01', t: 'Token', b: 'A startup launches an attention token with automatic pricing: the price rises as people buy. It is not equity and not a claim on anything. The founders get no tokens and no fees.' },
+  { n: '02', t: 'Marketing fund', b: '2% of every trade goes into the startup’s marketing fund, held by Signalfire’s contract. The only way money leaves is through spend limits: caps, only the winning creator gets paid, and every payment is logged in public.' },
+  { n: '03', t: 'Campaign', b: 'Reviewed creators send sealed offers for a brief, the holders’ council votes on the winner, and the winner is paid in three milestone payouts as new buyers arrive through their link.' },
 ];
 
 export function Landing() {
@@ -120,7 +120,7 @@ export function Landing() {
           <p className="eyebrow">Attention tokens on NEAR</p>
           <h1>Community attention becomes a marketing budget <em>the founders can’t pocket.</em></h1>
           <p className="lede">
-            Trading a startup’s attention token pays a fee into a marketing treasury. Vetted creators compete to run its
+            Every trade in a startup’s attention token pays a fee into its marketing fund. Reviewed creators compete to run its
             campaigns, holders pick the winner, and the money moves only when new buyers show up.
           </p>
           <div className="row">
@@ -146,9 +146,9 @@ export function Landing() {
       <section className="mission rv" aria-label="Totals across all startups">
         <p className="eyebrow">The rule</p>
         <h2>Trading pays for reaching customers, <em>not founders.</em></h2>
-        <p className="lede">Totals across every startup on the hub, read live from NEAR testnet.</p>
+        <p className="lede">Totals across every startup on Signalfire, read live from NEAR’s test network.</p>
         <div className="mission-nums">
-          <div><span className="n"><Count value={fmtNear(t.feesIn, 3)} /></span><span className="l">NEAR into marketing treasuries</span></div>
+          <div><span className="n"><Count value={fmtNear(t.feesIn, 3)} /></span><span className="l">NEAR into marketing funds</span></div>
           <div><span className="n"><Count value={fmtNear(t.paid, 3)} /></span><span className="l">NEAR paid to creators</span></div>
           <div><span className="n"><Count value={String(reached)} /></span><span className="l">new buyers reached</span></div>
           <div><span className="n">{t.costPerResult ? <Count value={fmtNear(t.costPerResult, 4)} /> : '—'}</span><span className="l">NEAR per new buyer</span></div>
@@ -157,7 +157,7 @@ export function Landing() {
 
       <section className="story rv" aria-label="How it works">
         <h2>How it works</h2>
-        <p className="lede">Three pieces, one contract: the token, the treasury it feeds, and the campaigns that spend it.</p>
+        <p className="lede">Three pieces, one contract: the token, the marketing fund it feeds, and the campaigns that spend it.</p>
         <div className="story-panel">
           <TokenCard />
           <TreasuryCard />
@@ -167,8 +167,8 @@ export function Landing() {
           {STORY.map((x) => <li key={x.n}><span className="st-n">{x.n}</span><h3>{x.t}</h3><p>{x.b}</p></li>)}
         </ol>
         <p className="muted small story-ai">
-          A model on NEAR AI Cloud writes the scout’s vetting notes and the creators’ pitches, each signed inside its TEE.
-          It never decides who gets money: the contract’s rules do.
+          An AI on NEAR AI Cloud writes the scout’s review notes and the AI creators’ pitches, each signed inside secure
+          hardware you can check from your browser. The AI never decides who gets money: the contract’s rules do.
         </p>
       </section>
 
