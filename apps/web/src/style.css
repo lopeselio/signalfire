@@ -749,7 +749,7 @@ details.tech[open] > summary { margin-bottom: 4px; }
 /* the warm glow that follows the pointer (CursorGlow.tsx): behind the content, never over text */
 .cursor-glow { display: none; }
 .glow-on .cursor-glow { display: block; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background: radial-gradient(360px circle at var(--mx, -999px) var(--my, -999px), color-mix(in srgb, var(--fire) 16%, transparent), color-mix(in srgb, var(--sun) 6%, transparent) 45%, transparent 70%);
+  background: radial-gradient(360px circle at var(--mx, -999px) var(--my, -999px), color-mix(in srgb, var(--fire) 24%, transparent), color-mix(in srgb, var(--sun) 10%, transparent) 45%, transparent 70%);
   transition: opacity var(--dur-2) var(--ease); }
 .glow-on.glow-out .cursor-glow { opacity: 0; }
 :root[data-theme='dark'].glow-on .cursor-glow { background: radial-gradient(380px circle at var(--mx, -999px) var(--my, -999px), color-mix(in srgb, var(--fire) 22%, transparent), color-mix(in srgb, var(--sun) 6%, transparent) 45%, transparent 70%); }
