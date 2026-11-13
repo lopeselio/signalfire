@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Check, ModelVerification, SignedReply } from '@signalfire/attest';
 import { api } from './api.ts';
+import { Waiting } from './Waiting.tsx';
 
 // "Private AI, verified": checks, in this browser, that a vetting report or a pitch was signed by a key that
 // lives inside an attested NEAR AI Cloud TEE. The model's attestation is fetched straight from cloud-api.near.ai
@@ -97,7 +98,7 @@ function Details({ what, res, status, again, close }: { what: string; res: Resul
         and NVIDIA’s GPU verdict, and checked the {what}’s signature against the attested key. Our server only relayed the GPU evidence to
         NVIDIA (NVIDIA blocks browsers); NVIDIA’s answer is signed, and was checked here.
       </p>
-      {!res && <p className="muted small">Fetching the report and Intel’s collateral… (about 300 KB, a few seconds)</p>}
+      {!res && <Waiting className="small" lines={['Fetching the report and Intel’s collateral… (about 300 KB, a few seconds)']} />}
       {res?.error && <p className="bad-text small">Couldn’t check the attestation: {res.error}</p>}
       {v && (
         <>

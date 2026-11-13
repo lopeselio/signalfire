@@ -28,7 +28,7 @@ export function HoldersPanel({ s }: { s: Startup }) {
         <Info text={`Anyone holding at least ${fmtTokens(a?.holders.minToJoin ?? s.constraints.min_holder_tokens, 0)} ${sym} can join the council from the Marketing fund tab. Holding tokens is not equity and not a claim on revenue.`} />
       </p>
       {!a && <p className="muted small">Loading holders…</p>}
-      {a && list.length === 0 && <p className="muted small">No holders yet.</p>}
+      {a && list.length === 0 && <p className="empty small">No holders yet. Buy a few tokens to be the first.</p>}
       {rows.length > 0 && (
         <ol className="holders-list">
           {rows.map((h) => (
@@ -48,7 +48,7 @@ export function HoldersPanel({ s }: { s: Startup }) {
       )}
       {list.length > 8 && <button className="link small" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${list.length}`}</button>}
       <h3 className="h-votes-title">Recent votes</h3>
-      {a && votes.length === 0 && <p className="muted small">No council votes yet. A vote opens when a campaign has a winning offer.</p>}
+      {a && votes.length === 0 && <p className="empty small">No council votes yet. A vote opens when a campaign has a winning offer.</p>}
       <ul className="votes-live">
         {votes.map((v) => (
           <li key={v.id} className={`${v.vote}${freshVotes.has(v.id) ? ' flash' : ''}`}>

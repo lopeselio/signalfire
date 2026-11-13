@@ -80,7 +80,7 @@ export function Discussion({ campaign }: { campaign: number }) {
     <section className="talk" aria-label="Creator’s posts and discussion">
       <ContentLinks t={t} reload={load} />
       <h4>Discussion {t.comments.length > 0 && <span className="muted small">({t.comments.length})</span>}</h4>
-      {t.comments.length === 0 && <p className="muted small">No comments yet. Ask the creator about their plan, or share what you saw.</p>}
+      {t.comments.length === 0 && <p className="empty small">No comments yet. Ask the creator about their plan, or share what you saw.</p>}
       <ol className="talk-list">
         {t.comments.map((c) => (
           <li key={c.n} className={c.hidden ? 'hidden' : ''}>
