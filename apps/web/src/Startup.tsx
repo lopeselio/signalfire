@@ -15,6 +15,11 @@ import { FLAG, auditNote, auditResult, auditWhat } from './copy.ts';
 import { founderOf } from './Discover.tsx';
 import { Acct, Chip, Info, Near, SignInHint, TeeBadge, Terms, ago, flagKind, fmtLeft, useApp, useNow } from './ui.tsx';
 import { call } from './wallet.ts';
+import { CampaignActivity } from './live/Activity.tsx';
+import { HoldersPanel } from './live/Holders.tsx';
+import { Tape } from './live/Tape.tsx';
+import { asTrades, useActivity } from './live/useActivity.ts';
+import './live/live.css';
 import { NextAction } from './NextAction.tsx';
 
 // A startup: its market (chart, trade, supply and fees) and its treasury (ledger, constraints, campaigns,
@@ -29,14 +34,9 @@ export function StartupPage({ id }: { id: string }) {
   const { state } = useApp();
   const s = state!.startups.find((x) => x.id === id);
   const [tab, setTab] = useState<'market' | 'treasury' | 'evidence'>(() => { const t = new URLSearchParams(location.search).get('tab'); return t === 'treasury' || t === 'evidence' ? t : 'market'; });
-  const [trades, setTrades] = useState<Trade[] | null>(null);
-  useEffect(() => {
-    let on = true;
-    const load = (): void => { api<Trade[]>(`/startup/${id}/trades`).then((t) => on && setTrades(t)).catch(() => on && setTrades([])); };
-    load();
-    const t = setInterval(load, 5000);
-    return () => { on = false; clearInterval(t); };
-  }, [id]);
+  // trades, holders, votes and campaign updates, every 2 s (live/useActivity.ts)
+  const live = useActivity(id);
+  const trades = useMemo(() => (live ? asTrades(live.trades) : null), [live]);
   useEffect(() => {
     // NextAction (and anything else) can switch the tab when it takes you to a panel on this page
     const on = (e: Event): void => { const t = (e as CustomEvent<string>).detail; if (t === 'market' || t === 'treasury' || t === 'evidence') setTab(t); };
@@ -58,7 +58,7 @@ export function StartupPage({ id }: { id: string }) {
           </details>
         </div>
         <div className="st-price">
-          <span className="n">{fmtNear(s.price, 6)}<small> NEAR</small></span>
+          <span className="n">{fmtNear(live?.market.price ?? s.price, 6)}<small> NEAR</small></span>
           <span className="l">per {sym}, current price<Info text="Set by the price curve (bonding curve): it rises as people buy and falls as they sell." /></span>
         </div>
       </section>
@@ -68,51 +68,30 @@ export function StartupPage({ id }: { id: string }) {
         <button role="tab" data-tour="tab-treasury" aria-selected={tab === 'treasury'} className={tab === 'treasury' ? 'on' : ''} onClick={() => setTab('treasury')}>Marketing fund and campaigns</button>
         <button role="tab" aria-selected={tab === 'evidence'} className={tab === 'evidence' ? 'on' : ''} onClick={() => setTab('evidence')} data-tour="evidence-tab">Evidence</button>
       </div>
-      {tab === 'market' ? <Market s={s} trades={trades} /> : tab === 'treasury' ? <Treasury s={s} /> : <EvidenceTab s={s} />}
+      {tab === 'market' ? <Market s={s} trades={trades} circulating={live?.market.circulating ?? s.circulating} /> : tab === 'treasury' ? <Treasury s={s} /> : <EvidenceTab s={s} />}
     </div>
   );
 }
 
 // ---------- market ----------
 
-function Market({ s, trades }: { s: Startup; trades: Trade[] | null }) {
+function Market({ s, trades, circulating }: { s: Startup; trades: Trade[] | null; circulating: string }) {
   return (
     <div className="grid-market">
       <div className="col-main">
         <section className="panel" data-tour="price">
           <h2>Price</h2>
-          {trades === null ? <p className="muted">Loading trades…</p> : <PriceChart trades={trades} circulating={s.circulating} />}
-          <TradeList trades={trades ?? []} sym={s.id.toUpperCase()} />
+          {trades === null ? <p className="muted">Loading trades…</p> : <PriceChart trades={trades} circulating={circulating} />}
+          <Tape id={s.id} />
         </section>
         <Wire limit={10} />
       </div>
       <div className="col-side">
         <TradePanel s={s} />
+        <HoldersPanel s={s} />
         <SupplyPanel s={s} />
       </div>
     </div>
-  );
-}
-
-function TradeList({ trades, sym }: { trades: Trade[]; sym: string }) {
-  const now = useNow(10000);
-  if (!trades.length) return <p className="muted">No trades yet. The first buy sets the price moving.</p>;
-  return (
-    <div className="tbl-wrap"><table className="tbl compact">
-      <thead><tr><th>Trade</th><th>Account</th><th className="r">{sym}</th><th className="r">NEAR</th><th className="r">Fee to marketing fund</th><th className="r">When</th></tr></thead>
-      <tbody>
-        {trades.slice(0, 8).map((t) => (
-          <tr key={t.n}>
-            <td><Chip kind={t.side === 'buy' ? 'ok' : 'warn'}>{t.side}</Chip>{t.attributed !== null && <span title="Bought through a creator’s link: counts as a new buyer"><Chip kind="ember">via campaign #{t.attributed}</Chip></span>}</td>
-            <td><Acct a={t.account} /></td>
-            <td className="r">{fmtTokens(t.tokens)}</td>
-            <td className="r">{fmtNear(t.near)}</td>
-            <td className="r">{fmtNear(t.fee, 5)}</td>
-            <td className="r muted">{ago(t.ts_ms, now)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table></div>
   );
 }
 
@@ -347,6 +326,7 @@ function CampaignCard({ c, s, isHolder }: { c: Campaign; s: Startup; isHolder: b
           {PHASES.map((p, i) => <li key={p.key} className={i < idx ? 'past' : i === idx ? 'now' : ''}>{p.label}</li>)}
         </ol>
       ) : <p className="ended">{ended[c.phase] ?? c.phase}</p>}
+      <CampaignActivity startup={s.id} campaign={c.id} />
       {open && (
         <div className="c-body">
           <p>{c.brief}</p>
