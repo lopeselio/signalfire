@@ -100,10 +100,9 @@ async function slot<T>(fn: () => Promise<T>): Promise<T> {
   try { return await fn(); } finally { inflight--; waiting.shift()?.(); }
 }
 
-export function viewOn<T>(contractId: string, method: string, args: object = {}): Promise<T> {
-  return slot(async () => {
+async function viewOnce<T>(contractId: string, method: string, args: object, attempts: number): Promise<T> {
     let last: unknown;
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < attempts; attempt++) {
       const url = RPCS[attempt % RPCS.length];
       try {
         const res = await fetch(url, {
@@ -126,7 +125,16 @@ export function viewOn<T>(contractId: string, method: string, args: object = {})
       await sleep(300 * (attempt + 1));
     }
     throw last;
-  });
+}
+
+/** A contract view, queued with every other background read (at most 6 at once). */
+export function viewOn<T>(contractId: string, method: string, args: object = {}): Promise<T> {
+  return slot(() => viewOnce<T>(contractId, method, args, 5));
+}
+
+/** A view for a person waiting on a page: it skips the background queue, so a slow snapshot rebuild can't starve it. */
+export function viewNow<T>(contractId: string, method: string, args: object = {}): Promise<T> {
+  return viewOnce<T>(contractId, method, args, 3);
 }
 export const view = <T>(method: string, args: object = {}): Promise<T> => viewOn<T>(config.hub, method, args);
 
