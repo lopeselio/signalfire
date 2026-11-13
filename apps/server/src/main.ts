@@ -15,7 +15,8 @@ import { buildProof, vettingProof } from './proof.ts';
 import { computeThesis, type Thesis } from './thesis.ts';
 import { cashOutInfo, settleCashOut, type CashOutRequest } from './cashout.ts';
 import { latest as snapshot, type Snapshot } from './snapshot.ts';
-import { addWire, bidsFor, getState, getWire, loadBid, loadVetting, pendingApplicants, saveBid, savePrivateApp, setPendingApplicants, setState } from './store.ts';
+import { addWire, bidsFor, getState, getWire, loadBid, loadVetting, pendingApplicants, saveBid, savePrivateApp, setPendingApplicants, setState, tourStore } from './store.ts';
+import { LIMITS as TOUR_LIMITS, rateLimiter, tourRoute } from './tour.ts';
 
 // ---------- tiny HTTP helpers ----------
 
@@ -141,6 +142,7 @@ function refreshThesis(): Promise<Thesis> {
 setTimeout(() => void refreshThesis().catch((e: Error) => console.warn(`thesis: ${e.message}`)), 20_000).unref();
 setInterval(() => void refreshThesis().catch((e: Error) => console.warn(`thesis: ${e.message}`)), 600_000).unref();
 
+const tourAllow = rateLimiter();
 const sealedCache = new Map<number, { status: string } | null>();
 let scorerCache: { at: number; v: unknown } | null = null;
 
@@ -309,6 +311,18 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       const b = await body<CashOutRequest>(req, 8000);
       if (![b.amount, b.message, b.nonce, b.recipient, b.publicKey, b.signature].every((x) => typeof x === 'string') || !/^\d{1,20}$/.test(b.amount)) return json(res, 400, { error: 'amount, message, nonce, recipient, publicKey, signature' });
       try { return json(res, 200, await settleCashOut(me, b)); } catch (e) { return json(res, 409, { error: (e as Error).message }); }
+    }
+    if (p === '/api/me/tour') {
+      // the onboarding tour's memory for the signed-in account, so progress follows it across browsers (tour.ts)
+      let raw: string | null = '';
+      if (req.method !== 'GET') {
+        const chunks: Buffer[] = [];
+        let size = 0;
+        for await (const c of req) { size += (c as Buffer).length; if (size > TOUR_LIMITS.bytes) { raw = null; break; } chunks.push(c as Buffer); }
+        if (raw !== null) raw = Buffer.concat(chunks).toString('utf8');
+      }
+      const r = tourRoute(req.method ?? 'GET', me, raw, Date.now(), tourStore, tourAllow);
+      return json(res, r.code, r.body);
     }
     if (p === '/api/me') {
       if (!me) return json(res, 401, { error: 'not signed in' });
