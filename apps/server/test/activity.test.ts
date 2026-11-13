@@ -105,6 +105,8 @@ describe('activity', () => {
   });
 });
 
+const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+
 describe('activity service', () => {
   function deps(over: Partial<ActivityDeps> = {}) {
     const reads: Record<string, number> = {};
@@ -138,7 +140,9 @@ describe('activity service', () => {
     expect(reads.trades).toBe(1);
     const balances = reads.balance;
     tick(2000);
-    await svc.get('sushi');
+    // past the ttl: the last build at once, one rebuild in the background
+    await Promise.all(Array.from({ length: 50 }, () => svc.get('sushi')));
+    await flush();
     expect(reads.startup).toBe(2);
     // the council is kept 5 s, balances until trades change, a settled proposal for good
     expect(reads.council).toBe(1);
@@ -153,6 +157,8 @@ describe('activity service', () => {
     expect((await svc.get('sushi'))?.stale).toBe(false);
     fail = true;
     tick(2000);
+    await svc.get('sushi');
+    await flush();
     const a = await svc.get('sushi');
     expect(a?.stale).toBe(true);
     expect(a?.trades.length).toBe(4);
@@ -166,6 +172,8 @@ describe('activity service', () => {
     await svc.get('sushi');
     votes = { ...votes, 'sushiman1.testnet': 'Reject' };
     tick(5000);
+    await svc.get('sushi');
+    await flush();
     const a = await svc.get('sushi');
     expect(a?.votes.find((v) => v.account === 'sushiman1.testnet')).toMatchObject({ vote: 'no', at: 5000 });
     expect(a?.votes.find((v) => v.account === 'eliocodes.testnet')?.at).toBe(500);
