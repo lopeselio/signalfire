@@ -43,7 +43,10 @@ export interface Trade { n: number; ts_ms: number; account: string; side: 'buy' 
 export interface AuditEntry { n: number; ts_ms: number; startup: string | null; campaign: number | null; action: string; account: string | null; amount: string; outcome: string; flags: string[]; note: string }
 export interface WireItem { at: number; who: string; what: string; tx?: string; url: string | null; kind: string; campaign?: number }
 export interface Me {
-  accountId: string; tokens: { startup: string; balance: string; holder: boolean; founder: boolean }[];
+  accountId: string;
+  /** the account's own NEAR balance in yocto (null if it couldn't be read) */
+  near?: string | null;
+  tokens: { startup: string; balance: string; holder: boolean; founder: boolean }[];
   wallet: Wallet | null; creator: CreatorRec | null; application: { name: string } | null; tusd: string;
 }
 export interface Nft { token_id: string; owner_id: string; metadata: { title?: string | null; description?: string | null; extra?: string | null } | null }

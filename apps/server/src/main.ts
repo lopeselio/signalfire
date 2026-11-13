@@ -7,7 +7,7 @@ import { BA_PATH, accountFromHeaders, authHandler, authOrigin, recentRelays } fr
 import { createActivity, sinceFilter } from './activity.ts';
 import { ftBalance, getProposal, holdersOf } from './hub.ts';
 import { llmsTxt } from './llms.ts';
-import { rpc, view, viewNow } from './chain.ts';
+import { balanceNow, rpc, view, viewNow } from './chain.ts';
 import { config, explorerTx, hasKey } from './config.ts';
 import { evidenceRoute } from './evidence/routes.ts';
 import { discussRoute, loadThread, rolesFrom } from './discuss.ts';
@@ -376,13 +376,14 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       const s = await snapshot();
       // the person is waiting: these reads skip the background queue (viewNow) and run together
       const bal = (token: string): Promise<string> => viewNow<string>(token, 'ft_balance_of', { account_id: me }).catch(() => '0');
-      const [tokens, wallet, application, tusd] = await Promise.all([
+      const [tokens, wallet, application, tusd, near] = await Promise.all([
         Promise.all(s.startups.map(async (st) => ({ startup: st.id, balance: await bal(st.token), holder: (s.holders[st.id] ?? []).includes(me), founder: st.founder === me }))),
         viewNow(config.hub, 'get_wallet', { account: me }).catch(() => null),
         viewNow(config.hub, 'get_application', { account: me }).catch(() => null),
         s.config.tusd ? bal(s.config.tusd) : Promise.resolve('0'),
+        balanceNow(me).then((b) => (b === null ? null : b.toString())).catch(() => null),
       ]);
-      return json(res, 200, { accountId: me, tokens, wallet, creator: s.creators.find((x) => x.creator.account === me) ?? null, application, tusd });
+      return json(res, 200, { accountId: me, near, tokens, wallet, creator: s.creators.find((x) => x.creator.account === me) ?? null, application, tusd });
     }
     if (p === '/api/e2ee-key') {
       // the model key this server would seal to; browsers verify the model's attestation themselves and must match it
