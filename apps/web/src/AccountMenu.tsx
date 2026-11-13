@@ -25,19 +25,24 @@ export function AccountMenu({ account, me, state, go, onSignOut }: {
   const held = (mine?.tokens ?? []).filter((t) => BigInt(t.balance) > 0n);
   const name = (id: string): string => state?.startups.find((s) => s.id === id)?.name ?? id.toUpperCase();
   const wallet = mine?.wallet ? BigInt(mine.wallet.balance) : null;
+  const near = mine?.near ? BigInt(mine.near) : null;
   const tusd = mine ? BigInt(mine.tusd || '0') : 0n;
 
   return (
     <span className="me acct-menu" ref={box}>
       <button className="ghost small acct-chip" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="true" title={account}>
         <span className="me-acct">{shortAcct(account)}</span>
-        {wallet !== null && <span className="me-bal">{fmtNear(wallet, 3)} NEAR</span>}
+        {near !== null && <span className="me-bal" title="Your NEAR balance">{fmtNear(near, 2)} NEAR</span>}
         <span aria-hidden="true">▾</span>
       </button>
       {open && (
         <div className="acct-pop" role="menu">
           <p className="acct-id" title={account}>{account}</p>
-          <h4>Your tokens</h4>
+          <div className="acct-near">
+            <span className="acct-near-n">{near !== null ? fmtNear(near, 4) : '…'}</span> <span>NEAR</span>
+            <span className="hint"> in your wallet (testnet)</span>
+          </div>
+          <h4>Your attention tokens</h4>
           {held.length === 0
             ? <p className="hint">None yet. Buy tokens on any startup’s page.</p>
             : (

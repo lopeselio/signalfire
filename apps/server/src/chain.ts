@@ -140,9 +140,17 @@ export const view = <T>(method: string, args: object = {}): Promise<T> => viewOn
 
 /** An account's balance in yoctoNEAR (null only if the account doesn't exist; RPC errors throw). */
 export function balanceOf(accountId: string): Promise<bigint | null> {
-  return slot(async () => {
+  return slot(() => balanceOnce(accountId, 6));
+}
+
+/** The same read for a person waiting on a page: it skips the background queue. */
+export function balanceNow(accountId: string): Promise<bigint | null> {
+  return balanceOnce(accountId, 3);
+}
+
+async function balanceOnce(accountId: string, attempts: number): Promise<bigint | null> {
     let last: unknown;
-    for (let attempt = 0; attempt < 6; attempt++) {
+    for (let attempt = 0; attempt < attempts; attempt++) {
       const url = RPCS[attempt % RPCS.length];
       try {
         const res = await fetch(url, {
@@ -157,7 +165,6 @@ export function balanceOf(accountId: string): Promise<bigint | null> {
       await sleep(400 * (attempt + 1));
     }
     throw last;
-  });
 }
 
 /** A key's permission (with its remaining allowance for a function-call key), or null. */

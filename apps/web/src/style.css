@@ -542,8 +542,9 @@ blockquote { margin: 8px 0 0; padding-left: 12px; border-left: 2px solid var(--l
   button.burger { display: inline-grid; }
   .nav { display: none; order: 5; width: 100%; margin: 4px 0 0; flex-direction: column; }
   .nav.open { display: flex; }
+  /* phones: the NEAR balance stays in the header; the account name is in the menu */
+  .acct-chip .me-acct { display: none; }
   .me-acct { max-width: 110px; }
-  .me-bal { display: none; }
   main { padding: 22px 16px 56px; }
   .hero h1 { font-size: 38px; }
   .hero-art { padding: 8px 14px 14px; border-radius: 18px; }
@@ -694,3 +695,6 @@ details.tech[open] > summary { margin-bottom: 4px; }
   /* a side-by-side path of cards that has wrapped into one column joins them downwards, across the gap */
   .ld-steps .step-path > li:not(:last-child)::after { top: calc(100% + 2px); left: calc(var(--sp-pad) + var(--sp-size) / 2 - 2px); right: auto; width: 4px; height: calc(var(--sp-gap) - 4px); }
 }
+
+.acct-pop .acct-near { margin: 8px 0 2px; font-size: 14px; }
+.acct-pop .acct-near-n { font: 700 22px var(--font-num, inherit); }
