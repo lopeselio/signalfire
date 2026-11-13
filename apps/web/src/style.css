@@ -583,7 +583,7 @@ blockquote { margin: 8px 0 0; padding-left: 12px; border-left: 2px solid var(--l
 /* a startup card's flame: as tall as its treasury against the largest one */
 .s-big-n { display: flex; align-items: baseline; gap: 4px; }
 .s-flame { margin-left: auto; align-self: flex-end; flex: none; width: 22px; height: 28px; transform-origin: 50% 100%; transform: scale(var(--k, 1)); }
-.s-flame.lit { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--fire) 55%, transparent)); }
+.s-flame.lit { filter: none; } /* paper style: lit = moving, no glow */
 
 /* ---------- the flame mark (FireMark.tsx) ----------
    Flat and chunky: --fire outside, --sun inside, a cream core, a --fire-btn lip under it like the buttons.
@@ -591,24 +591,25 @@ blockquote { margin: 8px 0 0; padding-left: 12px; border-left: 2px solid var(--l
    it. .puff and .flare are one-shot pops on the outer group. Transforms only. */
 .fm { display: inline-block; vertical-align: middle; overflow: visible; aspect-ratio: 64 / 80; flex: none; }
 .fm g, .fm path { transform-box: fill-box; transform-origin: 50% 100%; }
-.fm-shine { transform-box: view-box; transform-origin: 32px 76px; }
-.fm-edge { fill: var(--fire-btn); stroke: var(--fire-btn); stroke-width: 5; stroke-linejoin: round; }
+.fm-edge { fill: var(--fire-btn); stroke: var(--fire-btn); stroke-width: 3; stroke-linejoin: round; }
 .fm-out { fill: var(--fire); }
+.fm-in-edge { fill: #e2560f; }
 .fm-in { fill: var(--sun); }
+.fm-core-edge { fill: #e9a21c; }
 .fm-core { fill: #fff4d6; }
-.fm-shine { fill: none; stroke: #fff; stroke-width: 3.4; stroke-linecap: round; opacity: 0.5; }
 .fm.dim { filter: saturate(0.3); opacity: 0.7; }
+/* paper motion: a springy hop and a flutter that ticks between a few poses, like a paper cut-out on a stick */
 .fm-body { animation: fm-breathe 1.8s var(--ease-bounce) infinite alternate; }
-.fm-flick { animation: fm-sway 2.1s ease-in-out infinite alternate; }
-.fm-heart { animation: fm-sway-sm 1.4s ease-in-out -0.5s infinite alternate-reverse; }
+.fm-flick { animation: fm-sway 1.6s steps(4, jump-none) infinite alternate; }
+.fm-heart { animation: fm-sway-sm 1.2s steps(3, jump-none) -0.4s infinite alternate-reverse; }
 .fm-pop.puff { animation: fm-puff var(--dur-3) var(--ease-bounce); }
 .fm-pop.flare { animation: fm-flare 1.3s var(--ease-bounce); }
 .fm.still *, .fm.dim * { animation: none !important; }
 .asleep .fm * { animation-play-state: paused !important; }
 .brand:hover .fm-pop, .wl-brand:hover .fm-pop { animation: fm-puff var(--dur-3) var(--ease-bounce); }
 @keyframes fm-breathe { from { transform: scale(1.035, 0.96); } to { transform: scale(0.975, 1.035); } }
-@keyframes fm-sway { from { transform: skewX(-4deg) scaleY(0.97); } to { transform: skewX(4.5deg) scaleY(1.03); } }
-@keyframes fm-sway-sm { from { transform: skewX(-6deg) scaleY(0.94); } to { transform: skewX(5deg) scaleY(1.06); } }
+@keyframes fm-sway { from { transform: rotate(-3deg) scaleY(0.97); } to { transform: rotate(3deg) scaleY(1.03); } }
+@keyframes fm-sway-sm { from { transform: rotate(4deg) scaleY(0.95); } to { transform: rotate(-4deg) scaleY(1.05); } }
 @keyframes fm-puff { 0% { transform: none; } 35% { transform: scale(1.12, 1.24); } 100% { transform: none; } }
 @keyframes fm-flare { 0% { transform: none; } 25% { transform: scale(1.2, 1.35); } 60% { transform: scale(1.1, 1.18); } 100% { transform: none; } }
 
@@ -692,7 +693,7 @@ details.tech[open] > summary { margin-bottom: 4px; }
 
 /* friendly empty states */
 .empty { text-align: center; color: var(--ink-2); background: var(--surface); border: 2px dashed var(--line-2); border-radius: var(--r-lg); padding: 18px 16px; margin: 8px 0; }
-.empty::before { content: ''; display: block; width: 22px; height: 26px; margin: 0 auto 8px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-3 0 70 82'%3E%3Cpath d='M32 76C19.5 76 10 66.5 10 54.5C10 44 13 35 14.6 27.4Q15.6 23.4 18.4 26C20.6 28.2 22 30.6 23.4 33.4C23.6 22.6 28.6 12.4 34.6 4.6Q36.8 2.2 38.2 5.2C41.6 12.8 44.2 19.4 45.2 26.6C46.8 24.6 48.6 22.6 50.6 20.6Q53.8 18 54.4 22.2C55.4 30 56.6 40 55.4 52.4C54.6 66 44.5 76 32 76Z' transform='translate(0 2.6)' fill='%23cf4a0c' stroke='%23cf4a0c' stroke-width='5' stroke-linejoin='round'/%3E%3Cpath d='M32 76C19.5 76 10 66.5 10 54.5C10 44 13 35 14.6 27.4Q15.6 23.4 18.4 26C20.6 28.2 22 30.6 23.4 33.4C23.6 22.6 28.6 12.4 34.6 4.6Q36.8 2.2 38.2 5.2C41.6 12.8 44.2 19.4 45.2 26.6C46.8 24.6 48.6 22.6 50.6 20.6Q53.8 18 54.4 22.2C55.4 30 56.6 40 55.4 52.4C54.6 66 44.5 76 32 76Z' fill='%23f26b1d'/%3E%3Cpath d='M32 74C24.3 74 19 68 19 60.5C19 52 25 46.6 29 39.4Q31.6 33.2 33.4 31.2Q35.6 33.4 36.6 38.4C38 45 45 51 45 60.5C45 68 39.7 74 32 74Z' fill='%23ffc93c'/%3E%3Cpath d='M32 70C28.4 70 26 67.5 26 64.3C26 60.5 29 58 31 54.2Q32.6 51.8 34 54.6C35.5 58 38 60.6 38 64.3C38 67.5 35.6 70 32 70Z' fill='%23fff4d6'/%3E%3Cpath d='M15.6 51C15.4 46 16.8 41.6 19.2 38.4' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' opacity='.5'/%3E%3C/svg%3E") center bottom / contain no-repeat; transform-origin: 50% 100%; animation: fm-breathe 1.8s var(--ease-bounce) infinite alternate; }
+.empty::before { content: ''; display: block; width: 22px; height: 26px; margin: 0 auto 8px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-3 0 70 82'%3E%3Cg transform='translate(2 4.4)'%3E%3Cpath d='M32 76C19.5 76 10 66.5 10 54.5C10 44 13 35 14.6 27.4Q15.6 23.4 18.4 26C20.6 28.2 22 30.6 23.4 33.4C23.6 22.6 28.6 12.4 34.6 4.6Q36.8 2.2 38.2 5.2C41.6 12.8 44.2 19.4 45.2 26.6C46.8 24.6 48.6 22.6 50.6 20.6Q53.8 18 54.4 22.2C55.4 30 56.6 40 55.4 52.4C54.6 66 44.5 76 32 76Z' fill='#cf4a0c' stroke='#cf4a0c' stroke-width='3' stroke-linejoin='round'/%3E%3C/g%3E%3Cpath d='M32 76C19.5 76 10 66.5 10 54.5C10 44 13 35 14.6 27.4Q15.6 23.4 18.4 26C20.6 28.2 22 30.6 23.4 33.4C23.6 22.6 28.6 12.4 34.6 4.6Q36.8 2.2 38.2 5.2C41.6 12.8 44.2 19.4 45.2 26.6C46.8 24.6 48.6 22.6 50.6 20.6Q53.8 18 54.4 22.2C55.4 30 56.6 40 55.4 52.4C54.6 66 44.5 76 32 76Z' fill='#f26b1d'/%3E%3Cg transform='translate(1.6 3.4)'%3E%3Cpath d='M32 74C24.3 74 19 68 19 60.5C19 52 25 46.6 29 39.4Q31.6 33.2 33.4 31.2Q35.6 33.4 36.6 38.4C38 45 45 51 45 60.5C45 68 39.7 74 32 74Z' fill='#e2560f'/%3E%3C/g%3E%3Cpath d='M32 74C24.3 74 19 68 19 60.5C19 52 25 46.6 29 39.4Q31.6 33.2 33.4 31.2Q35.6 33.4 36.6 38.4C38 45 45 51 45 60.5C45 68 39.7 74 32 74Z' fill='#ffc93c'/%3E%3Cg transform='translate(1.2 2.6)'%3E%3Cpath d='M32 70C28.4 70 26 67.5 26 64.3C26 60.5 29 58 31 54.2Q32.6 51.8 34 54.6C35.5 58 38 60.6 38 64.3C38 67.5 35.6 70 32 70Z' fill='#e9a21c'/%3E%3C/g%3E%3Cpath d='M32 70C28.4 70 26 67.5 26 64.3C26 60.5 29 58 31 54.2Q32.6 51.8 34 54.6C35.5 58 38 60.6 38 64.3C38 67.5 35.6 70 32 70Z' fill='#fff4d6'/%3E%3C/svg%3E") center bottom / contain no-repeat; transform-origin: 50% 100%; animation: fm-breathe 1.8s var(--ease-bounce) infinite alternate; }
 .empty.small { padding: 12px; }
 .empty.small::before { width: 17px; height: 20px; margin-bottom: 4px; }
 
