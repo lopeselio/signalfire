@@ -206,6 +206,9 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     let m: RegExpExecArray | null = /^\/api\/s\/([a-z0-9]{2,8})\/(activity|holders)$/.exec(p);
     if (m) {
       // the startup page polls this every 2 s; agents read it too. Shared for 1.5 s across callers (activity.ts).
+      // an id the last snapshot doesn't know is answered without a chain read (no read amplification, no cache growth)
+      const known = peek()?.startups;
+      if (known && !known.some((x) => x.id === m![1])) return json(res, 404, { error: 'no such startup' });
       const a = await activity.get(m[1]);
       if (!a) return json(res, 404, { error: 'no such startup' });
       if (m[2] === 'holders') return json(res, 200, { startup: a.startup, at: a.at, stale: a.stale, ...a.holders, votes: a.votes });
