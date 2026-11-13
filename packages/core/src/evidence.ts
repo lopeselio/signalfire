@@ -177,6 +177,7 @@ const ADVICE: RegExp[] = [
   /\b(rais(e|ed|es|ing)|seed|series [a-c])\b[^.]{0,20}\b(money|funds|capital|round)\b/i,
   /\b(ownership|stake|shares?)\b[^.]{0,30}\b(company|startup|token|treasury|revenue|business)\b/i,
   /\bprice target\b/i,
+  /\b(valuations?|cap tables?|term sheets?|tranches?|allocations?)\b/i,
   /\b(will|going to|likely to|expected to|poised to|set to|bound to)\b[^.]{0,40}\b(rise|increase|grow|go up|climb|fall|drop|decline|succeed|fail|moon|double|outperform|appreciate)\b/i,
   /\b(price|token)\b[^.]{0,40}\b(cheap|expensive|bargain|good deal|good entry|opportunit\w*)\b/i,
   /\b(good|great|safe|smart|risky|bad) (buy|bet|investment|entry|trade)\b/i,
@@ -205,9 +206,10 @@ function numbersCited(text: string, cites: string[], byId: Map<string, EvidenceI
 /**
  * Turns the model's raw JSON into the brief the page shows. Drops a line when it has no valid citation, gives
  * advice or a prediction, or holds a number its sources don't; moves a hedged "observation" to the AI reading.
- * Deterministic: `pnpm verify-brief` re-runs it on the signed reply and must get the same brief.
+ * Deterministic: `pnpm verify-brief` re-runs it on the signed reply and must get the same brief. With `contradicts`
+ * (the profile check), a line naming a profile strength other than the rule's is dropped too.
  */
-export function guardBrief(raw: unknown, items: EvidenceItem[]): { brief: Brief; dropped: Dropped[] } {
+export function guardBrief(raw: unknown, items: EvidenceItem[], opts: { contradicts?: (text: string) => boolean } = {}): { brief: Brief; dropped: Dropped[] } {
   const byId = new Map(items.map((i) => [i.id, i]));
   const brief: Brief = { observed: [], reading: [], gaps: [], check: [] };
   const dropped: Dropped[] = [];
@@ -228,6 +230,7 @@ export function guardBrief(raw: unknown, items: EvidenceItem[]): { brief: Brief;
       if (valid.length !== cites.length) { drop('cites a source that does not exist'); continue; }
       if (ADVICE.some((r) => r.test(text))) { drop('advice, a prediction or fundraising language'); continue; }
       if (!numbersCited(text, valid, byId)) { drop('a number that is not in the cited sources'); continue; }
+      if (opts.contradicts?.(text)) { drop('a profile strength other than the rule-computed one'); continue; }
       const line = { text: stripCites(text).replace(/\s+([.,;:])/g, '$1').replace(/\s+/g, ' ').trim(), cites: valid };
       const to: Section = section === 'observed' && HEDGE.test(text) ? 'reading' : section;
       if (brief[to].length >= MAX[to]) continue; // past the section's limit: not shown, not a violation
