@@ -1,13 +1,17 @@
 import { MILESTONES, fmtNear, fmtTusd, threshold } from '@signalfire/core';
 import { StartupCard, StartupLogo } from './Discover.tsx';
+import { useEvidenceSummaries } from './EvidenceChips.tsx';
+import { Featured } from './landing/Featured.tsx';
+import { useTrades24h } from './landing/stage.ts';
+import './landing/landing.css';
 import { Count, useReveal } from './motion.tsx';
 import { SignalFire } from './SignalFire.tsx';
 import { Wire } from './Wire.tsx';
 import { Terms, useApp } from './ui.tsx';
 import { NextAction } from './NextAction.tsx';
 
-// The landing: the pitch, where trading fees go, a few startups, the totals, the loop told as three small
-// product cards (token terms, the treasury's spend policy, a campaign), and the live wire.
+// The landing: one big line, two buttons and three live numbers; the campaign you can act on right now next to where
+// the trading fees went; how it works in three steps (the exact terms one click away); startups; the live wire.
 
 function Beacon() {
   const { state } = useApp();
@@ -99,79 +103,87 @@ function CampaignCard() {
   );
 }
 
-const STORY = [
-  { n: '01', t: 'Token', b: 'A startup launches an attention token with automatic pricing: the price rises as people buy. It is not equity and not a claim on anything. The founders get no tokens and no fees.' },
-  { n: '02', t: 'Marketing fund', b: '2% of every trade goes into the startup’s marketing fund, held by Signalfire’s contract. The only way money leaves is through spend limits: caps, only the winning creator gets paid, and every payment is logged in public.' },
-  { n: '03', t: 'Campaign', b: 'Reviewed creators send sealed offers for a brief, the holders’ council votes on the winner, and the winner is paid in three milestone payouts as new buyers arrive through their link.' },
+/** The three steps, told as things people do. The exact rules are one click away, under "The fine print". */
+const STEPS = [
+  { t: 'Back a startup you believe in', b: 'Buy its attention token. 2% of every trade drops into the startup’s marketing fund, and the founders can’t take it out.' },
+  { t: 'Creators pitch, holders pick', b: 'Reviewed creators seal their offers for a brief. The fairest offer wins, and the holders vote to fund it.' },
+  { t: 'Paid per new customer', b: 'The winner is paid in three parts, each one only after more new buyers arrive through their link.' },
 ];
+
+// Headline candidates were "Turn buzz into real customers.", "Hype that has to deliver." and "Your attention, put to
+// work."; the first says the outcome in four words, so it leads.
+const SUBLINE = 'Back a startup by buying its attention token. Every trade fills a marketing fund that creators earn only by bringing in new buyers, and the founders can’t pocket any of it.';
 
 export function Landing() {
   const { state, go } = useApp();
   const s = state!;
   const t = s.totals;
+  const now = Date.now();
   const live = s.startups.filter((x) => x.status === 'live');
   const held = (x: (typeof live)[number]): bigint => BigInt(x.available) + BigInt(x.committed);
-  const featured = [...live].sort((a, b) => (held(b) > held(a) ? 1 : held(b) < held(a) ? -1 : 0)).slice(0, 4);
+  const featured = [...live].sort((a, b) => (held(b) > held(a) ? 1 : held(b) < held(a) ? -1 : 0)).slice(0, 6);
   const rv = useReveal<HTMLDivElement>();
   const reached = s.campaigns.filter((c) => c.phase === 'done' || c.phase === 'expired').reduce((a, c) => a + c.results, 0);
+  const ev = useEvidenceSummaries();
+  const trades = useTrades24h(featured.map((x) => x.id));
   return (
     <div className="landing" ref={rv}>
       <section className="hero">
         <div className="hero-text">
-          <p className="eyebrow">Attention tokens on NEAR</p>
-          <h1>Community attention becomes a marketing budget <em>the founders can’t pocket.</em></h1>
-          <p className="lede">
-            Every trade in a startup’s attention token pays a fee into its marketing fund. Reviewed creators compete to run its
-            campaigns, holders pick the winner, and the money moves only when new buyers show up.
-          </p>
-          <div className="row">
-            <button className="primary" onClick={() => go('/discover')}>Discover startups</button>
-            <button className="ghost" onClick={() => go(`/s/${s.demo}`)}>Open {s.startups.find((x) => x.id === s.demo)?.name ?? s.demo.toUpperCase()}</button>
+          <p className="eyebrow">Attention tokens on NEAR · not equity</p>
+          <h1>Turn buzz into <em>real customers.</em></h1>
+          <p className="lede">{SUBLINE}</p>
+          <div className="row hero-cta">
+            <button className="primary big" onClick={() => go('/discover')}>Explore startups</button>
+            <button className="ghost big" onClick={() => go('/launch')}>Launch yours</button>
           </div>
+          <dl className="hero-nums" aria-label="Live totals from NEAR">
+            <div><dt>NEAR into marketing funds</dt><dd><Count value={fmtNear(t.feesIn, 3)} /></dd></div>
+            <div><dt>new buyers brought in</dt><dd><Count value={String(reached)} /></dd></div>
+            <div><dt>NEAR paid to creators</dt><dd><Count value={fmtNear(t.paid, 3)} /></dd></div>
+          </dl>
           <NextAction page="home" />
-          <Terms />
         </div>
         <div className="hero-art">
           <SignalFire />
+        </div>
+      </section>
+
+      <section className="now rv" aria-label="Happening now">
+        <div className="sec-head"><h2>Happening now</h2><button className="ghost small" onClick={() => go('/discover')}>Every campaign</button></div>
+        <div className="now-grid">
+          <Featured />
           <Beacon />
         </div>
+        <Terms />
+      </section>
+
+      <section className="steps3 rv" aria-label="How it works in 3 steps">
+        <h2>How it works, in 3 steps</h2>
+        <ol>
+          {STEPS.map((x, i) => <li key={x.t}><span className="st3-n" aria-hidden="true">{i + 1}</span><h3>{x.t}</h3><p>{x.b}</p></li>)}
+        </ol>
+        <details className="tech fine">
+          <summary>The fine print: token terms, spend limits and a real campaign</summary>
+          <div className="story-panel">
+            <TokenCard />
+            <TreasuryCard />
+            <CampaignCard />
+          </div>
+          <p className="muted small story-ai">
+            An AI on NEAR AI Cloud writes the scout’s review notes and the AI creators’ pitches, each signed inside secure
+            hardware you can check from your browser. The AI never decides who gets money: the contract’s rules do.
+            Full walkthrough: <a href="/how" onClick={(e) => { e.preventDefault(); go('/how'); }}>How it works</a>.
+          </p>
+        </details>
       </section>
 
       <section className="featured rv" aria-label="Startups">
         <div className="sec-head">
-          <h2>Startups</h2>
-          <button className="ghost small" onClick={() => go('/discover')}>View all {live.length}</button>
+          <h2>Find a startup to back</h2>
+          <button className="ghost small" onClick={() => go('/discover')}>See all {live.length}</button>
         </div>
-        <div className="s-grid">{featured.map((x) => <StartupCard key={x.id} s={x} />)}</div>
-      </section>
-
-      <section className="mission rv" aria-label="Totals across all startups">
-        <p className="eyebrow">The rule</p>
-        <h2>Trading pays for reaching customers, <em>not founders.</em></h2>
-        <p className="lede">Totals across every startup on Signalfire, read live from NEAR’s test network.</p>
-        <div className="mission-nums">
-          <div><span className="n"><Count value={fmtNear(t.feesIn, 3)} /></span><span className="l">NEAR into marketing funds</span></div>
-          <div><span className="n"><Count value={fmtNear(t.paid, 3)} /></span><span className="l">NEAR paid to creators</span></div>
-          <div><span className="n"><Count value={String(reached)} /></span><span className="l">new buyers reached</span></div>
-          <div><span className="n">{t.costPerResult ? <Count value={fmtNear(t.costPerResult, 4)} /> : '—'}</span><span className="l">NEAR per new buyer</span></div>
-        </div>
-      </section>
-
-      <section className="story rv" aria-label="How it works">
-        <h2>How it works</h2>
-        <p className="lede">Three pieces, one contract: the token, the marketing fund it feeds, and the campaigns that spend it.</p>
-        <div className="story-panel">
-          <TokenCard />
-          <TreasuryCard />
-          <CampaignCard />
-        </div>
-        <ol className="story-steps">
-          {STORY.map((x) => <li key={x.n}><span className="st-n">{x.n}</span><h3>{x.t}</h3><p>{x.b}</p></li>)}
-        </ol>
-        <p className="muted small story-ai">
-          An AI on NEAR AI Cloud writes the scout’s review notes and the AI creators’ pitches, each signed inside secure
-          hardware you can check from your browser. The AI never decides who gets money: the contract’s rules do.
-        </p>
+        <div className="s-grid">{featured.map((x) => <StartupCard key={x.id} s={x} ev={ev} trades={trades?.[x.id]} now={now} />)}</div>
       </section>
 
       <Wire limit={12} />
