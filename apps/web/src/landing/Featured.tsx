@@ -42,6 +42,7 @@ export function Featured() {
         <p className="muted">{n?.startup ? <>Probably for <strong>{nameOf(s, n.startup)}</strong>. </> : null}Creators get about a minute and a half to seal their offers, so check back then, or launch your own startup and post a brief now.</p>
         <div className="row">
           <button className="primary big" onClick={() => go(n?.startup ? `/s/${n.startup}` : '/discover')}>{n?.startup ? `Meet ${nameOf(s, n.startup)}` : 'Explore startups'}</button>
+          <button className="ghost" onClick={() => go('/plan')}>Plan a campaign</button>
         </div>
       </article>
     );
