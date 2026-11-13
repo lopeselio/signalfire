@@ -36,12 +36,12 @@ export function Featured() {
   if (!pick) {
     const n = nextBrief(s, now);
     return (
-      <article className="now-card quiet" aria-label="Next campaign">
-        <span className="now-tag">Between campaigns</span>
+      <article className="ld-now-card ld-quiet" aria-label="Next campaign">
+        <span className="ld-now-tag">Between campaigns</span>
         <h3>The next brief opens {n ? n.when : 'when a founder posts one'}</h3>
         <p className="muted">{n?.startup ? <>Probably for <strong>{nameOf(s, n.startup)}</strong>. </> : null}Creators get about a minute and a half to seal their offers, so check back then, or launch your own startup and post a brief now.</p>
         <div className="row">
-          <button className="primary big" onClick={() => go(n?.startup ? `/s/${n.startup}` : '/discover')}>{n?.startup ? `Meet ${nameOf(s, n.startup)}` : 'Explore startups'}</button>
+          <button className="primary ld-big" onClick={() => go(n?.startup ? `/s/${n.startup}` : '/discover')}>{n?.startup ? `Meet ${nameOf(s, n.startup)}` : 'Explore startups'}</button>
           <button className="ghost" onClick={() => go('/plan')}>Plan a campaign</button>
         </div>
       </article>
@@ -63,30 +63,30 @@ export function Featured() {
       : { label: `Buy ${sym} tokens`, act: () => { go(`/s/${c.startup}?tab=market`); scrollWhenReady('[data-tour="trade"]'); } };
   const budget = c.price !== '0' ? c.price : c.budget;
   return (
-    <article className={`now-card ${st}`} aria-label={HEAD[st]}>
-      <div className="now-top">
-        <span className="now-tag"><i className="pulse" aria-hidden="true" />{HEAD[st]}</span>
-        {clock && <span className="now-clock" aria-live="off">{clock}</span>}
+    <article className="ld-now-card" data-stage={st} aria-label={HEAD[st]}>
+      <div className="ld-now-top">
+        <span className="ld-now-tag"><i className="ld-pulse" aria-hidden="true" />{HEAD[st]}</span>
+        {clock && <span className="ld-now-clock" aria-live="off">{clock}</span>}
       </div>
-      <div className="now-who">
+      <div className="ld-now-who">
         <StartupLogo id={c.startup} size={40} />
         <div>
           <h3>{c.title}</h3>
           <p className="muted small">{name} · campaign #{c.id}</p>
         </div>
       </div>
-      <div className="now-goal">
-        <div className="now-nums">
+      <div className="ld-now-goal">
+        <div className="ld-now-nums">
           <span><b>{c.results}</b> of {c.target} new buyers</span>
           <span>{fmtNear(budget, 3)} NEAR {c.price !== '0' ? 'winning offer' : 'budget'}</span>
         </div>
-        <div className="now-bar" role="progressbar" aria-valuemin={0} aria-valuemax={c.target} aria-valuenow={Math.min(c.results, c.target)} aria-label="New buyers so far">
+        <div className="ld-now-bar" role="progressbar" aria-valuemin={0} aria-valuemax={c.target} aria-valuenow={Math.min(c.results, c.target)} aria-label="New buyers so far">
           <span style={{ width: `${pct}%` }} />
           {Array.from({ length: MILESTONES - 1 }, (_, k) => <i key={k} style={{ left: `${(threshold(c.target, k + 1) / c.target) * 100}%` }} title={`Payout ${k + 1} at ${threshold(c.target, k + 1)} new buyers`} />)}
         </div>
         <p className="muted small">The creator is paid in {MILESTONES} parts as new buyers arrive through their link.</p>
       </div>
-      <button className="primary big wide" onClick={big.act}>{big.label}</button>
+      <button className="primary ld-big wide" onClick={big.act}>{big.label}</button>
       <button className="link small" onClick={() => { go(`/s/${c.startup}?tab=treasury`); scrollWhenReady('[data-tour="campaigns"]'); }}>See the brief and every offer</button>
     </article>
   );

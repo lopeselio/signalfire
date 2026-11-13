@@ -4,6 +4,7 @@ import {
 } from '@signalfire/core';
 import { NextAction } from './NextAction.tsx';
 import { Info, useApp } from './ui.tsx';
+import './landing/landing.css';
 import './plan.css';
 
 // Plan a campaign: sliders for a brief's budget, target and offer window, and what the hub's rules make of them.
@@ -81,7 +82,7 @@ export function Plan() {
         </section>
 
         <div className="plan-out">
-          <section className="panel plan-card hero-card" aria-label="What the creator earns">
+          <section className="panel plan-card plan-lead" aria-label="What the creator earns">
             <h2>The creator earns {near(offer)} NEAR, in {MILESTONES} parts</h2>
             <ol className="plan-ms">
               {Array.from({ length: MILESTONES }, (_, i) => {
@@ -155,8 +156,8 @@ export function Plan() {
 
           <div className="row">
             {mine
-              ? <button className="primary big" onClick={() => go(`/s/${mine.id}?tab=treasury`)}>Post a brief for {mine.name}</button>
-              : <button className="primary big" onClick={() => go('/launch')}>Launch your startup</button>}
+              ? <button className="primary ld-big" onClick={() => go(`/s/${mine.id}?tab=treasury`)}>Post a brief for {mine.name}</button>
+              : <button className="primary ld-big" onClick={() => go('/launch')}>Launch your startup</button>}
             <button className="ghost" onClick={() => go('/how')}>How campaigns work</button>
           </div>
         </div>

@@ -133,11 +133,11 @@ export function Landing() {
           <p className="eyebrow">Attention tokens on NEAR · not equity</p>
           <h1>Turn buzz into <em>real customers.</em></h1>
           <p className="lede">{SUBLINE}</p>
-          <div className="row hero-cta">
-            <button className="primary big" onClick={() => go('/discover')}>Explore startups</button>
-            <button className="ghost big" onClick={() => go('/launch')}>Launch yours</button>
+          <div className="row ld-cta">
+            <button className="primary ld-big" onClick={() => go('/discover')}>Explore startups</button>
+            <button className="ghost ld-big" onClick={() => go('/launch')}>Launch yours</button>
           </div>
-          <dl className="hero-nums" aria-label="Live totals from NEAR">
+          <dl className="ld-nums" aria-label="Live totals from NEAR">
             <div><dt>NEAR into marketing funds</dt><dd><Count value={fmtNear(t.feesIn, 3)} /></dd></div>
             <div><dt>new buyers brought in</dt><dd><Count value={String(reached)} /></dd></div>
             <div><dt>NEAR paid to creators</dt><dd><Count value={fmtNear(t.paid, 3)} /></dd></div>
@@ -151,19 +151,19 @@ export function Landing() {
 
       <section className="ld-now rv" aria-label="Happening now">
         <div className="sec-head"><h2>Happening now</h2><button className="ghost small" onClick={() => go('/discover')}>Every campaign</button></div>
-        <div className="now-grid">
+        <div className="ld-now-grid">
           <Featured />
           <Beacon />
         </div>
         <Terms />
       </section>
 
-      <section className="steps3 rv" aria-label="How it works in 3 steps">
+      <section className="ld-steps rv" aria-label="How it works in 3 steps">
         <h2>How it works, in 3 steps</h2>
         <ol>
-          {STEPS.map((x, i) => <li key={x.t}><span className="st3-n" aria-hidden="true">{i + 1}</span><h3>{x.t}</h3><p>{x.b}</p></li>)}
+          {STEPS.map((x, i) => <li key={x.t}><span className="ld-step-n" aria-hidden="true">{i + 1}</span><h3>{x.t}</h3><p>{x.b}</p></li>)}
         </ol>
-        <details className="tech fine">
+        <details className="tech ld-fine">
           <summary>The fine print: token terms, spend limits and a real campaign</summary>
           <div className="story-panel">
             <TokenCard />
