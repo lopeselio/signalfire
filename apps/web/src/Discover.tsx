@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { fmtNear } from '@signalfire/core';
 import { acctUrl, type Startup } from './api.ts';
-import { EvidenceChips, EvidenceFilters, NO_FILTER, passes, useEvidenceSummaries, type Summaries } from './EvidenceChips.tsx';
+import { EvidenceChips, EvidenceFilters, NO_FILTER, evidenceRank, passes, useEvidenceSummaries, type Summaries } from './EvidenceChips.tsx';
 import { useApp } from './ui.tsx';
 import { NextAction } from './NextAction.tsx';
 
@@ -116,7 +116,7 @@ export function Discover() {
   const ev = useEvidenceSummaries();
   const [filter, setFilter] = useState(NO_FILTER);
   const list = state!.startups.filter((s) => s.status === 'live' && passes(filter, ev?.[s.id]));
-  const key = (s: Startup): bigint => (sort === 'evidence' ? BigInt(ev?.[s.id]?.score ?? 0) : sort === 'treasury' ? BigInt(s.available) + BigInt(s.committed) : sort === 'new' ? BigInt(s.created_ms) : BigInt(s.buyers));
+  const key = (s: Startup): bigint => (sort === 'evidence' ? BigInt(evidenceRank(ev?.[s.id])) : sort === 'treasury' ? BigInt(s.available) + BigInt(s.committed) : sort === 'new' ? BigInt(s.created_ms) : BigInt(s.buyers));
   const sorted = [...list].sort((a, b) => (key(b) > key(a) ? 1 : key(b) < key(a) ? -1 : 0));
   return (
     <div className="discover">
