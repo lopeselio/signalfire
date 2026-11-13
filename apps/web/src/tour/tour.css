@@ -125,3 +125,5 @@
   .tour-ring, .tour-card, .tour-after, .gs-panel, .gs-ring, .hint-pop, .hint-chip, .modal.welcome, .tour-note, .pulse { animation: none !important; transition: none !important; }
 }
 .gs-whose { margin: 2px 0 6px; font-size: 12px; overflow-wrap: anywhere; }
+/* room under the page for the fixed "Get started" pill, so it never covers the last rows (e.g. the trades tape) */
+body:has(.gs-pill) { padding-bottom: 64px; }
