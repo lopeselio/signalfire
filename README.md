@@ -359,6 +359,100 @@ https://signalfire.lopeselio.online.
 | `open` | yes | the whole mechanism: attention (trading) becomes a distribution budget that creators compete for, holders allocate, and nobody can pocket | — |
 | `games` | no | — | Signalfire is not a game |
 
+## Built on NEAR
+
+What each NEAR technology does in Signalfire, and where to look. Each GIF is a 12-second loop.
+
+| Technology | What Signalfire uses it for | Where to look |
+|---|---|---|
+| NEAR smart contracts (Rust, near-sdk 5.29.1) | the hub: launchpad, bonding-curve market, marketing treasuries, spend policy + audit log, sealed-bid auctions, agent wallets | [`contracts/hub`](contracts/hub/src/lib.rs), [`signalfire.testnet`](https://testnet.nearblocks.io/address/signalfire.testnet) |
+| NEAR global contracts | every startup's token and DAO (and tUSD) run code published once by `ft.globals.primitives.testnet` and `dao.globals.primitives.testnet`, attached with `use_global_contract_by_account_id` | `launch_startup`, `create_tusd` in [`lib.rs`](contracts/hub/src/lib.rs) |
+| Sputnik DAO v2 | one DAO per startup; its holders vote on the `fund_campaign` proposal; nobody may propose a transfer | `dao_policy`, `settle_auction`, `join_holders` in [`lib.rs`](contracts/hub/src/lib.rs), [`glow-dao.signalfire.testnet`](https://testnet.nearblocks.io/address/glow-dao.signalfire.testnet) |
+| NEP-171 NFTs | a soulbound `creator:<account>` NFT with metadata computed from live state; a `receipt:<campaign>` NFT per finished campaign | `nft_*` in [`lib.rs`](contracts/hub/src/lib.rs) |
+| NEAR AI Cloud | TEE-hosted model writes vetting reports, pitches and research briefs; the browser verifies its attestation; private applications are end-to-end encrypted to it | [`packages/attest`](packages/attest/src/verify.ts), [`apps/server/src/nearai.ts`](apps/server/src/nearai.ts) |
+| Chain Signatures | the keyless treasury agent: an account whose only key NEAR's MPC network derives for the hub; it sends creators their tUSD | [`contracts/hub/src/keyless.rs`](contracts/hub/src/keyless.rs), `v1.signer-prod.testnet`, [`b6ffee3706…`](https://testnet.nearblocks.io/address/b6ffee3706fa101d5113176ee1d07fcbcd9618e2a03d563de269c51e3ce17f49) |
+| OutLayer | sealed bids scored in a TEE; only the winner's bid is opened onchain | [`outlayer/scorer`](outlayer/scorer/src/main.rs), [`contracts/hub/src/sealed.rs`](contracts/hub/src/sealed.rs) |
+| NEAR Intents | creators cash tUSD out for NEAR with one signed intent, on Signalfire's own testnet Verifier | [`apps/server/src/cashout.ts`](apps/server/src/cashout.ts), [`packages/core/src/intents.ts`](packages/core/src/intents.ts), [`signalfire-intents.testnet`](https://testnet.nearblocks.io/address/signalfire-intents.testnet) |
+| NEP-413 sign-in, NEP-366 meta-transactions | wallet sign-in (Better Auth + better-near-auth), gasless calls through `signalfire-relay.testnet`, founder-link proofs | [`apps/web/src/wallet.ts`](apps/web/src/wallet.ts), [`apps/server/src/ba.ts`](apps/server/src/ba.ts) |
+
+### NEAR smart contracts: the hub
+
+<img src="media/stack/hub.gif" alt="Diagram: a founder calls launch_startup on signalfire.testnet, which creates a token and a Sputnik DAO from global contracts; traders' buys and sells pay a 2% fee into the marketing treasury; money leaves only through the spend policy to a creator, with a receipt NFT." width="100%">
+
+One Rust contract, [`signalfire.testnet`](https://testnet.nearblocks.io/address/signalfire.testnet), holds every
+startup's curve reserve and marketing treasury. `launch_startup` creates the startup's token and DAO in one call from
+NEAR global contracts (no wasm uploaded per startup), with 0 tokens to the founder; `buy` and sells
+(`ft_on_transfer`) run the curve in [`curve.rs`](contracts/hub/src/curve.rs) and send 2% to the treasury;
+`claim_milestone` is the only way out, checked by [`rules.rs`](contracts/hub/src/rules.rs) and written to the audit
+log, and the last milestone mints the creator's receipt NFT.
+
+### Sputnik DAO v2: the holders' vote
+
+<img src="media/stack/dao.gif" alt="Diagram: signalfire.testnet files a FunctionCall proposal in glow-dao.signalfire.testnet; the holders' council votes with act_proposal; a majority makes the DAO call fund_campaign on the hub; the DAO policy lets no one propose a transfer, and people join the council through join_holders." width="100%">
+
+Each startup's DAO is Sputnik DAO v2, with a policy the hub writes (`dao_policy` in [`lib.rs`](contracts/hub/src/lib.rs)):
+the hub may propose, holders vote, and no role may propose a `transfer`. Settling an auction files a `FunctionCall`
+proposal to call `fund_campaign(id)`; when a majority of holders approves, the DAO itself calls the hub. Anyone with
+the minimum balance calls `join_holders`; the hub reads `ft_balance_of` and adds them with `AddMemberToRole`.
+
+### NEAR AI Cloud: private inference you can check
+
+<img src="media/stack/near-ai.gif" alt="Diagram: the Signalfire server asks NEAR AI Cloud's TEE-hosted Qwen model for reports and keeps each signed reply; your browser sends a fresh nonce, verifies the attestation report and shows Private AI, verified; an applicant's private details reach the model as ciphertext and come back as a score and fixed phrases." width="100%">
+
+The scout's vetting reports, the creators' pitches and the research briefs come from `Qwen/Qwen3.6-35B-A3B-FP8` on
+NEAR AI Cloud ([`nearai.ts`](apps/server/src/nearai.ts)); each reply is kept with the enclave's signature. The
+**Private AI, verified** badge runs [`packages/attest`](packages/attest/src/verify.ts) in your browser: Intel TDX quote,
+signer and nonce, MRCONFIGID, RTMR3 and NVIDIA's GPU verdict. Private applications are sealed in the browser to the
+model's attested key ([`e2ee.ts`](packages/attest/src/e2ee.ts)). The model never decides money, admission or a winner.
+
+### Chain Signatures: the keyless treasury agent
+
+<img src="media/stack/chain-signatures.gif" alt="Diagram: signalfire.testnet asks v1.signer-prod.testnet for a derived key, which becomes the only key of the agent account b6ffee3706; agent_sign has the hub build a payout transaction that the MPC network signs and the hub verifies; the signed tUSD transfer goes to the hub's ft_on_transfer, which pays the creator exactly once." width="100%">
+
+`agent_setup` asks the MPC signer `v1.signer-prod.testnet` for the Ed25519 key it derives for the hub and the path
+`signalfire-treasury-agent`; that key's implicit account is the agent, and nobody holds the key. For each payout the
+spend policy approved, `agent_sign` builds the agent's `tusd.ft_transfer_call` in the contract, asks the MPC network to
+sign it and checks the signature ([`keyless.rs`](contracts/hub/src/keyless.rs)); the hub forwards a delivery once and
+refunds any repeat. It is not a Shade Agent: it runs no code of its own.
+
+### OutLayer: sealed bids scored in a TEE
+
+<img src="media/stack/outlayer.gif" alt="Diagram: a creator's browser encrypts a bid that signalfire.testnet stores as a hash and ciphertext; after bidding closes, score_sealed sends the bids to outlayer.testnet, whose scorer runs in Intel TDX; only the winner's opening comes back to on_scored, and losing bids are never revealed." width="100%">
+
+Bids are encrypted to a key only Signalfire's scorer wasm can derive inside OutLayer's TEE
+([`outlayer/scorer`](outlayer/scorer/src/main.rs)) and stored with `commit_sealed_bid`. `score_sealed` sends them to
+`outlayer.testnet` with the wasm pinned by its sha256; `on_scored` accepts only the winner's opening, checked against
+its commitment ([`sealed.rs`](contracts/hub/src/sealed.rs)). Losing bids stay ciphertext.
+
+### NEAR Intents: cash tUSD out for NEAR
+
+<img src="media/stack/intents.gif" alt="Diagram: a creator deposits tUSD into the signalfire-intents.testnet Verifier and signs one NEP-413 intent (token_diff and native_withdraw); the desk signalfire-desk.testnet signs the opposite token_diff; one execute_intents settles both and NEAR arrives at 1 NEAR = 3 tUSD." width="100%">
+
+NEAR Intents is mainnet-only, so Signalfire runs its own copy of the [near/intents](https://github.com/near/intents)
+Verifier at [`signalfire-intents.testnet`](https://testnet.nearblocks.io/address/signalfire-intents.testnet). The
+creator's wallet signs `token_diff` and `native_withdraw`; the server checks it with `checkCashOut`
+([`intents.ts`](packages/core/src/intents.ts)), the desk signs its side, and one `execute_intents` settles both or
+neither ([`cashout.ts`](apps/server/src/cashout.ts)).
+
+### Wallet sign-in and gasless calls: NEP-413 and NEP-366
+
+<img src="media/stack/wallet.gif" alt="Diagram: a NEAR wallet signs a NEP-413 message that better-near-auth checks to start a session; contract calls are signed delegate actions that signalfire-relay.testnet submits to signalfire.testnet, paying the gas; the same NEP-413 signature, posted on GitHub or X, proves a founder's links." width="100%">
+
+Sign-in is Better Auth with better-near-auth ([`wallet.ts`](apps/web/src/wallet.ts)): the wallet signs a NEP-413
+message and the server sets a session. Calls go out as NEP-366 delegate actions that `signalfire-relay.testnet` pays
+for, only to the hub and the startups' tokens and DAOs ([`ba.ts`](apps/server/src/ba.ts),
+[`relay-whitelist.ts`](apps/server/src/relay-whitelist.ts)); any NEAR attached still comes from your account.
+Founders prove their GitHub and X links with a NEP-413 signature too.
+
+### The rest of the stack
+
+<img src="media/stack/stack.gif" alt="Diagram: the React and Vite web app talks to the Node server over /api, the server reads and writes NEAR testnet over RPC, both share packages/core and packages/attest, and one container runs on Azure Container Apps." width="100%">
+
+React 19 + Vite 8 with a three.js signal fire ([`apps/web`](apps/web/src/SignalFire.tsx)), a Node 22 server with the
+agent loop, NEAR AI calls and the relayer, using near-api-js and near-kit ([`apps/server`](apps/server/src/main.ts)),
+and [`packages/core`](packages/core/src/index.ts), which mirrors the hub's math with shared test vectors. One image
+([`Dockerfile`](Dockerfile)) runs on Azure Container Apps.
+
 ## How it works
 
 ```
