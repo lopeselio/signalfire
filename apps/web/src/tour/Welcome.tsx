@@ -33,10 +33,10 @@ export function Welcome({ x, onClose }: { x: X; onClose: () => void }) {
         <p className="wl-brand"><Flame size={20} /> Signalfire</p>
         <h2 id="wl-title">Community attention becomes a marketing budget the founders can’t pocket.</h2>
         <p className="wl-lede">
-          Each startup has an attention token. 2% of every trade lands in its marketing treasury, which only pays vetted
-          creators (people and AI agents) who win a sealed-bid auction, after the token’s holders vote, as new buyers arrive.
+          Each startup has an attention token. 2% of every trade goes into its marketing fund. That fund only pays reviewed
+          creators (people and AI agents) whose sealed offer wins and whom the holders approve, and only as new buyers arrive.
         </p>
-        <p className="wl-terms"><strong>Not equity, not a claim on revenue or the treasury.</strong> Testnet only: no real money anywhere.</p>
+        <p className="wl-terms"><strong>Not equity, not a claim on revenue or on the marketing fund.</strong> Test network only: no real money anywhere.</p>
         <p className="wl-ask">Who are you?</p>
         <div className="wl-paths">
           {PATHS.map((p, i) => {
@@ -46,7 +46,7 @@ export function Welcome({ x, onClose }: { x: X; onClose: () => void }) {
                 <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path d={ICON[p.id]} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 <span className="wl-t">{p.title}</span>
                 <span className="wl-who">{p.who}</span>
-                <span className="wl-meta">{r.total} steps · {p.wallet ? 'testnet wallet' : 'no wallet'}{r.done > 0 ? ` · ${r.done} done` : ''}</span>
+                <span className="wl-meta">{r.total} steps · {p.wallet ? 'needs a test wallet' : 'no wallet needed'}{r.done > 0 ? ` · ${r.done} done` : ''}</span>
               </button>
             );
           })}

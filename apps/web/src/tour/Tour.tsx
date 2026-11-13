@@ -185,7 +185,7 @@ function TourStep({ path, index, x, seen, setRing }: { path: Path; index: number
         {(!done || !step.after) && <div className="tour-body">{step.body(x)}</div>}
         {wait && <p className="tour-wait"><Clock /> <span>{wait}</span></p>}
         {done && step.after && <div className="tour-after"><strong>Done.</strong> Look for: {step.after(x)}</div>}
-        <p className="tour-cost"><strong>Cost</strong> {step.cost}</p>
+        <p className="tour-cost"><strong>What it costs</strong> {step.cost}</p>
         <div className="tour-actions">
           {index > 0 && <button className="ghost small" onClick={() => tourStore.set({ tour: { path: path.id, index: index - 1 } })}>Back</button>}
           <span className="tour-grow" />
