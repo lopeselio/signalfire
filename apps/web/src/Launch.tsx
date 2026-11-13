@@ -32,6 +32,7 @@ export function Launch() {
           <summary>What gets created on NEAR</summary>
           <p className="muted small">Token <code>{symbol || 'sym'}.{state!.hub}</code> and Sputnik DAO <code>{symbol || 'sym'}-dao.{state!.hub}</code>.</p>
         </details>
+        <p className="small">Wondering what a campaign would pay? <a href="/plan" onClick={(e) => { e.preventDefault(); go('/plan'); }}>Plan a campaign</a> with a few sliders first.</p>
         <NextAction page="launch" />
       </section>
       <SignInHint what="launch a startup" />
