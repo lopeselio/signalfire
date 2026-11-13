@@ -57,6 +57,13 @@ fallback text, marked unsigned.
    **All**; hover a tab for the exact contract phases. `/discover?stage=paid` opens a tab directly. The sort, the
    evidence filters and the chips work in every tab.
 
+   **Plan a campaign** (`/plan`, linked from Launch, the landing and a founder's **Post a brief** step) is read-only:
+   pick a startup and drag **Budget**, **New buyers wanted**, **Time to send offers** and **Example winning offer**.
+   It shows the three payouts and the new buyers that unlock each (`milestoneAmount`, `threshold`), the lowest offer
+   that can win (the startup's minimum offer share of the budget, `credible`), the 0.02 NEAR offer bond, how far a
+   creator's track record lets them ask above a newcomer (`repBps`, `score`), and how much trading fills the budget at
+   the 2% fee. Every formula is the one in `packages/core`, which mirrors `contracts/hub/src/rules.rs`; hover ⓘ for it.
+
    **First visit: pick your path.** A short welcome (what Signalfire is, "not equity, test network only") asks who
    you are: **Explore** (no wallet), **Back a startup** (buy, join the holders, vote), **Creator** (add NEAR to your
    Signalfire balance, apply, get reviewed, seal an offer, open it, cash out) or **Founder** (launch, fill the
