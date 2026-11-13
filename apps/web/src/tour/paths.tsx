@@ -315,7 +315,7 @@ const found: Path = {
         const c = x.state.campaigns.filter((y) => y.startup === x.sig.mine?.id).sort((a, b) => b.id - a.id)[0];
         if (!c) return null;
         if (c.phase === 'bidding') return <>Campaign #{c.id} is in its auction; the vote opens about {fmtLeft(Math.max(0, c.reveal_ends_ms - x.now) + 15_000)} from now.</>;
-        if (c.phase === 'no_bids') return <>Campaign #{c.id} got no credible bid. Post another brief with a longer bidding window.</>;
+        if (c.phase === 'no_bids') return <>No creator made a credible offer on #{c.id}. Post another brief: a bigger budget or a longer bidding window (2 minutes or more) helps.</>;
         return null;
       },
       after: () => <>At a majority the DAO calls the hub, the price is reserved and the campaign starts running. Creators bring buyers through its referral link; milestones pay out as results arrive, and every payout lands in the audit log.</>,
