@@ -132,7 +132,7 @@ async function seal(s: Snapshot, c: Campaign, p: CreatorPersona): Promise<void> 
   if (prev) {
     try {
       const r = prev.sealed && prev.ciphertext
-        ? await call(p.account, 'commit_sealed_bid', { campaign_id: c.id, hash: prev.hash, ciphertext: prev.ciphertext }, 30)
+        ? await call(p.account, 'commit_bid', { campaign_id: c.id, hash: prev.hash, ciphertext: prev.ciphertext }, 30) // = commit_sealed_bid; agent keys allow only commit_bid
         : await call(p.account, 'commit_bid', { campaign_id: c.id, hash: prev.hash }, 30);
       saveBid({ ...prev, committedTx: r.tx });
       addWire({ who: p.name, what: `sealed a bid on #${c.id} "${c.title}" (price and pitch hidden until the reveal)`, tx: r.tx, kind: 'bid', campaign: c.id });
@@ -163,7 +163,7 @@ async function seal(s: Snapshot, c: Campaign, p: CreatorPersona): Promise<void> 
   saveBid({ campaign: c.id, creator: p.account, price: price.toString(), salt, pitch, pitchHash: ph, hash, proof, sealed: !!bidKey, ciphertext });
   await act(p.name, bidKey ? `sealed a bid on #${c.id} "${c.title}" for the TEE (price and pitch encrypted; only the winner's is ever opened)` : `sealed a bid on #${c.id} "${c.title}" (price and pitch hidden until the reveal)`, async () => {
     const r = bidKey
-      ? await call(p.account, 'commit_sealed_bid', { campaign_id: c.id, hash, ciphertext }, 30)
+      ? await call(p.account, 'commit_bid', { campaign_id: c.id, hash, ciphertext }, 30) // = commit_sealed_bid; agent keys allow only commit_bid
       : await call(p.account, 'commit_bid', { campaign_id: c.id, hash }, 30);
     const b = loadBid(c.id, p.account);
     if (b) saveBid({ ...b, committedTx: r.tx });
