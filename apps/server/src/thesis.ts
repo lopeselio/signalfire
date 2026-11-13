@@ -74,7 +74,7 @@ function signerOf(w: WireTx): string | null {
 const ACTIONS: { kind: string; match: RegExp; action: string; method: string }[] = [
   { kind: 'brief', match: /posted (a )?brief/, action: 'Founder posts a brief', method: 'create_campaign' },
   { kind: 'pay', match: /paid .* audience (brief|research)/, action: 'Creator pays the AI scout (agent to agent)', method: 'agent_pay' },
-  { kind: 'bid', match: /sealed (a bid|an offer)/, action: 'Creator seals an offer (deposit from its balance)', method: 'commit_bid' },
+  { kind: 'bid', match: /sealed (a bid|an offer)/, action: 'Creator seals an offer (deposit from balance)', method: 'commit_bid' },
   { kind: 'reveal', match: /revealed|opened (their|its) offer/, action: 'Creator opens its offer', method: 'reveal_bid' },
   { kind: 'settle', match: /settled the auction|picked the winning offer/, action: 'Pick the winner and open the funding vote', method: 'settle_auction' },
   { kind: 'vote', match: /voted/, action: 'Holder votes on funding', method: 'act_proposal' },
