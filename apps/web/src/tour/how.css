@@ -1,0 +1,19 @@
+/* How it works below the walkthrough. The numbered sections are a vertical step path. Each section rises in as it scrolls into view
+   (useReveal adds .in) and its rail draws down to the next node. */
+.how-body > section { position: relative; padding-left: 56px; }
+.how-h { position: relative; }
+.how-h .how-n { position: absolute; left: -56px; top: -4px; --sp-size: 36px; }
+.how-dot { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.how-body > section:not(:last-child)::before { content: ''; position: absolute; left: 16px; top: 42px; bottom: -24px; width: 4px; border-radius: 999px; background: var(--fire-soft); transform-origin: top; transform: scaleY(0); transition: transform 900ms var(--ease) 200ms; }
+.how-body > section.in::before { transform: none; }
+.how-body > section .how-n { transform: scale(0.5); transition: transform var(--dur-3) var(--ease-bounce) 120ms; }
+.how-body > section.in .how-n { transform: none; }
+
+@media (max-width: 640px) {
+  .how-body > section { padding-left: 0; }
+  .how-body > section::before { display: none; }
+  .how-h .how-n { position: static; --sp-size: 30px; vertical-align: 3px; margin-right: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .how-body > section::before, .how-body > section .how-n { transform: none; transition: none; }
+}

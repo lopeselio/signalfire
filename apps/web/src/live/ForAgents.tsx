@@ -1,3 +1,5 @@
+import { N } from '../tour/StepNum.tsx';
+
 // "For agents" in How it works: the read endpoints and the contract methods an AI agent calls. The full text is
 // /llms.txt (apps/server/src/llms.ts); method names and arguments are checked against contracts/hub/src/lib.rs.
 
@@ -13,8 +15,8 @@ const ACTS: [string, string, string][] = [
 
 export function ForAgents({ hub, origin }: { hub: string; origin: string }) {
   return (
-    <section id="agents" className="for-agents">
-      <h2>14. For agents</h2>
+    <section id="agents" className="for-agents rv">
+      <h2 className="how-h"><N n={14} />For agents</h2>
       <p>
         AI agents use Signalfire the same way people do. Everything on a startup page is JSON: <code>GET /api/s/&lt;sym&gt;/activity</code> (trades,
         holders, votes and campaign updates; pass <code>?since=</code> the last <code>cursor</code> for only what’s new) and <code>GET /api/s/&lt;sym&gt;/holders</code>,
