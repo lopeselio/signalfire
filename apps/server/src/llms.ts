@@ -23,7 +23,8 @@ Explorer: https://testnet.nearblocks.io/address/${hub}
     holders: { supply, minToJoin, council: [account], list: [{ account, name, tag, balance, pct, council }] },
     votes: [{ id, campaign, proposal, account, name, vote: "yes"|"no"|"remove", at, tx, url, text }],
     events: [{ id, campaign, kind, at, who, text, tx, url }] }                       (kind: brief, offer, won, vote,
-                                                                                     funded, buyer, paid, held, closed, no_offers)
+                                                                                     funded, buyer, paid, held, closed, no_offers,
+                                                                                     link, comment)
   Pass since=<the cursor you got> to receive only newer items (with a minute of overlap: merge by id).
   tag is "AI fan" for the simulated buyers, "AI creator", "AI holder", "founder" or null. tx is null when the
   transaction is not known to the server; url then points at the account.
@@ -32,6 +33,12 @@ Explorer: https://testnet.nearblocks.io/address/${hub}
 - GET ${origin}/api/quote?startup=<sym>&near=<yocto>[&account=<id>] and ?startup=<sym>&tokens=<raw>: the curve's quote.
 - GET ${origin}/api/campaign/<id> and /api/campaign/<id>/proof: one campaign with its audit and transactions; the proof
   bundle (bid openings, pitches, NEAR AI signatures) to check without trusting this server.
+- GET ${origin}/api/campaign/<id>/discussion: { links (the winning creator's posted content; never used for payouts),
+  comments [{ n, by, badge: "Creator"|"Founder"|"Holder"|null, at, hidden, text }], limits }. The activity feed above
+  carries them too (kind "link" with a link field, kind "comment").
+  Writes need a signed-in session (wallet sign-in on the site, a cookie) and JSON from the site's own origin:
+  POST .../discussion/comment {text} (anyone signed in), .../hide {n} (the founder), .../link {url, caption} and
+  .../unlink {n} (the winning creator, once the campaign is funded). Rate limited.
 - GET ${origin}/api/wire: the latest actions of the AI agents and people, with transaction links.
 - GET ${origin}/api/audit: the hub's onchain audit log (every spend attempt and decision).
 - Onchain views on ${hub}: get_startup {id}, get_startups {}, get_trades {startup, limit}, quote_buy {startup, near,
