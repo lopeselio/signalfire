@@ -18,7 +18,7 @@ export function PriceChart({ trades, circulating }: { trades: Trade[]; circulati
   return (
     <figure className="chart">
       <div className="chart-tabs" role="radiogroup" aria-label="Chart view">
-        <button role="radio" aria-checked={mode === 'curve'} className={`pill${mode === 'curve' ? ' on' : ''}`} onClick={() => setMode('curve')}>On the curve</button>
+        <button role="radio" aria-checked={mode === 'curve'} className={`pill${mode === 'curve' ? ' on' : ''}`} onClick={() => setMode('curve')}>Price curve</button>
         <button role="radio" aria-checked={mode === 'trades'} className={`pill${mode === 'trades' ? ' on' : ''}`} onClick={() => setMode('trades')}>Trade by trade</button>
       </div>
       {mode === 'curve' ? <Curve trades={trades} circulating={circulating} /> : <Series trades={trades} circulating={circulating} />}
@@ -41,7 +41,7 @@ function Curve({ trades, circulating }: { trades: Trade[]; circulating: string }
   const ticksX = [0n, maxX / 2n, maxX];
   const labelLeft = x(circ) > W - 170;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Bonding curve: price now ${fmtP(now)} NEAR at ${fmtTokens(circ, 0)} tokens circulating; ${trades.length} trades marked`}>
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Price curve: price now ${fmtP(now)} NEAR at ${fmtTokens(circ, 0)} tokens circulating; ${trades.length} trades marked`}>
       {ticksY.map((p) => <g key={p}><line x1={padL} x2={W - padR} y1={y(p)} y2={y(p)} className="grid" /><text x={padL - 6} y={y(p) + 3} textAnchor="end" className="axis">{fmtP(p)}</text></g>)}
       {ticksX.map((v) => <text key={String(v)} x={x(v)} y={H - padB + 14} textAnchor={v === 0n ? 'start' : v === maxX ? 'end' : 'middle'} className="axis">{fmtTokens(v, 0)}</text>)}
       <path d={reserve} className="reserve" />
@@ -52,7 +52,7 @@ function Curve({ trades, circulating }: { trades: Trade[]; circulating: string }
       })}
       <circle cx={x(circ)} cy={y(now)} r={6} className="now" />
       <text x={labelLeft ? x(circ) - 10 : x(circ) + 10} y={y(now) - 10} textAnchor={labelLeft ? 'end' : 'start'} className="axis strong">now {fmtP(now)} NEAR</text>
-      <text x={W - padR} y={H - 3} textAnchor="end" className="axis">circulating supply (tokens) · shaded: the curve reserve</text>
+      <text x={W - padR} y={H - 3} textAnchor="end" className="axis">tokens in people’s hands · shaded: the buy-back pool</text>
       <text x={4} y={11} className="axis">NEAR per token</text>
     </svg>
   );
