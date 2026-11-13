@@ -60,7 +60,7 @@ const Arrow = () => (
 function CardFlame({ level, lit }: { level: number; lit: boolean }) {
   const k = 0.45 + 0.55 * Math.max(0, Math.min(1, level));
   return (
-    <svg className={`s-flame${lit ? ' lit' : ''}`} viewBox="0 0 24 30" width="22" height="28" style={{ ['--k' as string]: k.toFixed(2) }} role="img" aria-label={`Treasury at ${Math.round(level * 100)}% of the largest${lit ? ', campaign open' : ''}`}>
+    <svg className={`s-flame${lit ? ' lit' : ''}`} viewBox="0 0 24 30" width="22" height="28" style={{ ['--k' as string]: k.toFixed(2) }} role="img" aria-label={`Marketing fund at ${Math.round(level * 100)}% of the largest${lit ? ', campaign open' : ''}`}>
       <path className="f-out" d="M12 1.5c3.4 5 8 8.300 8 15.200a8 8 0 0 1-16 0c0-4.300 3.100-6.600 4.600-10.400 1.900 2.300 2.300 4.300 2.300 6.200C12.600 9 12.800 5.200 12 1.500z" />
       <path className="f-in" d="M12 13c1.700 2.400 3.600 3.800 3.600 6.600a3.600 3.600 0 0 1-7.200 0c0-1.900 1.300-3 2-4.600.9 1 1.100 1.900 1.100 2.800.5-1.600.8-3.200.5-4.800z" />
     </svg>
@@ -89,7 +89,7 @@ export function StartupCard({ s, ev }: { s: Startup; ev?: Summaries | null }) {
       </header>
       <p className="s-pitch">{s.pitch}</p>
       <div className="s-big">
-        <span className="s-big-l">Marketing treasury</span>
+        <span className="s-big-l">Marketing fund</span>
         <span className="s-big-n">{fmtNear(treasury, 3)}<small> NEAR</small><CardFlame level={level} lit={!!running} /></span>
         <span className="s-big-sub">{fmtNear(s.paid, 3)} NEAR paid to creators · {results} new buyers reached</span>
       </div>
@@ -121,15 +121,15 @@ export function Discover() {
     <div className="discover">
       <section className="page-head">
         <p className="eyebrow">Discover</p>
-        <h1>Startups whose attention pays for distribution</h1>
+        <h1>Startups whose attention pays for reaching new customers</h1>
         <p className="lede">
-          Each startup has an attention token and a marketing treasury. The big number on each card is what that treasury
+          Each startup has an attention token and a marketing fund. The big number on each card is what that fund
           holds right now: trading fees that only creators can earn, by bringing in new buyers.
         </p>
       </section>
       <div className="d-tools" role="radiogroup" aria-label="Sort startups">
         <span className="muted small">Sort by</span>
-        {([['treasury', 'Marketing treasury'], ['buyers', 'Buyers'], ['new', 'Newest'], ['evidence', 'Most evidence']] as [Sort, string][]).map(([k, l]) => (
+        {([['treasury', 'Marketing fund'], ['buyers', 'Buyers'], ['new', 'Newest'], ['evidence', 'Most evidence']] as [Sort, string][]).map(([k, l]) => (
           <button key={k} role="radio" aria-checked={sort === k} className={`pill${sort === k ? ' on' : ''}`} onClick={() => setSort(k)}>{l}</button>
         ))}
         {account && <button className="ghost small d-launch" onClick={() => go('/launch')}>Launch a startup</button>}
@@ -138,8 +138,8 @@ export function Discover() {
       <div className="s-grid" data-tour="startups">{sorted.map((s) => <StartupCard key={s.id} s={s} ev={ev} />)}</div>
       {sorted.length === 0 && <p className="muted">No startup has that evidence yet. A founder adds it by linking and proving their GitHub and X.</p>}
       <p className="muted small d-note">
-        The demo startups and their founders are fictional; one operator account runs them on testnet, and the creators,
-        holders and fans are agents. Anyone signed in can launch a startup of their own.
+        The demo startups and their founders are fictional. The Signalfire team runs them on NEAR’s test network, and their
+        creators, holders and buyers are AI agents. Anyone signed in can launch a startup of their own.
       </p>
     </div>
   );

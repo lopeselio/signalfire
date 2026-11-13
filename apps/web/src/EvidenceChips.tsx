@@ -26,8 +26,8 @@ export function EvidenceChips({ sum }: { sum: EvidenceSummary | undefined }) {
   return (
     <div className="ev-card-chips" aria-label="Evidence">
       {sum.verifiedLinks > 0 ? <span className="chip ok">verified founder</span> : <span className="chip smoke">{sum.demo ? 'demo founder' : 'founder not verified'}</span>}
-      {sum.verifiedRepos > 0 && <span className={`chip ${sum.repoActive30 ? 'ok' : 'warn'}`}>{sum.repoActive30 ? 'repo active 30 d' : 'repo quiet 30 d'}</span>}
-      <span className={`chip ${sum.delivered ? 'ok' : 'smoke'}`}>{sum.delivered} delivered</span>
+      {sum.verifiedRepos > 0 && <span className={`chip ${sum.repoActive30 ? 'ok' : 'warn'}`}>{sum.repoActive30 ? 'code updated this month' : 'no code updates in 30 days'}</span>}
+      <span className={`chip ${sum.delivered ? 'ok' : 'smoke'}`}>{sum.delivered} campaign{sum.delivered === 1 ? '' : 's'} delivered</span>
     </div>
   );
 }
@@ -38,7 +38,7 @@ export const passes = (f: EvidenceFilter, sum: EvidenceSummary | undefined): boo
   (!f.verified || (sum?.verifiedLinks ?? 0) > 0) && (!f.active || !!sum?.repoActive30) && (!f.delivered || (sum?.delivered ?? 0) > 0);
 
 export function EvidenceFilters({ f, set }: { f: EvidenceFilter; set: (f: EvidenceFilter) => void }) {
-  const opts: [keyof EvidenceFilter, string][] = [['verified', 'Verified founder'], ['active', 'Repo active in 30 days'], ['delivered', 'Delivered a campaign']];
+  const opts: [keyof EvidenceFilter, string][] = [['verified', 'Verified founder'], ['active', 'Code updated in the last 30 days'], ['delivered', 'Delivered a campaign']];
   return (
     <div className="d-tools ev-filters" role="group" aria-label="Filter by evidence" data-tour="evidence-filters">
       <span className="muted small">Show only</span>
