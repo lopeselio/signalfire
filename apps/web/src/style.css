@@ -745,3 +745,14 @@ details.tech[open] > summary { margin-bottom: 4px; }
 @keyframes la-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-6px) rotate(-1deg); } 40% { transform: translateX(5px) rotate(1deg); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
 @media (max-width: 640px) { .live-alerts { top: auto; bottom: 64px; right: 12px; width: min(300px, calc(100vw - 24px)); } }
 @media (prefers-reduced-motion: reduce) { .la-card, .la-card.la-new { animation: none; } }
+
+/* the warm glow that follows the pointer (CursorGlow.tsx): behind the content, never over text */
+.cursor-glow { display: none; }
+.glow-on .cursor-glow { display: block; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(360px circle at var(--mx, -999px) var(--my, -999px), color-mix(in srgb, var(--fire) 16%, transparent), color-mix(in srgb, var(--sun) 6%, transparent) 45%, transparent 70%);
+  transition: opacity var(--dur-2) var(--ease); }
+.glow-on.glow-out .cursor-glow { opacity: 0; }
+:root[data-theme='dark'].glow-on .cursor-glow { background: radial-gradient(380px circle at var(--mx, -999px) var(--my, -999px), color-mix(in srgb, var(--fire) 22%, transparent), color-mix(in srgb, var(--sun) 6%, transparent) 45%, transparent 70%); }
+.glow-on main, .glow-on .foot { position: relative; z-index: 1; }
+/* the header flame leans toward the pointer and brightens as it comes near */
+.glow-on .brand .fm { transform: rotate(var(--lean, 0deg)) scale(calc(1 + var(--near, 0) * 0.12)); transition: transform 120ms var(--ease); }
