@@ -49,6 +49,9 @@ export function snapshot(): Promise<Snapshot> {
   return p;
 }
 
+/** The last good read, without starting a rebuild (null before the first one). */
+export const peek = (): Snapshot | null => good;
+
 /** The last good read right away (refreshing it in the background when stale). The API uses this. */
 export function latest(): Promise<Snapshot> {
   if (!good) return snapshot();
