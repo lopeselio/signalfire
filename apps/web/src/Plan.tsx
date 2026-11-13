@@ -84,13 +84,13 @@ export function Plan() {
         <div className="plan-out">
           <section className="panel plan-card plan-lead" aria-label="What the creator earns">
             <h2>The creator earns {near(offer)} NEAR, in {MILESTONES} parts</h2>
-            <ol className="plan-ms">
+            <ol className="plan-ms step-path vertical">
               {Array.from({ length: MILESTONES }, (_, i) => {
                 const k = i + 1;
                 const amt = milestoneAmount(offer, k);
                 return (
                   <li key={k}>
-                    <span className="pm-node" aria-hidden="true">{k}</span>
+                    <span className="sp-node" aria-hidden="true">{k}</span>
                     <span className="pm-when">at <b>{threshold(target, k)}</b> new buyer{threshold(target, k) === 1 ? '' : 's'}</span>
                     <span className="pm-amt"><b>{near(amt, 4)}</b> NEAR <small>paid as {fmtTusd(tusdFor(amt))} tUSD</small></span>
                   </li>
