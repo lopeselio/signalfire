@@ -110,9 +110,8 @@ const STEPS = [
   { t: 'Paid per new customer', b: 'The winner is paid in three parts, each one only after more new buyers arrive through their link.' },
 ];
 
-// Headline candidates were "Turn buzz into real customers.", "Hype that has to deliver." and "Your attention, put to
-// work."; the first says the outcome in four words, so it leads.
-const SUBLINE = 'Back a startup by buying its attention token. Every trade fills a marketing fund that creators earn only by bringing in new buyers, and the founders can’t pocket any of it.';
+// The project's tagline leads (the user's choice over "Turn buzz into real customers.").
+const SUBLINE = 'Back a startup by buying its attention token. Every trade fills its marketing fund, and creators earn from it only by bringing in new buyers.';
 
 export function Landing() {
   const { state, go } = useApp();
@@ -131,7 +130,7 @@ export function Landing() {
       <section className="hero">
         <div className="hero-text">
           <p className="eyebrow">Attention tokens on NEAR · not equity</p>
-          <h1>Turn buzz into <em>real customers.</em></h1>
+          <h1>Community attention becomes a marketing budget <em>the founders can’t pocket.</em></h1>
           <p className="lede">{SUBLINE}</p>
           <div className="row ld-cta">
             <button className="primary ld-big" onClick={() => go('/discover')}>Explore startups</button>
