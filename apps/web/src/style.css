@@ -640,6 +640,7 @@ main > * { animation: page-in var(--dur-2) var(--ease) both; }
 @media (prefers-reduced-motion: reduce) {
   .rv, .rv .s-card, .rv .pc, .rv .mission-nums > div { opacity: 1; transform: none; }
   * { animation: none !important; transition: none !important; }
+  .empty::before { animation: none; }
 }
 
 /* the thesis evidence */
