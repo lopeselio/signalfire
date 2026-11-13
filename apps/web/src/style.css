@@ -699,3 +699,19 @@ details.tech[open] > summary { margin-bottom: 4px; }
 
 .acct-pop .acct-near { margin: 8px 0 2px; font-size: 14px; }
 .acct-pop .acct-near-n { font: 700 22px var(--font-num, inherit); }
+
+/* pump.fun-style live alerts (LiveAlerts.tsx): top right under the header; on phones, bottom right */
+.live-alerts { position: fixed; top: 76px; right: 16px; z-index: 35; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; width: min(340px, calc(100vw - 32px)); pointer-events: none; }
+.live-alerts > * { pointer-events: auto; }
+.la-card { display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left; background: var(--surface); color: var(--ink); border: 2px solid var(--line); border-bottom-width: 4px; border-radius: var(--r); padding: 10px 12px; box-shadow: var(--sh); font: 600 13px/1.35 var(--font-body); cursor: pointer; animation: la-in var(--dur-2) var(--ease-bounce) both; }
+.la-card:hover { border-color: var(--fire); }
+.la-card .la-icon { font-size: 16px; line-height: 1.2; }
+.la-card .la-text { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.la-card.la-buy { border-color: var(--go); }
+.la-card.la-pay, .la-card.la-win { border-color: var(--sun-press); background: var(--sun-wash); }
+.la-card.la-new { animation: la-in var(--dur-2) var(--ease-bounce) both, la-shake 420ms var(--ease) 260ms 1; }
+.la-mute { font-size: 12px; opacity: 0.85; }
+@keyframes la-in { from { opacity: 0; transform: translateX(24px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes la-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-6px) rotate(-1deg); } 40% { transform: translateX(5px) rotate(1deg); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+@media (max-width: 640px) { .live-alerts { top: auto; bottom: 64px; right: 12px; width: min(300px, calc(100vw - 24px)); } }
+@media (prefers-reduced-motion: reduce) { .la-card, .la-card.la-new { animation: none; } }
