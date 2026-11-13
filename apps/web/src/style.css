@@ -743,7 +743,7 @@ details.tech[open] > summary { margin-bottom: 4px; }
 .la-mute { font-size: 12px; opacity: 0.85; }
 @keyframes la-in { from { opacity: 0; transform: translateX(24px) scale(0.96); } to { opacity: 1; transform: none; } }
 @keyframes la-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-6px) rotate(-1deg); } 40% { transform: translateX(5px) rotate(1deg); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
-@media (max-width: 640px) { .live-alerts { top: auto; bottom: 64px; right: 12px; width: min(300px, calc(100vw - 24px)); } }
+@media (max-width: 640px) { .live-alerts { top: auto; bottom: 64px; right: 12px; width: min(300px, calc(100vw - 24px)); } .la-mute { display: none; } }
 @media (prefers-reduced-motion: reduce) { .la-card, .la-card.la-new { animation: none; } }
 
 /* the warm glow that follows the pointer (CursorGlow.tsx): behind the content, never over text */
