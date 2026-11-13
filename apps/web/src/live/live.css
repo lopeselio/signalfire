@@ -60,8 +60,8 @@
 .c-activity .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--smoke); align-self: center; }
 .ca-text { min-width: 0; overflow-wrap: anywhere; }
 
+.for-agents .tbl td:first-child { min-width: 8em; }
 .for-agents pre { background: var(--night-3); border-radius: 10px; padding: 12px 14px; overflow-x: auto; font: 12.5px/1.5 var(--mono); max-width: 100%; }
-.for-agents .tbl td:first-child { white-space: nowrap; }
 
 @media (max-width: 560px) {
   .tape-row { grid-template-columns: 12px minmax(0, 1fr); }
