@@ -4,8 +4,9 @@ import { config, privateKey } from './config.ts';
 // Contract calls. A signer is an account, or "account#dao" for a holder agent's DAO key. Each key's calls
 // run one after another so its nonces never collide.
 
-// several public testnet RPCs (docs.near.org/api/rpc/providers); on an error the next one is tried
-const RPCS = [config.rpcUrl, 'https://near-testnet.drpc.org', 'https://testnet-rpc.intea.rs'].filter((u, i, a) => a.indexOf(u) === i);
+// several public testnet RPCs (docs.near.org/api/rpc/providers); on an error the next one is tried. Intea and dRPC
+// first: fastnear rate-limits bursts (-429) most of the time.
+const RPCS = ['https://testnet-rpc.intea.rs', 'https://near-testnet.drpc.org', config.rpcUrl].filter((u, i, a) => a.indexOf(u) === i);
 const provider = new FailoverRpcProvider(RPCS.map((url) => new JsonRpcProvider({ url })));
 // a plain provider for lookups that may miss (the failover one logs every miss as an error)
 const quiet = new JsonRpcProvider({ url: RPCS[0] });
@@ -24,7 +25,8 @@ function account(signer: string): Account {
 export interface CallResult<T> { value: T; tx: string; logs: string[] }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
-const transient = (e: unknown): boolean => /fetch failed|ECONNRESET|ETIMEDOUT|timeout|503|502|429|InvalidNonce|Expired/i.test(String((e as Error)?.message ?? e));
+// "Exceeded N providers" is the failover provider giving up after every RPC refused (usually all rate-limited)
+const transient = (e: unknown): boolean => /fetch failed|ECONNRESET|ETIMEDOUT|timeout|503|502|429|rate limit|Exceeded \d+ providers|InvalidNonce|Expired/i.test(String((e as Error)?.message ?? e));
 
 interface Outcome {
   transaction: { hash: string };
@@ -64,9 +66,9 @@ export function callOn<T = unknown>(signer: string, receiver: string, method: st
   const guarded = async (): Promise<CallResult<T>> => {
     for (let attempt = 0; ; attempt++) {
       try { return await once(); } catch (e) {
-        if ((e as { refused?: boolean }).refused || attempt >= 3 || !transient(e)) throw e;
+        if ((e as { refused?: boolean }).refused || attempt >= 5 || !transient(e)) throw e;
         if (/InvalidNonce/i.test(String((e as Error)?.message ?? e))) accounts.delete(signer);
-        await sleep(800 * (attempt + 1));
+        await sleep(1500 * (attempt + 1));
       }
     }
   };
