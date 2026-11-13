@@ -37,9 +37,9 @@ fallback text, marked unsigned.
 
 1. **Open the landing page.** You see one line, **"Community attention becomes a marketing budget the founders can't pocket."**, two buttons (**Explore
    startups**, **Launch yours**) and three live numbers read from NEAR (NEAR into marketing funds, new buyers brought
-   in, NEAR paid to creators), with **the signal fire** beside them. The fire is three.js fed by the wire: its height
-   follows the number of onchain actions in the last 24 hours (the caption says how many and names the latest), a buy
-   through a creator's link throws sparks, and a milestone payout flares it. With reduced motion or no WebGL you get a
+   in, NEAR paid to creators), with **the signal fire** beside them. The fire is fed by the wire: the flame grows with the
+   number of onchain actions in the last 24 hours (the caption says how many and names the latest), a buy through a
+   creator's link puffs it and throws sparks (three.js draws the embers and sparks), and a milestone payout flares it. With reduced motion or no WebGL you get a
    still flame of the same height. Below, **Happening now**: the one campaign you can act on (**Taking offers now** with
    a countdown to when offers close, else **Picking the winner** or **Running now**), its progress toward its new
    buyers with the three payout marks, and one big button (**Sign in to take part**, **Seal an offer** for an approved
