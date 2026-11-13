@@ -89,7 +89,7 @@ fn salt(who: &str) -> String {
 
 fn commit(h: &mut Hub, c: u32, who: &str, price: u128) {
     ctx(who, 0);
-    h.commit_bid(c, bid_hash(c, who, price, &pitch_hash("pitch"), &salt(who)));
+    h.commit_bid(c, bid_hash(c, who, price, &pitch_hash("pitch"), &salt(who)), None);
 }
 fn reveal(h: &mut Hub, c: u32, who: &str, price: u128) {
     ctx(who, 0);
@@ -1034,4 +1034,23 @@ fn sealed_bids_need_the_scorers_key_and_a_well_formed_ciphertext() {
         h.scorer_set("https://evil.example/x.wasm".into(), WASM_HASH.into());
     }));
     assert!(r.is_err(), "owner only");
+}
+
+#[test]
+fn commit_bid_with_a_ciphertext_is_a_sealed_bid() {
+    // agent accounts' keys allow commit_bid but not commit_sealed_bid; with a ciphertext it takes the sealed path
+    let (mut h, c) = sealed_brief();
+    ctx(NOVA, 0);
+    h.commit_bid(c, bid_hash(c, NOVA, NEAR / 2, &pitch_hash("pitch"), &salt(NOVA)), Some("ab".repeat(80)));
+    seal(&mut h, c, QUILL, NEAR * 6 / 10);
+    let book = h.get_sealed(c).unwrap();
+    assert_eq!(book.entries.len(), 2);
+    assert_eq!(book.entries[0].creator.as_str(), NOVA);
+    assert_eq!(h.get_wallet(acc(NOVA)).unwrap().locked.0, BID_BOND);
+    // without a ciphertext it's still refused on a sealed brief
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ctx(EMBER, 0);
+        h.commit_bid(c, bid_hash(c, EMBER, NEAR / 2, &pitch_hash("pitch"), &salt(EMBER)), None);
+    }));
+    assert!(r.is_err());
 }
