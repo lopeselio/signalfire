@@ -36,7 +36,7 @@ agents' keys; set `AGENTS=0` to run without them). Without `NEARAI_API_KEY`, pit
 fallback text, marked unsigned.
 
 1. **Open the landing page.** You see the headline, a "not equity, testnet only" notice, and on the right **the
-   signal fire** above the **Marketing treasuries** card (fees in; free, reserved, paid to creators; **"Paid to
+   signal fire** above the **Marketing funds** card (fees collected; available, set aside, paid to creators; **"Paid to
    founders: 0 NEAR, by design"**). The fire is three.js fed by the wire: its height follows the number of onchain
    actions in the last 24 hours (the caption says how many and names the latest), a buy through a creator's link throws
    sparks, and a milestone payout flares it. With reduced motion or no WebGL you get a still flame of the same height.
@@ -59,36 +59,43 @@ fallback text, marked unsigned.
    AI creators bid on it within seconds; you can bid on it too and vote as its first holder. **How it works**
    (`/how`) covers every flow end to end with a cost table.
 2. **Open Glowpath (`/s/glow`), tab Market.** A price chart from the onchain trade ring; the trades table tags buys
-   that counted for a campaign ("campaign #1"). The **Supply and fees** panel shows a fixed 1,000,000 GLOW supply,
-   **founder allocation 0**, the curve reserve, and "2% of every trade, to the marketing treasury only".
-   Type an amount in **Buy**: the quote (tokens, fee to the treasury, storage on first buy, price after, minimum
-   accepted at your slippage) is the contract's own math from `packages/core`.
+   that counted for a campaign ("via campaign #1"). The **Supply and fees** panel shows a fixed 1,000,000 GLOW supply,
+   **Tokens for the founder: 0**, the buy-back pool (the curve reserve), and "2% of every trade, to the marketing fund
+   only"; the exact formula and the token and DAO accounts are under **The exact formula and contracts**.
+   Type an amount in **Buy**: the quote (tokens, fee to the marketing fund, one-time token account setup on a first buy,
+   price after, **You get at least** at your **Price protection**, i.e. the slippage limit) is the contract's own math
+   from `packages/core`. Hover the ⓘ next to a plain label for the precise term.
 3. **Buy for real (optional).** Click **Sign in** (NEAR wallet: Meteor, HOT, Intear, MyNearWallet…), buy 0.1 NEAR of
    GLOW. The call goes gasless through the relayer when your wallet can sign delegate actions. Open
-   `/s/glow?ref=c1`: the panel says you're buying through campaign #1's link (a result only counts while that
-   campaign is running). Sell some back from the **Sell** tab (`ft_transfer_call` with `min_near_out`).
-4. **Tab Treasury and campaigns.** The ledger (free, committed, paid, fees in, forfeited bonds), the founder's
-   constraints, the holders' council (members of `glow-dao`), and each campaign: a phase timeline
-   (bidding → reveal → holder vote → running → paid), **the bid book** (sealed hashes while bidding; after the
-   reveal: price, credible or not, reputation, and the creator's pitch with a **"✓ Private AI, verified"** badge:
-   your browser checks the model's TEE itself, see step 5),
-   **the DAO proposal** with each holder's vote (signed-in holders get Vote yes / Vote no; anyone with 100 GLOW gets
-   **Join the holders**), the milestones with tUSD paid, the referral link, and **Proof (JSON)**.
-   Further down, **the audit log** with outcome and flag chips: `paid`, `new_payee`, `burst`, and
-   `rejected` + `lookalike` for the impostor `creator-n0va`.
-   In the side column, **Keyless agent — no human holds this key**: the account that sends creators their tUSD, its one
-   access key (derived by NEAR's MPC network for the hub, checked live), what it holds, and its recent payouts, each
-   with its transaction (`agent_sign` → MPC signature → the agent's `ft_transfer_call`). Payouts it sends carry the
-   `keyless_agent` flag in the audit log.
-5. **Creators (`/creators`).** Nova, Quill, Ember: their soulbound creator NFT (its record is computed from live
-   state), receipt NFTs (`receipt:0`, `receipt:1`), tUSD earned, wallet caps, and the scout's vetting report. Its
+   `/s/glow?ref=c1`: the panel says you're buying through campaign #1's creator link (a new buyer only counts while
+   that campaign is running). Sell some back from the **Sell** tab (`ft_transfer_call` with `min_near_out`).
+4. **Tab Marketing fund and campaigns** (`?tab=treasury`). The **Marketing fund** ledger (available, set aside, paid,
+   fees collected, deposits kept from unopened offers), the **Founder's spend limits**, the **Holders' council** (the
+   holders role of `glow-dao`; hover its ⓘ), and each campaign: a phase timeline
+   (Sealed offers → Offers opened → Holders vote → Creator at work → Paid), **Offers** (each one reads **Sealed offer**
+   while creators are sealing, its fingerprint in the tooltip; once opened: price, **in range** or **out of range**,
+   track record, and the creator's pitch with a **"✓ Private AI, verified"** badge: your browser checks the model's
+   TEE itself, see step 5), the **Holders' funding vote** with each holder's vote (**What the vote does on NEAR** shows
+   the `fund_campaign` proposal; signed-in holders get Vote yes / Vote no; anyone with 100 GLOW gets
+   **Join the holders**), **New buyers and payouts** (Payout 1 of 3 …) with tUSD paid, the **Creator's link**, and
+   **Proof (JSON)** (with **Check this campaign yourself** and the `pnpm verify` command under **Command line**).
+   Further down, **the audit log** in plain words; switch it to **Raw view** for the exact codes: `paid`, `new_payee`,
+   `burst`, and `rejected` + `lookalike` for the impostor `creator-n0va` (in plain view: "first payment to this
+   creator", "rapid payments", "Creator turned away: copycat name").
+   In the side column, **Keyless payout agent — no person holds its key**: who can sign (NEAR's signing network only,
+   checked live), what it holds, and its recent payouts, each with its transaction; **How the key works** shows the
+   account, its one access key (derived by NEAR's MPC network for the hub) and the signer path (`agent_sign` → MPC
+   signature → the agent's `ft_transfer_call`). Payouts it sends carry the `keyless_agent` flag in the audit log.
+5. **Creators (`/creators`).** Nova, Quill, Ember: click **Record and review** for their soulbound creator NFT (its
+   record is computed from live state), receipt NFTs (`receipt:0`, `receipt:1`), tUSD earned, wallet caps, and the
+   **AI scout's review** (the vetting report). Its
    badge reads **"Private AI, checking…"** and then **"✓ Private AI, verified"** after a few seconds: this browser
    picked a fresh nonce, fetched the model's attestation from `cloud-api.near.ai`, verified the Intel TDX quote
    (dcap-qvl, Intel's root CA), the signer and nonce bound in the quote, the container config (MRCONFIGID), the event
    log (RTMR3) and NVIDIA's signed GPU verdict, then checked the report's signature against the attested key. Click it
    for every check, the measurements (MRTD, RTMR3, compose hash, app id, GPUs) and what it does and doesn't prove
-   (a matching signer doesn't prove the same serving instance: instances of a model share a key). Signed in, **Become a creator** funds your hub wallet, applies (the scout's 0.01 NEAR fee goes into
-   escrow), and the scout vets you within a minute.
+   (a matching signer doesn't prove the same serving instance: instances of a model share a key). Signed in, **Become a creator** adds NEAR to your Signalfire balance (the hub wallet; button **Add 0.03 NEAR**),
+   applies (the scout's 0.01 NEAR fee goes into escrow), and the AI scout reviews you within a minute.
    **Private application:** the form has an optional box **"Private, for the AI only"** (audience size, past results,
    contact). Click **Apply** and your browser verifies the model's attestation (its Ed25519 key, fresh nonce), checks
    our server names the same key, and encrypts the details to it with NEAR AI's end-to-end encryption. A receipt file
@@ -101,25 +108,26 @@ fallback text, marked unsigned.
    model received exactly those details: they hash to the commitment, and the receipt's key opens the ciphertext in the
    signed request. Same flow from a terminal: `pnpm private-apply <account> <url>`, then
    `pnpm verify creator <account> <url>`.
-6. **Bid as a person.** Once admitted, open `/s/glow`, tab **Treasury and campaigns**: every campaign taking bids shows
-   **Your sealed bid**. Type a price (the panel shows the credible range and your reputation-weighted score) and a
-   pitch, click **Seal bid**: your browser draws a random salt, computes
+6. **Bid as a person.** Once admitted, open `/s/glow`, tab **Marketing fund and campaigns**: every campaign taking
+   offers shows **Your sealed offer**. Type a price (the panel shows the allowed range and your score after the
+   track-record bonus) and a pitch, click **Seal my offer**: your browser draws a random salt, computes
    `sha256("signalfire|bid|<campaign>|<you>|<price>|<pitch_hash>|<salt>")` with `packages/core` (the agents' code),
    keeps the opening in localStorage, and sends only the hash with `commit_bid` (no deposit, so gasless through the
-   relayer; the 0.02 NEAR bond comes from your Signalfire wallet). **Download the opening** keeps a copy; a browser
-   without it can import the file. In the reveal window, **Reveal my bid** sends `reveal_bid` and publishes the
+   relayer; the 0.02 NEAR deposit, the bid bond, comes from your Signalfire balance). **Download my offer file** keeps
+   a copy of the opening; a browser without it can import the file. In the reveal window, **Open my offer** sends
+   `reveal_bid` and publishes the
    opening (`POST /api/opening`, accepted only if the chain shows the bid revealed and it hashes to the commitment),
-   so `pnpm verify` checks your bid like the agents'. The panel walks committed → revealed → won/lost, then the
-   settle result (DAO vote, milestones, tUSD paid). Same thing from a terminal, with a test account's own key:
+   so `pnpm verify` checks your bid like the agents'. The panel walks sealed → opened → won/lost (the commitment and
+   both transactions are under **Proof**), then the settle result (the holders' vote, payouts, tUSD paid). Same thing from a terminal, with a test account's own key:
    `pnpm human-bid <account> <url>` (it joins a brief that is open for bids, waiting for the founder agent to post one;
    it never posts a brief itself).
    **Briefs scored privately (OutLayer).** New briefs take bids sealed for a TEE: the same panel says **"Scored
-   privately in a TEE"**, your browser also encrypts the opening to a key only Signalfire's scoring program can derive
+   privately."**, your browser also encrypts the opening to a key only Signalfire's scoring program can derive
    inside an OutLayer TEE (`commit_sealed_bid`), and there is no reveal step. When bidding closes, the hub asks
    `outlayer.testnet` to run the scorer on every ciphertext; only the winner's opening comes back, the hub checks it
    against the commitment, and **losing bids are never revealed** (their prices stay ciphertext onchain). Each such
-   campaign shows **"Bids scored privately in a TEE (OutLayer)"** with the scoring tx, the run's attestation and
-   **Check the TEE run in this browser** (Intel quote, task hash of code + input + output, OutLayer's onchain
+   campaign shows **"Offers scored privately (OutLayer)"** with the scoring tx and the run's attestation under
+   **Proof of the scoring run**, and **Check the scoring run from your browser** (Intel quote, task hash of code + input + output, OutLayer's onchain
    allowlist). Example: campaign #7 on [`/s/fern?tab=treasury`](https://signalfire.lopeselio.online/s/fern?tab=treasury)
    ([sealed bid](https://testnet.nearblocks.io/txns/AHRxk7pb6aPbdBpUrfx4zpsupXY2PSAy6KQxZSusQuio),
    [scoring](https://testnet.nearblocks.io/txns/CpYe6wPWGNfyH4PGRUULnE5qoWuPdKepFkB3PrzpQ4x6),
@@ -142,15 +150,17 @@ fallback text, marked unsigned.
    [3 + receipt NFT](https://testnet.nearblocks.io/txns/FiFcPYnyRQ1bEG59vSRDeVPu3JZ93jd5cYKFUE9gx728).
    `pnpm verify 2 https://signalfire.lopeselio.online` → `✓ sf-pat.signalfire-ref.testnet: the opening matches the
    sealed commitment` … `✓ 22 checks passed, 0 failed`.
-7. **Run your own startup.** Signed in, **Launch** (`/launch`) creates a token and a DAO with you as founder. On its
-   Treasury tab the founder sees **Founder's desk**: **Post a campaign brief** (title, goal, new buyers wanted,
-   budget within both the campaign cap and the treasury's free NEAR, bidding and reveal windows, deadline after
-   funding; the 3 milestones and what each pays are previewed) and **Treasury constraints** (campaign cap, per-payout
-   cap, payouts per hour, credible-bid floor, holder minimum). Both forms check the hub's own limits with
+7. **Run your own startup.** Signed in, **Launch** (`/launch`) creates a token and a DAO with you as founder (the
+   account names are under **What gets created on NEAR**). On its Marketing fund and campaigns tab the founder sees
+   **Founder's desk**: **Post a campaign brief** (title, goal, new buyers wanted, budget within both the largest
+   campaign budget and what the marketing fund has available, time for sealed offers and to open them, deadline once
+   funded; the 3 payouts and what each pays are previewed) and **Spend limits** (largest campaign budget, largest
+   single payment, payments per hour, minimum offer, tokens needed to join the holders; saved with **Save spend
+   limits**). Both forms check the hub's own limits with
    `packages/core` (`briefErrors`, `constraintErrors`) before the wallet signs `create_campaign` / `set_constraints`
    (no deposit: gasless). Nothing here needs a DAO proposal: funding a winner is already the holders' vote (filed when
    the auction settles), and the payee allowlist, milestones and fee are fixed by the contract.
-8. **Dashboard (`/dashboard`).** Read live from the chain: totals, the startups table, cost per result for each
+8. **Dashboard (`/dashboard`).** Read live from the chain: totals, the startups table, cost per new buyer for each
    completed campaign, creators' records, the hub's solvency (everything it owes vs its balance), and **the thesis,
    "Why agent-run marketing treasuries belong on NEAR"**, with its evidence computed from chain data: gas burnt per agent
    action (from each transaction's receipts on an archival RPC) and for a whole 19-transaction campaign, where the fees
@@ -270,7 +280,7 @@ fallback text, marked unsigned.
     - **Shipped work**, for verified links only: a repository's commits in the last 30 and 90 days, last push and
       release, contributors, open issues and PRs, languages, stars (GitHub REST API; cached 6 h, because GitHub allows
       60 requests an hour without a token; set `GITHUB_TOKEN` in `.env` to raise it, never in the repo).
-    - **Onchain track record**, read from the hub: fees in, paid to creators (and 0 to founders), campaigns posted,
+    - **Track record on Signalfire**, read from the hub: fees in, paid to creators (and 0 to founders), campaigns posted,
       delivered and missed, cost per new buyer, buyers over time from the trade ring, the creators who ran them.
 
     Next to it, the **AI research brief**: the TEE model on NEAR AI Cloud reads only that evidence (each item under an
@@ -285,11 +295,11 @@ fallback text, marked unsigned.
     (`BRIEF_EVERY_H`) and on **Write a fresh brief** (once per startup per 15 minutes, 12 an hour in all).
 
     The demo startups are fictional and run by the operator, so they honestly show "no verified founder links, no
-    verified repository" and a red flag that the platform runs them: only their onchain record is real. We link no
+    verified code" and a red flag that the platform runs them: only their onchain record is real. We link no
     real person's or company's accounts to them.
 
     **How a real founder gets the full brief.** On **Launch**, optionally enter a GitHub and an X account (saved as
-    claims). In the **Founder's desk** (tab Treasury and campaigns), **Link and prove your GitHub and X**: click **Sign
+    claims). In the **Founder's desk** (tab Marketing fund and campaigns), **Link and prove your GitHub and X**: click **Sign
     with my wallet** (NEP-413, no transaction): the wallet signs
 
     ```
