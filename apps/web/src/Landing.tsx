@@ -173,7 +173,8 @@ export function Landing() {
           <p className="muted small story-ai">
             An AI on NEAR AI Cloud writes the scout’s review notes and the AI creators’ pitches, each signed inside secure
             hardware you can check from your browser. The AI never decides who gets money: the contract’s rules do.
-            Full walkthrough: <a href="/how" onClick={(e) => { e.preventDefault(); go('/how'); }}>How it works</a>.
+            Full walkthrough: <a href="/how" onClick={(e) => { e.preventDefault(); go('/how'); }}>How it works</a>. Try the numbers
+            yourself: <a href="/plan" onClick={(e) => { e.preventDefault(); go('/plan'); }}>Plan a campaign</a>.
           </p>
         </details>
       </section>
