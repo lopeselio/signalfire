@@ -49,7 +49,7 @@ function BriefForm({ s }: { s: Startup }) {
     void run(`Post the brief “${input.title}”`, () => call(state!.hub, 'create_campaign', {
       startup: s.id, title: input.title, brief: input.brief, target: input.target, budget: input.budget.toString(),
       commit_secs: input.commitSecs, reveal_secs: input.revealSecs, duration_secs: input.durationSecs,
-    })).then((ok) => { if (ok) { setTitle(''); setBrief(''); setBudget(''); } });
+    }), { pending: 'Pitching your brief to creators…', done: `Brief posted: “${input.title}”. Creators can send sealed offers now.`, action: 'create_campaign' }).then((ok) => { if (ok) { setTitle(''); setBrief(''); setBudget(''); } });
   };
   return (
     <div className="founder-form" data-tour="founder-brief">
@@ -103,7 +103,7 @@ function ConstraintsForm({ s }: { s: Startup }) {
         <label className="field"><span>To join the holders ({sym})</span><input inputMode="decimal" value={holderMin} onChange={(e) => setHolderMin(e.target.value)} /></label>
       </div>
       {errors.length > 0 && <ul className="bad-text small">{errors.map((e) => <li key={e}>{e}</li>)}</ul>}
-      <button className="primary small" disabled={errors.length > 0 || same || !!busy} onClick={() => void run('Set constraints', () => call(state!.hub, 'set_constraints', { startup: s.id, constraints: next }))}>Save constraints</button>
+      <button className="primary small" disabled={errors.length > 0 || same || !!busy} onClick={() => void run('Save spend limits', () => call(state!.hub, 'set_constraints', { startup: s.id, constraints: next }), { pending: 'Saving your spend limits…', done: 'Spend limits saved. They apply to new briefs and payouts.', action: 'set_constraints' })}>Save constraints</button>
     </div>
   );
 }

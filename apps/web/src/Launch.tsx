@@ -45,7 +45,8 @@ export function Launch() {
           </fieldset>
           <p className="small">The holders’ council starts with you ({account}); anyone holding 100 tokens can join. Launching attaches 1 NEAR, which pays for the token and DAO accounts.</p>
           <button className="primary" disabled={!okSym || !name.trim() || !linksOk || !!busy} onClick={() => void run(`Launch ${symbol.toUpperCase()}`, () =>
-            call(state!.hub, 'launch_startup', { symbol, name: name.trim(), pitch: pitch.trim(), council: [account], constraints: null }, parseNear('1'))).then(async (ok) => {
+            call(state!.hub, 'launch_startup', { symbol, name: name.trim(), pitch: pitch.trim(), council: [account], constraints: null }, parseNear('1')),
+            { pending: `Launching ${symbol.toUpperCase()}…`, done: `${symbol.toUpperCase()} is live. Taking you to its page…`, action: 'launch_startup' }).then(async (ok) => {
               if (!ok) return;
               // the claims, to prove from the Founder's desk
               for (const [kind, target] of [['github', ghT], ['x', xT]] as const) if (target) await api(`/evidence/${symbol}/links`, { kind, target }).catch(() => undefined);

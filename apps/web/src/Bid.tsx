@@ -82,12 +82,16 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
     const seal = (): void => {
       const o: SavedOpening = { ...sealBid(c.id, account, yocto!, pitch.trim(), randomSalt()), hub, savedAt: Date.now() };
       keepOpening(o); // saved before it's sent: a commit that lands while the page reloads can still be revealed
-      void run(`Seal a bid on #${c.id}`, async () => {
+      void run(`Seal your offer on #${c.id}`, async () => {
         const r = teeKey
           ? await call(hub, 'commit_sealed_bid', { campaign_id: c.id, hash: o.hash, ciphertext: (await lib()).sealBid(teeKey, hub, c.id, account, { price: o.price, pitch_hash: o.pitchHash, salt: o.salt }) })
           : await call(hub, 'commit_bid', { campaign_id: c.id, hash: o.hash });
         keepOpening({ ...o, committedTx: r.tx, ...(teeKey ? { sealedFor: 'outlayer' as const } : {}) });
         return r;
+      }, {
+        pending: 'Sealing your offer…',
+        done: teeKey ? 'Offer sealed for private scoring. Only the winning offer is ever opened.' : 'Offer sealed. Nobody can see your price until offers are opened.',
+        action: teeKey ? 'commit_sealed_bid' : 'commit_bid',
       }).then((ok) => { if (ok) { setPrice(''); setPitch(''); } });
     };
     return (
@@ -105,7 +109,7 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
         </label>
         {refusal && <p className="bad-text small">Your wallet can’t post the bond: {refusal}.</p>}
         <div className="row">
-          {short && <button className="ghost small" disabled={!!busy} onClick={() => void run('Fund wallet', () => call(hub, 'fund_wallet', { account }, BID_BOND))}>Fund wallet with 0.02 NEAR</button>}
+          {short && <button className="ghost small" disabled={!!busy} onClick={() => void run('Add NEAR to your Signalfire balance', () => call(hub, 'fund_wallet', { account }, BID_BOND), { pending: 'Adding NEAR to your Signalfire balance…', done: 'Your Signalfire balance is topped up.', action: 'fund_wallet' })}>Fund wallet with 0.02 NEAR</button>}
           <button className="primary small" disabled={!ready || !!busy} onClick={seal}>Seal bid (0.02 NEAR bond)</button>
         </div>
         <p className="muted small">Bids close in {fmtLeft(c.commit_ends_ms - now)}. {teeKey ? 'Sealed bids for the TEE need no reveal from you.' : 'Keep this browser’s storage or download the opening after you seal: without it you can’t reveal, and an unrevealed bond goes to the treasury.'}</p>
@@ -115,12 +119,12 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
 
   // ---------- committed: reveal, then the result ----------
   const reveal = (o: SavedOpening): void => {
-    void run(`Reveal your bid on #${c.id}`, async () => {
+    void run(`Open your offer on #${c.id}`, async () => {
       const r = await call(hub, 'reveal_bid', { campaign_id: c.id, price: o.price, pitch_hash: o.pitchHash, salt: o.salt });
       keepOpening({ ...o, revealedTx: r.tx });
       await publish(o);
       return r;
-    });
+    }, { pending: 'Opening your offer…', done: 'Your offer is open, and your deposit is back in your Signalfire balance.', action: 'reveal_bid' });
   };
   const publish = async (o: BidOpening): Promise<void> => {
     // the chain may need a moment to show the reveal to the server's RPC
@@ -190,7 +194,7 @@ export function MyBid({ c, s }: { c: Campaign; s: Startup }) {
       {mine.revealed && !tee && stage === 'settle' && (
         <div className="row">
           <span className="muted small">The reveal window is over. Anyone may settle the auction (the operator does it within a minute).</span>
-          <button className="ghost small" disabled={!!busy} onClick={() => void run(`Settle #${c.id}`, () => call(hub, 'settle_auction', { campaign_id: c.id }))}>Settle now</button>
+          <button className="ghost small" disabled={!!busy} onClick={() => void run(`Pick the winner of #${c.id}`, () => call(hub, 'settle_auction', { campaign_id: c.id }), { pending: 'Picking the winning offer…', done: 'Winner picked. Holders are voting on it now.', action: 'settle_auction' })}>Settle now</button>
         </div>
       )}
       {settled && (

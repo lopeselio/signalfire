@@ -129,9 +129,11 @@ function TradePanel({ s }: { s: Startup }) {
   const submit = (): void => {
     if (!quote) return;
     if (quote.kind === 'buy') {
-      void run(`Buy ${sym}`, () => call(state!.hub, 'buy', { startup: s.id, min_tokens_out: quote.min.toString(), ref_code: ref !== null ? `c${ref}` : null }, parseNear(amount)));
+      void run(`Buy ${sym}`, () => call(state!.hub, 'buy', { startup: s.id, min_tokens_out: quote.min.toString(), ref_code: ref !== null ? `c${ref}` : null }, parseNear(amount)),
+        { pending: `Buying your ${sym}…`, done: `You bought ${sym}. It’s in your account.`, action: 'buy' });
     } else {
-      void run(`Sell ${sym}`, () => call(s.token, 'ft_transfer_call', { receiver_id: state!.hub, amount: quote.t.toString(), msg: JSON.stringify({ min_near_out: quote.min.toString() }) }, 1n));
+      void run(`Sell ${sym}`, () => call(s.token, 'ft_transfer_call', { receiver_id: state!.hub, amount: quote.t.toString(), msg: JSON.stringify({ min_near_out: quote.min.toString() }) }, 1n),
+        { pending: `Selling your ${sym}…`, done: 'Sold. The NEAR is in your account.', action: 'ft_transfer_call' });
     }
   };
   return (
@@ -253,7 +255,7 @@ function Treasury({ s }: { s: Startup }) {
           <p className="muted small">Members of the <Acct a={s.dao} /> DAO’s holders role. One holder, one vote; a majority funds a campaign.</p>
           <ul className="plain">{s.holders.map((h) => <li key={h}><Acct a={h} />{h === account && <Chip kind="ember">you</Chip>}</li>)}</ul>
           {account && !isHolder && (bal >= min
-            ? <button className="primary wide" disabled={!!busy} onClick={() => void run('Join the holders', () => call(state!.hub, 'join_holders', { startup: s.id }))}>Join the holders</button>
+            ? <button className="primary wide" disabled={!!busy} onClick={() => void run('Join the holders', () => call(state!.hub, 'join_holders', { startup: s.id }), { pending: 'Adding you to the holders…', done: 'You’re on the holders’ council. You can vote on campaigns now.', action: 'join_holders' })}>Join the holders</button>
             : <p className="muted small">Hold at least {fmtTokens(min, 0)} {sym} to join (you hold {fmtTokens(bal)}).</p>)}
           {isHolder && <p className="ok-text small">You’re a holder: you can vote on funding proposals below.</p>}
           <SignInHint what="join the holders and vote" />
@@ -297,14 +299,15 @@ function CampaignCard({ c, s, isHolder }: { c: Campaign; s: Startup; isHolder: b
   const sym = s.id.toUpperCase();
   const refLink = `${location.origin}/s/${s.id}?ref=c${c.id}`;
   let clock = '';
-  if (c.phase === 'bidding') clock = now < c.commit_ends_ms ? `bids close in ${fmtLeft(c.commit_ends_ms - now)}` : now < c.reveal_ends_ms ? `reveals close in ${fmtLeft(c.reveal_ends_ms - now)}` : 'settling the auction';
-  else if (c.phase === 'funded' && c.deadline_ms) clock = `ends in ${fmtLeft(c.deadline_ms - now)}`;
-  else if (c.phase === 'voting') clock = 'waiting for a majority of holders';
-  else if (c.phase === 'proposing') clock = 'filing the DAO proposal';
+  if (c.phase === 'bidding') clock = now < c.commit_ends_ms ? `Creators are sealing their offers: ${fmtLeft(c.commit_ends_ms - now)} left` : now < c.reveal_ends_ms ? `Offers are being opened: ${fmtLeft(c.reveal_ends_ms - now)} left` : 'Picking the winning offer…';
+  else if (c.phase === 'funded' && c.deadline_ms) clock = `Your creator is on it: ${fmtLeft(c.deadline_ms - now)} to the deadline`;
+  else if (c.phase === 'voting') clock = 'Holders are voting on the winner…';
+  else if (c.phase === 'proposing') clock = 'Opening the holders’ funding vote…';
   const ended: Record<string, string> = { expired: 'Expired: the unpaid part went back to the treasury', no_bids: 'No credible bids', propose_failed: 'The DAO refused the proposal; it will be filed again' };
   const voted = account ? c.proposal?.votes[account] : undefined;
   const vote = (approve: boolean): void => {
-    void run(approve ? 'Vote yes' : 'Vote no', () => call(s.dao, 'act_proposal', { id: c.proposal_id, action: approve ? 'VoteApprove' : 'VoteReject', proposal: c.proposal!.kind }));
+    void run(approve ? 'Vote yes' : 'Vote no', () => call(s.dao, 'act_proposal', { id: c.proposal_id, action: approve ? 'VoteApprove' : 'VoteReject', proposal: c.proposal!.kind }),
+      { pending: 'Casting your vote…', done: `Vote recorded: ${approve ? 'yes' : 'no'}.`, action: `act_proposal ${approve ? 'VoteApprove' : 'VoteReject'}` });
   };
   return (
     <article className={`campaign ${c.phase}`}>
