@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   CODE, FOUNDER, OVERALL, PROFILE_RANK, PROFILE_WORDS, TRACK, linkMessage, linkNonce, normalizeTarget, proofLine, signatureToB58,
   type Brief, type Dropped, type EvidenceItem, type EvidenceSummary, type Flag, type LinkKind, type ProfileCheck, type ProfileLabel, type Signal, type SignalKey,
@@ -81,12 +81,10 @@ export function EvidenceTab({ s }: { s: Startup }) {
             const list = ev.items.filter((i) => i.group === g.key && i.kind !== 'links');
             if (g.key === 'links') return null;
             return (
-              <section key={g.key} className="panel ev-group">
-                <h2>{g.title}</h2>
-                <p className="muted small">{g.note}</p>
+              <EvidenceGroup key={g.key} title={g.title} note={g.note}>
                 {list.length === 0 && <p className="muted small">{g.key === 'shipped' ? 'Nothing to show: no verified GitHub or X link.' : 'Nothing yet.'}</p>}
-                {list.map((i) => <EvidenceCard key={i.id} i={i} />)}
-              </section>
+                {list.map((i, k) => <EvidenceCard key={i.id} i={i} k={k} />)}
+              </EvidenceGroup>
             );
           })}
           {ev.errors.length > 0 && <p className="muted small">Couldn’t fetch: {ev.errors.join('; ')} (shown again when the source answers).</p>}
@@ -262,13 +260,28 @@ function SummaryChips({ sum }: { sum: EvidenceSummary }) {
   );
 }
 
-function EvidenceCard({ i }: { i: EvidenceItem }) {
+/** A panel of evidence cards that rise in, in turn, once the panel scrolls into view. */
+function EvidenceGroup({ title, note, children }: { title: string; note: string; children: ReactNode }) {
+  const [ref, seen] = useSeen<HTMLElement>();
+  return (
+    <section ref={ref} className={`panel ev-group ev-rv${seen ? ' in' : ''}`}>
+      <h2>{title}</h2>
+      <p className="muted small">{note}</p>
+      {children}
+    </section>
+  );
+}
+
+/** A fact's value; whole and decimal numbers count up when the card comes into view. */
+const FactValue = ({ v }: { v: unknown }) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? <Count value={String(v)} /> : <>{showFact(v)}</>);
+
+function EvidenceCard({ i, k = 0 }: { i: EvidenceItem; k?: number }) {
   const now = useNow(30_000);
   return (
-    <article className="ev-item" id={`ev-${i.id}`}>
+    <article className="ev-item" id={`ev-${i.id}`} style={at(k)}>
       <header><span className="ev-id">{i.id}</span><h3>{i.title}</h3></header>
       <dl className="facts">
-        {Object.entries(i.facts).map(([k, v]) => <div key={k}><dt>{label(k)}</dt><dd>{showFact(v)}</dd></div>)}
+        {Object.entries(i.facts).map(([f, v]) => <div key={f}><dt>{label(f)}</dt><dd><FactValue v={v} /></dd></div>)}
       </dl>
       <p className="ev-src small">
         Source: {i.source.url ? <a href={i.source.url} target="_blank" rel="noreferrer">{i.source.label}</a> : i.source.label} · fetched {ago(i.fetchedAt, now)}
@@ -301,6 +314,7 @@ function BriefPanel({ ev, reload }: { ev: EvidenceView; reload: () => void }) {
   const now = useNow(10_000);
   const [asking, setAsking] = useState(false);
   const [askErr, setAskErr] = useState<string | null>(null);
+  const [ref, seen] = useSeen<HTMLElement>();
   const b = ev.brief;
   const wait = ev.nextRequestAt - now;
   const ask = (): void => {
@@ -309,7 +323,7 @@ function BriefPanel({ ev, reload }: { ev: EvidenceView; reload: () => void }) {
     api<{ brief: BriefView }>(`/evidence/${ev.startup.id}/brief`, {}).then(() => reload()).catch((e: Error) => setAskErr(e.message)).finally(() => setAsking(false));
   };
   return (
-    <section className="panel ev-brief" data-tour="research-brief">
+    <section ref={ref} className={`panel ev-brief${seen ? ' in' : ''}`} data-tour="research-brief">
       <header className="ev-brief-head">
         <h2>AI research brief</h2>
         {b?.signed && b.model && <PrivateAiBadge src={{ kind: 'brief', startup: ev.startup.id }} model={b.model} what="brief" />}
@@ -322,16 +336,24 @@ function BriefPanel({ ev, reload }: { ev: EvidenceView; reload: () => void }) {
             Written {ago(b.at, now)} {b.trigger === 'request' ? 'on request' : b.trigger === 'links' ? 'after a founder link changed' : 'automatically'} from {b.evidence.length} sources{b.model ? ' by NEAR AI’s private AI' : ''}<Info text={`Evidence hash ${b.evidenceHash}${b.model ? `; model ${b.model}, in a TEE on NEAR AI Cloud` : ''}`} />. It’s rewritten every {ev.everyHours} hours.
             {!b.parsed && b.signed && ' The model’s reply couldn’t be read, so only the facts and rule checks are shown.'}
           </p>
-          <h3 className="ev-sec">Observed <span className="muted small">facts from the sources, each cited</span></h3>
-          <Lines lines={b.brief.observed} items={b.evidence} empty="No observations." />
-          <h3 className="ev-sec ev-ai">AI reading <span className="small">the AI’s interpretation, not fact</span></h3>
-          <div className="ev-reading"><Lines lines={b.brief.reading} items={b.evidence} empty="No inference offered." /></div>
-          <h3 className="ev-sec">Gaps and red flags</h3>
-          <p className="muted small ev-sub">Rule checks (computed by code, not the model)</p>
-          <ul className="ev-lines ev-flags">{b.flags.length ? b.flags.map((f, k) => <li key={k} className={f.level}>{f.text} <Cites ids={f.cites} items={b.evidence} /></li>) : <li className="muted">None.</li>}</ul>
-          {b.brief.gaps.length > 0 && <><p className="muted small ev-sub">Noted by the AI</p><Lines lines={b.brief.gaps} items={b.evidence} empty="" /></>}
-          <h3 className="ev-sec">What to check yourself</h3>
-          <Lines lines={b.brief.check} items={b.evidence} empty="Open each source on the right." />
+          <div className="ev-bsec" style={at(0)}>
+            <h3 className="ev-sec">Observed <span className="muted small">facts from the sources, each cited</span></h3>
+            <Lines lines={b.brief.observed} items={b.evidence} empty="No observations." />
+          </div>
+          <div className="ev-bsec" style={at(1)}>
+            <h3 className="ev-sec ev-ai">AI reading <span className="small">the AI’s interpretation, not fact</span></h3>
+            <div className="ev-reading"><Lines lines={b.brief.reading} items={b.evidence} empty="No inference offered." /></div>
+          </div>
+          <div className="ev-bsec" style={at(2)}>
+            <h3 className="ev-sec">Gaps and red flags</h3>
+            <p className="muted small ev-sub">Rule checks (computed by code, not the model)</p>
+            <ul className="ev-lines ev-flags">{b.flags.length ? b.flags.map((f, k) => <li key={k} className={f.level}>{f.text} <Cites ids={f.cites} items={b.evidence} /></li>) : <li className="muted">None.</li>}</ul>
+            {b.brief.gaps.length > 0 && <><p className="muted small ev-sub">Noted by the AI</p><Lines lines={b.brief.gaps} items={b.evidence} empty="" /></>}
+          </div>
+          <div className="ev-bsec" style={at(3)}>
+            <h3 className="ev-sec">What to check yourself</h3>
+            <Lines lines={b.brief.check} items={b.evidence} empty="Open each source on the right." />
+          </div>
           {b.dropped.length > 0 && (
             <details className="ev-dropped small">
               <summary>{b.dropped.length} line{b.dropped.length > 1 ? 's' : ''} the guard removed</summary>
@@ -364,6 +386,9 @@ const where = (kind: LinkKind, target: string): string => {
     : `Put it in a public gist as ${owner} (gist.github.com), or commit it to one of ${owner}’s repositories; then paste the URL.`;
 };
 
+/** A tick that draws itself next to a verified link. */
+const Tick = () => <svg className="ev-tick" viewBox="0 0 12 12" aria-hidden="true"><path pathLength={1} d="M2 6.5 5 9.2 10 3" /></svg>;
+
 function LinksPanel({ ev, s }: { ev: EvidenceView; s: Startup }) {
   const { account } = useApp();
   return (
@@ -374,7 +399,7 @@ function LinksPanel({ ev, s }: { ev: EvidenceView; s: Startup }) {
       <ul className="ev-links">
         {ev.links.map((l) => (
           <li key={`${l.kind}:${l.target}`}>
-            <span className={`chip ${l.status === 'verified' ? 'ok' : 'warn'}`}>{l.status}</span>
+            <span className={`chip ${l.status === 'verified' ? 'ok' : 'warn'}`}>{l.status === 'verified' && <Tick />}{l.status}</span>
             <a href={l.kind === 'x' ? `https://x.com/${l.target}` : `https://github.com/${l.target}`} target="_blank" rel="noreferrer">{l.kind === 'x' ? `X @${l.target}` : `GitHub ${l.target}`}</a>
             {l.status === 'verified' && l.proofUrl && <> · <a href={l.proofUrl} target="_blank" rel="noreferrer">proof</a></>}
           </li>
