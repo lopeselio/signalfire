@@ -122,6 +122,8 @@
 .ev-brief.in .ev-brief-head :is(.pai, .tee) { animation: ev-pop var(--dur-2) var(--ease-bounce) 200ms both; }
 .ev-bsec { opacity: 0; }
 .ev-brief.in .ev-bsec { opacity: 1; animation: ev-rise var(--dur-3) var(--ease) calc(300ms + var(--i) * 140ms) both; }
+/* Discover: a tiny four-step meter in the profile chip */
+.ev-mini { display: inline-block; width: 18px; height: 6px; margin-right: 5px; border-radius: 999px; background: linear-gradient(90deg, currentColor calc(var(--n) * 25%), color-mix(in srgb, currentColor 22%, transparent) 0); vertical-align: 1px; }
 
 @keyframes ev-rise { from { opacity: 0; transform: translateY(8px); } }
 @keyframes ev-pop { from { opacity: 0; transform: scale(0.6); } }

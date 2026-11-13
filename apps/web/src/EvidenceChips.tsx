@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { PROFILE_RANK, PROFILE_WORDS, type EvidenceSummary, type ProfileLabel } from '@signalfire/core';
 import { api } from './api.ts';
 import './evidence.css';
@@ -29,7 +29,7 @@ export function EvidenceChips({ sum }: { sum: Sum | undefined }) {
   if (!sum) return null;
   return (
     <div className="ev-card-chips" aria-label="Evidence">
-      {sum.strength && <span className={`chip strength ${LEVEL[sum.strength]}`} title="Profile check: computed by rule from public evidence, not advice">profile: {PROFILE_WORDS[sum.strength]}</span>}
+      {sum.strength && <span className={`chip strength ${LEVEL[sum.strength]}`} title="Profile check: computed by rule from public evidence, not advice"><i className="ev-mini" style={{ '--n': PROFILE_RANK[sum.strength] + 1 } as CSSProperties} aria-hidden="true" />profile: {PROFILE_WORDS[sum.strength]}</span>}
       {sum.verifiedLinks > 0 ? <span className="chip ok">verified founder</span> : <span className="chip smoke">{sum.demo ? 'demo founder' : 'founder not verified'}</span>}
       {sum.verifiedRepos > 0 && <span className={`chip ${sum.repoActive30 ? 'ok' : 'warn'}`}>{sum.repoActive30 ? 'code updated this month' : 'no code updates in 30 days'}</span>}
       <span className={`chip ${sum.delivered ? 'ok' : 'smoke'}`}>{sum.delivered} campaign{sum.delivered === 1 ? '' : 's'} delivered</span>
