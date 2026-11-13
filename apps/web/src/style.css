@@ -497,3 +497,10 @@ details.tech { margin-top: 6px; font-size: 13px; }
 details.tech > summary { cursor: pointer; color: var(--smoke); }
 details.tech[open] > summary { margin-bottom: 4px; }
 .raw-toggle { float: right; }
+
+/* each page's "what you can do here" line and the visitor's next step (NextAction.tsx) */
+.next-action { margin: 14px 0 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--night-2); }
+.next-action .na-line { margin: 0 0 8px; font-size: 14px; }
+.next-action .na-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.next-action .na-help { margin-left: auto; }
+@media (max-width: 520px) { .next-action .na-help { margin-left: 0; } }
