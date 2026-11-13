@@ -41,7 +41,8 @@ export function Plan() {
   const bm = Math.min(budgetMilli, capMilli);
   const budget = BigInt(bm) * MILLI;
   const minOffer = (budget * BigInt(minBps)) / 10_000n; // rules.rs credible: price ≥ budget·min_bid_bps/10⁴
-  const pct = Math.max(offerPct, Math.ceil(minBps / 100));
+  const minPct = Math.max(1, Math.ceil(minBps / 100)); // a zero offer is never credible (price > 0)
+  const pct = Math.max(offerPct, minPct);
   const offer = (budget * BigInt(pct)) / 100n; // an example winning offer, a share of the budget
   const fill = (budget * 10_000n) / FEE_BPS; // 2% of every trade goes to the fund
   const free = BigInt(st?.available ?? '0');
@@ -75,7 +76,7 @@ export function Plan() {
             hint="People buying the token for the first time through the creator’s link." />
           <Slider label="Time to send offers" value={`${windowMin} min`} min={1} max={120} step={1} v={windowMin} set={setWindowMin}
             hint="Creators seal their offers in this window; then there’s a short window to open them." />
-          <Slider label="Example winning offer" value={`${pct}% · ${near(offer)} NEAR`} min={Math.ceil(minBps / 100)} max={100} step={1} v={pct} set={setOfferPct}
+          <Slider label="Example winning offer" value={`${pct}% · ${near(offer)} NEAR`} min={minPct} max={100} step={1} v={pct} set={setOfferPct}
             hint="Creators name their own price, up to the budget. Try a few." />
         </section>
 
