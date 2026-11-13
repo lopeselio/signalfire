@@ -60,6 +60,7 @@ export function Checklist({ x, onWelcome }: { x: X; onWelcome: () => void }) {
               );
             })}
           </div>
+          <p className="gs-whose muted small">{x.account ? <>Progress for <strong>{x.account}</strong>, saved with your account.</> : 'Progress in this browser only. Sign in to keep it across browsers.'}</p>
           <p className="gs-blurb">{path.blurb}{path.wallet && !x.account && ' Needs a NEAR test wallet (free).'}</p>
           <ol className="gs-steps">
             {steps.map(({ s, i }) => {
