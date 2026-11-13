@@ -1,4 +1,4 @@
-import { guardBrief, type Brief, type Dropped, type EvidenceItem } from '@signalfire/core';
+import { contradictsProfile, evidencePrompt, guardBrief, profilePrompt, type Brief, type Dropped, type EvidenceItem, type ProfileCheck } from '@signalfire/core';
 
 // From the model's exact signed response to the brief the page shows. No I/O, so `pnpm verify-brief` runs the same
 // code on the published response and must get the same brief.
@@ -56,7 +56,12 @@ function firstJson(text: string): unknown {
   try { return JSON.parse(m[0]) as unknown; } catch { /* models often leave trailing commas */ }
   try { return JSON.parse(m[0].replace(/,(\s*[\]}])/g, '$1')) as unknown; } catch { return salvage(text); }
 }
-export function briefFrom(response: string, items: EvidenceItem[]): { brief: Brief; dropped: Dropped[]; parsed: boolean } {
+/** With a profile check (briefs written since rule profile-check/1), a line naming another strength is dropped too. */
+export function briefFrom(response: string, items: EvidenceItem[], profile?: ProfileCheck | null): { brief: Brief; dropped: Dropped[]; parsed: boolean } {
   const raw = firstJson(replyText(response));
-  return { ...guardBrief(raw, items), parsed: raw !== null };
+  return { ...guardBrief(raw, items, profile ? { contradicts: (t) => contradictsProfile(t, profile) } : {}), parsed: raw !== null };
 }
+
+/** The user message: the evidence, then (since profile-check/1) the rule-computed profile check as facts with ids. */
+export const briefPrompt = (startup: { id: string; name: string }, items: EvidenceItem[], profile?: ProfileCheck | null): string =>
+  profile ? `${evidencePrompt(startup, items)}\n\n${profilePrompt(profile)}` : evidencePrompt(startup, items);
