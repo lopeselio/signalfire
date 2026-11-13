@@ -218,7 +218,7 @@ export function SignalFire() {
     }
   }, [wire, heat]);
 
-  const label = wire === null ? 'reading the wire' : `${recent.length} onchain action${recent.length === 1 ? '' : 's'} in the last 24 hours`;
+  const label = wire === null ? 'loading live activity' : `${recent.length} action${recent.length === 1 ? '' : 's'} on NEAR in the last 24 hours`;
   return (
     <div ref={wrap} data-tour="fire" className={`signalfire${still ? ' still' : ''}`} style={{ ['--heat' as string]: heat.toFixed(2) }}>
       <div className="sf-stage" role="img" aria-label={`The signal fire: ${label}`}>
