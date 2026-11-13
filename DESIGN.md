@@ -213,8 +213,20 @@ to organize the evidence without presenting speculation as fact.
   archived repository). The exact request, response and the enclave's signature are stored; the Private AI badge and
   `pnpm verify-brief` check them, and the latter re-runs the guard, recomputes the hash and rule checks, rechecks
   every link proof and re-reads the sources. Rewritten every 6 h and on request (rate-limited).
-- **Discover** filters on verified founder, repository active in 30 days and campaigns delivered, and sorts by the
-  amount of checkable evidence (`summarize`), never by a model's opinion. The model decides nothing.
+- **The profile check** (`profileCheck`, rule `profile-check/1`, packages/core): four ratings, each citing the evidence
+  it rests on: code activity (verified repositories: Active = 5+ commits in 30 days, or 1+ with 2+ contributors, and a
+  push within 30 days of the fetch; Some = any commit in 90 days; None; Not linked), public presence (Verified /
+  Claimed only / None), founder account (Established = 90+ days and 50+ transactions; New = 7+ days; Brand new), track
+  record (Proven = 3+ delivered, missed at most a third of that, new buyers reached; Some = 1+ delivered; None yet).
+  Points 2/1/0; Strong = 6+ with a verified link, active code and a founder account a week old; Moderate = 3+ with a
+  verified link; Thin otherwise; Not enough evidence = no proven link and no delivered campaign; a demo startup is at
+  most Thin. The brief's prompt receives it as facts with ids to explain; the guard drops a line naming another
+  strength. The brief record stores the check, the rule version and `inputsHash` (sha256 of the canonical facts the
+  rule reads); `pnpm verify-brief` recomputes them. Not onchain: it is recomputable from the published evidence.
+  A claimed, proven or removed founder link rewrites the brief (same rate limits).
+- **Discover** filters on verified founder, repository active in 30 days, campaigns delivered and profile strength
+  (Moderate or Strong), and sorts by profile strength then the amount of checkable evidence (`summarize`), never by a
+  model's opinion. The model decides nothing.
 
 ## Trust model: what the chain does not prove
 
@@ -228,6 +240,7 @@ to organize the evidence without presenting speculation as fact.
 - tUSD is a test token whose only backing is the NEAR the desk keeps; the 1:3 rate is a constant, not an oracle.
 - That a research brief is right: only that every kept line cites real evidence and its numbers appear there. A
   verified link proves control of an account, not identity.
+- That a "Strong" profile check means a good startup: it counts checkable evidence by a fixed rule, and is not advice.
 
 ## Track mapping
 
