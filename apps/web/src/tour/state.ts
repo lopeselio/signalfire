@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { parseNear } from '@signalfire/core';
 import { api, type AuditEntry, type Campaign, type Me, type Startup, type State } from '../api.ts';
+import { recently, recentStartups } from '../recent.ts';
 
 // The onboarding's memory (which path, which step, what was already seen, which hints were dismissed), kept in
 // localStorage, which may be unavailable (private windows): then it lives for this page load only.
@@ -103,12 +104,13 @@ export function signals(state: State | null, me: Me | null, account: string | nu
   const startups = state?.startups ?? [];
   const campaigns = state?.campaigns ?? [];
   const tokens = account && me?.accountId === account ? me.tokens : [];
-  const holds = tokens.filter((t) => BigInt(t.balance) > 0n).map((t) => t.startup);
+  // a buy this tab just made counts before the server's next read shows the balance (recent.ts)
+  const holds = [...new Set([...tokens.filter((t) => BigInt(t.balance) > 0n).map((t) => t.startup), ...(account ? recentStartups('buy') : [])])];
   const holdsEnough = tokens.filter((t) => {
     const st = startups.find((x) => x.id === t.startup);
     return st && BigInt(t.balance) >= BigInt(st.constraints.min_holder_tokens);
   }).map((t) => t.startup);
-  const holderOf = account ? startups.filter((s) => s.holders.includes(account)).map((s) => s.id) : [];
+  const holderOf = account ? [...new Set([...startups.filter((s) => s.holders.includes(account)).map((s) => s.id), ...recentStartups('join_holders')])] : [];
   const votedOn = account ? campaigns.filter((c) => c.proposal && c.proposal.votes[account]) : [];
   const bids = account ? campaigns.filter((c) => c.bids.some((b) => b.creator === account)).sort((a, b) => b.id - a.id) : [];
   const bid = bids[0] ?? null;
@@ -120,7 +122,7 @@ export function signals(state: State | null, me: Me | null, account: string | nu
     holds,
     holdsEnough,
     holderOf,
-    voted: votedOn.length > 0,
+    voted: votedOn.length > 0 || recently('act_proposal'),
     walletFunded: !!myMe?.wallet && BigInt(myMe.wallet.balance) >= FEE,
     applied: !!myMe?.application || !!myMe?.creator,
     admitted: !!myMe?.creator && !myMe.creator.creator.revoked,
@@ -128,9 +130,9 @@ export function signals(state: State | null, me: Me | null, account: string | nu
     revealed: bids.some((c) => c.bids.some((b) => b.creator === account && b.revealed)),
     settled: !!bid && bid.phase !== 'bidding',
     mine,
-    filled: !!mine && BigInt(mine.fees_in) > 0n,
-    briefed: !!mine && campaigns.some((c) => c.startup === mine.id),
-    constrained: !!mine && !!audit?.some((e) => e.action === 'constraints' && e.account === account && e.startup === mine.id),
+    filled: !!mine && (BigInt(mine.fees_in) > 0n || recently('buy', mine.id)),
+    briefed: !!mine && (campaigns.some((c) => c.startup === mine.id) || recently('create_campaign', mine.id)),
+    constrained: !!mine && (recently('set_constraints', mine.id) || !!audit?.some((e) => e.action === 'constraints' && e.account === account && e.startup === mine.id)),
     votedMine: !!mine && votedOn.some((c) => c.startup === mine.id),
   };
 }
