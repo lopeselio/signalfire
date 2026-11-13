@@ -78,30 +78,33 @@ export function SealedPanel({ c }: { c: Campaign }) {
   };
   return (
     <div className="private-box small sealed-panel" data-tour="sealed-panel">
-      <strong>Bids scored privately in a TEE (OutLayer)</strong>
+      <strong>Offers scored privately (OutLayer)</strong>
       <p>
-        Each creator encrypted their price and pitch hash to a key that only Signalfire’s scoring program can derive inside an
-        OutLayer TEE. The hub holds {book.entries.length} ciphertext{book.entries.length === 1 ? '' : 's'}; nobody reveals.{' '}
-        {book.status === 'open' && 'When bidding closes, the TEE opens every bid and returns only the winner’s.'}
-        {book.status === 'scoring' && 'The TEE is scoring them now.'}
-        {book.status === 'failed' && 'The last scoring run did not return a valid answer; it is asked again.'}
-        {book.status === 'abandoned' && 'OutLayer did not score this brief in time: every bond went back and no bid was opened.'}
-        {book.status === 'scored' && <>The TEE opened them and returned only the winner’s bid, which the hub checked against its commitment. <strong>{losers} losing bid{losers === 1 ? ' was' : 's were'} never revealed</strong>, to us or anyone.</>}
+        Each creator encrypted their offer so that only Signalfire’s scoring program, running in secure hardware, can read it.
+        Signalfire’s contract holds {book.entries.length} encrypted offer{book.entries.length === 1 ? '' : 's'}; nobody opens them by hand.{' '}
+        {book.status === 'open' && 'When offers close, the program scores every offer and opens only the winner’s.'}
+        {book.status === 'scoring' && 'Scoring the offers now…'}
+        {book.status === 'failed' && 'The last scoring attempt didn’t give a valid answer, so it’s running again.'}
+        {book.status === 'abandoned' && 'Scoring didn’t finish in time: every deposit went back and no offer was opened.'}
+        {book.status === 'scored' && <>Scoring opened only the winning offer, and Signalfire’s contract checked it matches what the creator sealed. <strong>{losers} losing offer{losers === 1 ? ' was' : 's were'} never opened</strong>, to us or anyone.</>}
       </p>
+      <details className="tech">
+      <summary>Proof of the scoring run</summary>
       <p className="muted">
         Scorer wasm <code title={book.wasm_hash}>{book.wasm_hash.slice(0, 16)}…</code> (source: <code>outlayer/scorer</code>) · bid key <code title={book.bid_key}>{book.bid_key.slice(0, 16)}…</code>
         {run && <> · <a href={txUrl(run.tx)} target="_blank" rel="noreferrer">scoring tx</a></>}
         {run?.requestId != null && <> · <a href={`${info.outlayerApi}/attestations/by-request/${run.requestId}`} target="_blank" rel="noreferrer">attestation (request {run.requestId})</a></>}
+        {' '}· command line: <code>pnpm verify {c.id}</code>
       </p>
+      </details>
       {book.status === 'scored' && run?.requestId != null && (
         <p className="row">
-          <button type="button" className="ghost small" disabled={busy} onClick={() => void verify()}>{busy ? 'Checking…' : checks ? 'Check again' : 'Check the TEE run in this browser'}</button>
-          <span className="muted">or <code>pnpm verify {c.id}</code></span>
+          <button type="button" className="ghost small" disabled={busy} onClick={() => void verify()}>{busy ? 'Checking…' : checks ? 'Check again' : 'Check the scoring run from your browser'}</button>
         </p>
       )}
       {err && <p className="bad-text">{err}</p>}
       {checks && <ul className="pai-checks">{checks.map((k) => <li key={k.id} className={k.ok ? 'ok' : 'bad'}><span className="pai-mark">{k.ok ? '✓' : '✗'}</span><span>{k.label}{k.detail && <code className="pai-detail">{k.detail}</code>}</span></li>)}</ul>}
-      {checks && <p className="muted">This proves an approved OutLayer worker, in an Intel TDX TEE, ran exactly that wasm on exactly the onchain ciphertexts and produced exactly the answer the hub accepted. It relies on OutLayer’s keystore to give the bid key only to that wasm when the hub asks.</p>}
+      {checks && <p className="muted">In short: approved secure hardware ran exactly Signalfire’s scoring program on exactly these sealed offers and gave exactly the answer the contract accepted. This proves an approved OutLayer worker, in an Intel TDX TEE, ran exactly that wasm on exactly the onchain ciphertexts and produced exactly the answer the hub accepted. It relies on OutLayer’s keystore to give the bid key only to that wasm when the hub asks.</p>}
     </div>
   );
 }
