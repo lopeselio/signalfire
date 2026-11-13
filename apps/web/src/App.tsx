@@ -161,7 +161,7 @@ export function App() {
           </div>
         ))}
       </div>
-      {busy && <div className="busy" role="status" title={busyCopy?.action ? `${busy} (${busyCopy.action})` : busy}>{busyCopy?.pending ?? `${busy}…`} Confirm in your wallet if it asks.</div>}
+      {busy && <div className="busy" role="status" title={busyCopy?.action ? `${busy} (${busyCopy.action})` : busy}>{busyCopy?.pending ?? `${busy}…`}{busyCopy?.wallet === false ? '' : ' Confirm in your wallet if it asks.'}</div>}
     </Ctx.Provider>
   );
 }
