@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { fmtNear, fmtTokens } from '@signalfire/core';
 import { Terms, useApp } from '../ui.tsx';
 import { ForAgents } from '../live/ForAgents.tsx';
+import { Journey } from './Journey.tsx';
 import { PATHS } from './paths.tsx';
 import { briefsOf } from './state.ts';
 import { startPath, useX } from './useX.ts';
@@ -48,6 +49,8 @@ export function HowItWorks() {
         <ol className="how-flow" aria-label="The loop">{FLOW.map((f, i) => <li key={f}><span>{String(i + 1).padStart(2, '0')}</span>{f}</li>)}</ol>
         <Terms />
       </section>
+
+      <Journey s={s} />
 
       <section className="panel how-tours" aria-label="Guided tours">
         <h2>Try it with a guided tour</h2>
