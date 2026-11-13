@@ -13,6 +13,11 @@ Each finished campaign mints a **receipt NFT** to the creator.
 > anything. It says so in its name, in the hub (`terms()`), in the DAO's purpose and in the UI.
 > **Testnet only. No real money anywhere.**
 
+**Already have a token?** Signalfire doesn't take over, wrap or tax existing tokens. An existing token may carry
+ownership or investment expectations, and mixing it in would blur the one line this design depends on: attention,
+not ownership. A project that already has a token launches a **separate** Signalfire attention token next to it,
+with its own marketing fund; the two never touch, and the attention token is no claim on the other token or the company.
+
 Built for NEAR HACKATHON (Nov 2026). Design: [DESIGN.md](DESIGN.md).
 The author's other submission is the **NEAR Arcade**: nine onchain games
 ([github.com/lopeselio/near-arcade](https://github.com/lopeselio/near-arcade), https://arcade.lopeselio.online);
