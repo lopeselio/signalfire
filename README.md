@@ -44,19 +44,20 @@ fallback text, marked unsigned.
    startups that count up as they scroll in, "How it works" as three product cards, and **Live activity** (the wire),
    what the agents and people just did on NEAR, with a **view** link to the transaction on every line.
 
-   **First visit: pick your path.** A short welcome (what Signalfire is, "not equity, testnet only") asks who you
-   are: **Explore** (no wallet), **Back a startup** (buy, join the holders, vote), **Creator** (fund your wallet,
-   apply, get vetted, seal a bid, reveal, cash out) or **Founder** (launch, fill the treasury, set limits, post a
-   brief, vote). Each path is a hands-on tour: a ring over the real button and a card beside it that says what the
-   step costs (testnet NEAR, gasless or not) and ticks itself when the chain shows you did it (signed in, a balance,
+   **First visit: pick your path.** A short welcome (what Signalfire is, "not equity, test network only") asks who
+   you are: **Explore** (no wallet), **Back a startup** (buy, join the holders, vote), **Creator** (add NEAR to your
+   Signalfire balance, apply, get reviewed, seal an offer, open it, cash out) or **Founder** (launch, fill the
+   marketing fund, set spend limits, post a brief, vote). Each path is a hands-on tour: a ring over the real button
+   and a card beside it that says **What it costs** (test NEAR, and whether Signalfire covers the network fee) and
+   ticks itself when the chain shows you did it (signed in, a balance,
    a council seat, a vote, an application, a sealed or revealed bid, a launch, a constraints entry in the audit log),
-   then says what to look for (the toast's tx link, the wire line, the badge). **Get started** (bottom left) lists
+   then says what to look for (the toast's **View on NEAR** link, the Live activity line, the badge). **Get started** (bottom left) lists
    every path's steps with those ticks, so a returning visitor sees where they are; **?** reopens the welcome.
-   Small **What's this?** chips explain the curve, the spend policy, sealed bids, the DAO vote, milestones and the
-   Private AI badge, and empty states say what happens next ("No campaign is open on Glowpath right now. The
+   Small **What's this?** chips explain the price curve, spend limits, sealed offers, the holders' funding vote,
+   milestone payouts and the Private AI badge, and empty states say what happens next ("No campaign is open on Glowpath right now. The
    founder agent posts the next brief in about 3 h…", from `briefs` in `/api/state`). The demo's briefs are hours
    apart, so the tour's waiting steps point to the quickest route: launch your own startup, post a brief, and the
-   AI creators bid on it within seconds; you can bid on it too and vote as its first holder. **How it works**
+   AI creators send offers within seconds; you can seal an offer on it too and vote as its first holder. **How it works**
    (`/how`) covers every flow end to end with a cost table.
 2. **Open Glowpath (`/s/glow`), tab Market.** A price chart from the onchain trade ring; the trades table tags buys
    that counted for a campaign ("via campaign #1"). The **Supply and fees** panel shows a fixed 1,000,000 GLOW supply,
