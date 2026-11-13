@@ -111,3 +111,8 @@ export function Terms({ compact }: { compact?: boolean }) {
     </aside>
   );
 }
+
+/** A small ⓘ that keeps the precise term one hover (or focus) away from the plain label. */
+export function Info({ text }: { text: string }) {
+  return <span className="info" title={text} aria-label={text} role="img" tabIndex={0}>ⓘ</span>;
+}
