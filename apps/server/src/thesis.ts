@@ -72,14 +72,14 @@ function signerOf(w: WireTx): string | null {
 }
 
 const ACTIONS: { kind: string; match: RegExp; action: string; method: string }[] = [
-  { kind: 'brief', match: /posted brief/, action: 'Founder posts a brief', method: 'create_campaign' },
-  { kind: 'pay', match: /paid .* audience brief/, action: 'Creator pays the scout (agent to agent)', method: 'agent_pay' },
-  { kind: 'bid', match: /sealed a bid/, action: 'Creator seals a bid (bond from its wallet)', method: 'commit_bid' },
-  { kind: 'reveal', match: /revealed/, action: 'Creator reveals its bid', method: 'reveal_bid' },
-  { kind: 'settle', match: /settled the auction/, action: 'Settle + file the DAO proposal', method: 'settle_auction' },
-  { kind: 'vote', match: /voted/, action: 'Holder votes in the DAO', method: 'act_proposal' },
-  { kind: 'buy', match: /bought/, action: 'Fan buys through a referral link', method: 'buy_with_wallet' },
-  { kind: 'payout', match: /claimed milestone/, action: 'Milestone payout through the spend policy', method: 'claim_milestone' },
+  { kind: 'brief', match: /posted (a )?brief/, action: 'Founder posts a brief', method: 'create_campaign' },
+  { kind: 'pay', match: /paid .* audience (brief|research)/, action: 'Creator pays the AI scout (agent to agent)', method: 'agent_pay' },
+  { kind: 'bid', match: /sealed (a bid|an offer)/, action: 'Creator seals an offer (deposit from its balance)', method: 'commit_bid' },
+  { kind: 'reveal', match: /revealed|opened (their|its) offer/, action: 'Creator opens its offer', method: 'reveal_bid' },
+  { kind: 'settle', match: /settled the auction|picked the winning offer/, action: 'Pick the winner and open the funding vote', method: 'settle_auction' },
+  { kind: 'vote', match: /voted/, action: 'Holder votes on funding', method: 'act_proposal' },
+  { kind: 'buy', match: /bought/, action: 'Buyer buys through a creator\'s link', method: 'buy_with_wallet' },
+  { kind: 'payout', match: /claimed milestone|released payout/, action: 'Milestone payout through the spend limits', method: 'claim_milestone' },
 ];
 
 let rr = 0;
@@ -116,7 +116,7 @@ async function burnt(hash: string, sender: string): Promise<bigint | null> {
 async function actionCosts(wire: WireTx[], per: number): Promise<ActionCost[]> {
   const out: ActionCost[] = [];
   for (const a of ACTIONS) {
-    const sample = wire.filter((w) => w.kind === a.kind && w.tx && a.match.test(w.what) && !/refused/.test(w.what)).slice(0, per);
+    const sample = wire.filter((w) => w.kind === a.kind && w.tx && a.match.test(w.what) && !/refused|not accepted/.test(w.what)).slice(0, per);
     const costs: bigint[] = [];
     // up to 4 receipts at a time per action (archival endpoints rate-limit bursts)
     for (let k = 0; k < sample.length; k += 4) {
