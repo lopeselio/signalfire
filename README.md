@@ -41,8 +41,8 @@ fallback text, marked unsigned.
    actions in the last 24 hours (the caption says how many and names the latest), a buy through a creator's link throws
    sparks, and a milestone payout flares it. With reduced motion or no WebGL you get a still flame of the same height.
    Below: four startup cards (each with a small flame as tall as its treasury against the largest), totals across
-   startups that count up as they scroll in, "How it works" as three product cards, and **The wire**, the agents
-   acting onchain with a tx link on every line.
+   startups that count up as they scroll in, "How it works" as three product cards, and **Live activity** (the wire),
+   what the agents and people just did on NEAR, with a **view** link to the transaction on every line.
 
    **First visit: pick your path.** A short welcome (what Signalfire is, "not equity, testnet only") asks who you
    are: **Explore** (no wallet), **Back a startup** (buy, join the holders, vote), **Creator** (fund your wallet,
@@ -178,14 +178,14 @@ fallback text, marked unsigned.
    ```
    pnpm e2e 0.12
    [   5s] founder posted campaign #1: 0.12 NEAR budget, 3 new holders wanted
-   [  28s] Nova: paid Lens 0.002 NEAR for an audience brief on #1
-   [  28s] Quill: sealed a bid on #1 (price and pitch hidden until the reveal)
-   [  69s] Quill: revealed 0.0652 NEAR on #1
-   [ 204s] Signalfire: settled the auction for #1 and filed the funding proposal in glow-dao
-   [ 232s] Ada: voted YES in glow-dao on proposal 1: fund #1 at 0.0652 NEAR
+   [  28s] Nova: paid Lens 0.002 NEAR for audience research on #1
+   [  28s] Quill: sealed an offer on #1 (price and pitch hidden until offers are opened)
+   [  69s] Quill: opened their offer on #1: 0.0652 NEAR
+   [ 204s] Signalfire: picked the winning offer for #1 and opened the holders' funding vote
+   [ 232s] Ada: voted yes on funding #1 at 0.0652 NEAR
    [ 233s] campaign #1 is now funded (winner creator-quill.signalfire.testnet at 0.0652 NEAR)
-   [ 251s] fan-04: bought 0.06 NEAR of GLOW through Quill's link (c1)
-   [ 272s] Signalfire: claimed milestone 1 of #1 for Quill
+   [ 251s] fan-04: bought 0.06 NEAR of GLOW through Quill's link (campaign #1)
+   [ 272s] Signalfire: released payout 1 of 3 on #1 to Quill
    …
    [ 363s] campaign #1: done; 3/3 results; 3 milestones; 0.0652 NEAR paid as 0.19 tUSD to creator-quill.signalfire.testnet
    ✓ 36 checks passed, 0 failed
@@ -349,7 +349,7 @@ https://signalfire.lopeselio.online.
 | `social` | yes | a Sputnik DAO v2 per startup (`glow-dao`, `fern-dao`, `loop-dao`, `kiln-dao` `.signalfire.testnet`); funding a campaign is a `FunctionCall` proposal holders vote on ([a vote that funded #5](https://testnet.nearblocks.io/txns/BToGnzrWVaZsFrPpLQ5q4gGZWNMEn9n3V244LR6dqrT5)); **Join the holders** / prune by token balance; `pnpm verify <id>` checks nobody may propose a transfer | one holder one vote (by design); Trezu not used |
 | `security` | yes | spend policy + onchain audit log (`/s/glow?tab=treasury` → **Audit log**: `paid`, `burst`, `new_payee`, and `rejected` + `lookalike` for the impostor, [tx](https://testnet.nearblocks.io/txns/JCLFQJC9bqjs7MP6zkTHoVW9W4hhw7Cc5UPLvA8k7S5G)); every agent holds function-call keys only and spends from capped hub wallets (`pnpm thesis`, section 4, counts them: no agent has a full-access key); the model's TEE attestation checked in the browser (**Private AI** badge); tUSD payouts sent by a **keyless agent** [`b6ffee3706…`](https://testnet.nearblocks.io/address/b6ffee3706fa101d5113176ee1d07fcbcd9618e2a03d563de269c51e3ce17f49) whose only key is derived by NEAR's MPC network for the hub (`/s/glow?tab=treasury` → **Keyless agent**; `pnpm verify <id>` checks its single key and each payout tx) | the hub owner's full-access key still exists on testnet |
 | `swarms` | yes | three creator agents (hub sub-accounts) seal and reveal bids on every brief; the contract settles by a deterministic rule; holder agents vote; the wire on the landing page shows it live, about 3 campaigns a day through 2026-11-25 (`pnpm thesis`, section 6) | agents price by simple rules, not learned strategies; no intent-based settlement between the agents themselves |
-| `agents` | yes | agents earn tUSD, post bonds, buy tokens and pay the scout for audience briefs (`agent_pay`, on the wire as "paid Lens 0.002 NEAR for an audience brief"); gas per agent action measured from receipts (`pnpm thesis`, section 1) | agents pay each other inside the hub's wallets; the agent creators can't cash out through Intents (their keys only reach the hub) |
+| `agents` | yes | agents earn tUSD, post bonds, buy tokens and pay the scout for audience briefs (`agent_pay`, in Live activity as "paid Lens 0.002 NEAR for audience research"; older lines say "for an audience brief"); gas per agent action measured from receipts (`pnpm thesis`, section 1) | agents pay each other inside the hub's wallets; the agent creators can't cash out through Intents (their keys only reach the hub) |
 | `privacy` | yes | sealed bids and sealed pitches (people seal theirs in the browser); NEAR AI TEE-signed vetting reports and pitches with a **Private AI** badge that verifies the model's TEE report and the reply's signature in your browser (Intel quote, signer + nonce binding, MRCONFIGID, RTMR3, NVIDIA GPUs); private creator applications whose details only the TEE model sees (`/creators` → **Become a creator** → "Private, for the AI only": end-to-end encrypted, enum-only verdict, salted commitment, applicant-held receipt; `pnpm verify creator <account>`); `pnpm verify <id>` re-checks them; **losing bids are never revealed**: bids are encrypted to a key only the scoring program in an OutLayer TEE can derive, the hub stores ciphertexts and accepts only the winner back (`/s/fern?tab=treasury`, campaign #7; `pnpm verify 7`); the **keyless agent** pays creators with transactions only NEAR's MPC network can sign, at the hub's request, for policy-approved payouts | our own creator agents' openings are on our server (they are our agents); a person's sealed bid is known to nobody. The TEE scoring trusts OutLayer's keystore and worker allowlist |
 | `business` | yes | treasury → procurement (sealed-bid auctions) → milestone payouts run by rules; the founder only posts briefs and sets constraints (founder forms, checked against the hub's limits); creators cash their tUSD out through NEAR Intents in the app (`/creators`) | the demo founder agent posts briefs from a fixed list; no revenue sharing (on purpose: the token is not a claim on revenue) |
 | `realworld` | partial | creators are paid in a stablecoin-shaped token (tUSD) through a spend policy, and swap it for NEAR through NEAR Intents (`/creators` → **Cash out**, or `pnpm cashout-check <account>`); signed-in users' hub calls are gasless (NEP-366 relayer) | tUSD is our own labelled test token at a fixed rate; not something a company could use tomorrow |
