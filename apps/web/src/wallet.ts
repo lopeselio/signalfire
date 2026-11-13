@@ -1,5 +1,6 @@
 import { createAuthClient } from 'better-auth/client';
 import { siwnClient } from 'better-near-auth/client';
+import { noteCall } from './recent.ts';
 
 // Sign in with a NEAR wallet through Better Auth's better-near-auth plugin (SIWN, NEP-413).
 // NEAR Connect shows the wallet picker; the wallet signs "Sign in to <this host>"; the server checks it
@@ -60,6 +61,12 @@ async function ensureWallet(): Promise<void> {
  * Gasless through the relayer when the wallet can sign a delegate action; otherwise a normal transaction.
  */
 export async function call(contract: string, method: string, args: object, depositYocto: bigint = 0n): Promise<{ tx: string; gasless: boolean }> {
+  const r = await send(contract, method, args, depositYocto);
+  noteCall(method, args); // the tour ticks on this right away (recent.ts)
+  return r;
+}
+
+async function send(contract: string, method: string, args: object, depositYocto: bigint): Promise<{ tx: string; gasless: boolean }> {
   await ensureWallet();
   const near = authClient().near;
   const gas = (method === 'act_proposal' ? '150 Tgas' : '100 Tgas') as `${number} Tgas`;
