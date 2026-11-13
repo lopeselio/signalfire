@@ -1,8 +1,8 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 
-// Signalfire's flame: one flat, chunky mark used everywhere a flame appears (the logo, the card flames, the welcome
+// Signalfire's flame, in a flat paper-cut style: one chunky mark used everywhere a flame appears (the logo, the card flames, the welcome
 // card, empty states and the landing fire). Three tones from the theme (--fire outside, --sun inside, a cream core),
-// soft rounded tips and a darker bottom lip like the buttons. It idles with a gentle sway and squash-and-stretch and
+// soft rounded tips, and under each layer a hard offset shadow in a darker tone (no shine, no gradients). It idles with a gentle sway and squash-and-stretch and
 // "puffs" when something happens. All motion is CSS transforms (style.css, "the flame mark"); it stands still under
 // prefers-reduced-motion or with `still`.
 
@@ -12,7 +12,6 @@ export const OUTER = 'M32 76C19.5 76 10 66.5 10 54.5C10 44 13 35 14.6 27.4Q15.6 
   + 'Q53.8 18 54.4 22.2C55.4 30 56.6 40 55.4 52.4C54.6 66 44.5 76 32 76Z';
 export const HEART = 'M32 74C24.3 74 19 68 19 60.5C19 52 25 46.6 29 39.4Q31.6 33.2 33.4 31.2Q35.6 33.4 36.6 38.4C38 45 45 51 45 60.5C45 68 39.7 74 32 74Z';
 export const CORE = 'M32 70C28.4 70 26 67.5 26 64.3C26 60.5 29 58 31 54.2Q32.6 51.8 34 54.6C35.5 58 38 60.6 38 64.3C38 67.5 35.6 70 32 70Z';
-export const SHINE = 'M15.6 51C15.4 46 16.8 41.6 19.2 38.4';
 
 export interface FireMarkProps {
   size?: number;
@@ -48,11 +47,15 @@ export function FireMark({ size, className, still, dim, puff = 0, flare = 0, lab
       {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}>
       <g className="fm-pop" ref={pop} onAnimationEnd={(e) => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('puff', 'flare'); }}>
         <g className="fm-body">
-          <g transform="translate(0 2.6)"><path className="fm-edge fm-flick" d={OUTER} /></g>
+          {/* flat paper: each layer sits on a hard, solid offset shadow in a darker tone, like stacked paper cut-outs */}
+          <g transform="translate(2 4.4)"><path className="fm-edge fm-flick" d={OUTER} /></g>
           <path className="fm-out fm-flick" d={OUTER} />
-          <path className="fm-in fm-heart" d={HEART} />
-          <path className="fm-core fm-heart" d={CORE} />
-          <path className="fm-shine fm-flick" d={SHINE} />
+          <g className="fm-heart">
+            <g transform="translate(1.6 3.4)"><path className="fm-in-edge" d={HEART} /></g>
+            <path className="fm-in" d={HEART} />
+            <g transform="translate(1.2 2.6)"><path className="fm-core-edge" d={CORE} /></g>
+            <path className="fm-core" d={CORE} />
+          </g>
         </g>
       </g>
     </svg>
