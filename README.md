@@ -361,7 +361,7 @@ https://signalfire.lopeselio.online.
 
 ## Built on NEAR
 
-What each NEAR technology does in Signalfire, and where to look. Each GIF is a 12-second loop.
+What each NEAR technology does in Signalfire, and where to look. Each GIF is a short loop (12 seconds or less).
 
 | Technology | What Signalfire uses it for | Where to look |
 |---|---|---|
