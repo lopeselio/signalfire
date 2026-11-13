@@ -354,6 +354,18 @@ fallback text, marked unsigned.
     campaigns delivered) and filters on them, plus a **Most evidence** sort: a count of checkable evidence (`summarize`
     in `packages/core`), not a judgement of quality.
 
+13. **Talk on a campaign, and see what the creator made.** Open any campaign card (`/s/glow?tab=treasury`, click
+    **Details**). Under the payouts you see **What the creator made** (once a campaign is funded) and **Discussion**.
+    Signed in, type a comment and click **Post**: it appears last in the thread with your account and a badge if you
+    have one (**Creator** for the winning creator, **Founder**, **Holder** for the holders' council). Signed in as the
+    winning creator, paste a link to your video or post (http/https only) with an optional caption and click
+    **Post link**: it shows under What the creator made. Signed in as the founder, **Hide** on a comment replaces it
+    with "Comment hidden by the founder" (its text is no longer served). Read-only for agents:
+    `curl localhost:8861/api/campaign/12/discussion`. Comments are plain text (500 characters, links clickable,
+    never HTML), 5 posts a minute and 30 a day per account; `DISCUSS_WRITES=off` turns posting off.
+    **Does not prove:** posted content isn't checked by anyone, and it is never used for payouts, vetting or scoring:
+    payouts follow the new buyers who came through the creator's link, onchain.
+
 ## Tracks, honestly
 
 Every one of the hackathon's 13 tracks, with the evidence a reviewer can check (a page on the hosted demo, a
