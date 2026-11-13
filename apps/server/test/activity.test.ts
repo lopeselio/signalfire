@@ -98,6 +98,23 @@ describe('activity', () => {
     expect(a.votes).toMatchObject([{ text: 'eliocodes voted yes on #12', tx: 'VOTETX', at: 800 }]);
   });
 
+  it('folds in the discussion: content links and visible comments', () => {
+    const base = build();
+    const a = buildActivity({
+      hub: HUB, now: 10_000, startup, trades: [], campaigns: [campaign], council: [], balances: {}, proposals: {}, audit: [], wire: [], relays: [],
+      ...personas, seenAt: () => null,
+      threads: { 12: {
+        links: [{ n: 1, url: 'https://x.com/quill/1', caption: 'the clip', by: quill, at: 5_000 }, { n: 2, url: 'https://gone', caption: '', by: quill, at: 5_100, removed: true }],
+        comments: [{ n: 3, by: 'sushiman1.testnet', at: 6_000 }, { n: 4, by: 'troll.testnet', at: 6_100, hiddenAt: 6_200 }],
+      } },
+    });
+    expect(base.events.some((e) => e.kind === 'comment')).toBe(false);
+    expect(a.events.filter((e) => e.kind === 'link' || e.kind === 'comment').map((e) => [e.text, e.link ?? null])).toEqual([
+      ['sushiman1 commented', null],
+      ['Quill posted a link: the clip', 'https://x.com/quill/1'],
+    ]);
+  });
+
   it('since= returns only newer items, with overlap', () => {
     const a = sinceFilter(build(), 63_500);
     expect(a.trades.map((t) => t.id)).toEqual(['t3']);

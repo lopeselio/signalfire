@@ -23,8 +23,14 @@ export interface TradeRow {
 export interface HolderRow { account: string; name: string; tag: string | null; balance: string; pct: number; council: boolean }
 export interface Holders { supply: string; minToJoin: string; council: string[]; list: HolderRow[] }
 export interface VoteRow { id: string; campaign: number; proposal: number; account: string; name: string; vote: 'yes' | 'no' | 'remove'; at: number; tx: string | null; url: string | null; text: string }
-export type EventKind = 'brief' | 'offer' | 'won' | 'vote' | 'funded' | 'buyer' | 'paid' | 'held' | 'closed' | 'no_offers';
-export interface EventRow { id: string; campaign: number; kind: EventKind; at: number; who: string; text: string; tx: string | null; url: string | null }
+export type EventKind = 'brief' | 'offer' | 'won' | 'vote' | 'funded' | 'buyer' | 'paid' | 'held' | 'closed' | 'no_offers' | 'link' | 'comment';
+export interface EventRow {
+  id: string; campaign: number; kind: EventKind; at: number; who: string; text: string; tx: string | null; url: string | null;
+  /** a creator's posted content link (kind "link"): shown to backers, never used for payouts */
+  link?: string;
+}
+/** A campaign's discussion (discuss.ts): content links and comments, as stored. */
+export interface Thread { links: { n: number; url: string; caption: string; by: string; at: number; removed?: boolean }[]; comments: { n: number; by: string; at: number; hiddenAt?: number }[] }
 export interface Activity {
   startup: string; at: number; cursor: number; stale: boolean;
   market: { circulating: string; price: string; trades: number; buyers: number; feesIn: string; available: string };
@@ -87,6 +93,8 @@ export interface BuildInput {
   wire: WireItem[]; relays: Relay[]; creators: Persona[]; holderAgents: Persona[];
   /** when a vote was first seen by this server (null: it was already there when the server started watching) */
   seenAt: (key: string) => number | null;
+  /** each campaign's discussion (content links and comments), if any */
+  threads?: Record<number, Thread | null>;
   stale?: boolean;
 }
 
@@ -202,6 +210,18 @@ export function buildActivity(i: BuildInput): Activity {
         if (w) ev({ id: `c${c.id}:paid:w${k}`, campaign: c.id, kind: 'paid', at: w.at, who: winner, text: `${winner} was paid for milestone ${k} of 3`, tx: w.tx ?? null });
       }
     }
+    // the discussion: every live content link, the latest comments (a hidden one isn't announced)
+    const th = i.threads?.[c.id];
+    if (th) {
+      for (const l of th.links.filter((x) => !x.removed)) {
+        const who = nm(l.by);
+        events.push({ id: `c${c.id}:link:${l.n}`, campaign: c.id, kind: 'link', at: l.at, who, text: `${who} posted a link${l.caption ? `: ${l.caption}` : ''}`, tx: null, url: null, link: l.url });
+      }
+      for (const m of th.comments.filter((x) => !x.hiddenAt).slice(-10)) {
+        const who = nm(m.by);
+        ev({ id: `c${c.id}:comment:${m.n}`, campaign: c.id, kind: 'comment', at: m.at, who, text: `${who} commented`, tx: null });
+      }
+    }
     if (c.phase === 'expired' && c.deadline_ms) ev({ id: `c${c.id}:closed`, campaign: c.id, kind: 'closed', at: c.deadline_ms, who: 'Signalfire', text: `Closed at its deadline (${c.results} of ${c.target} new buyers); the unpaid budget went back to the marketing fund`, tx: null });
   }
   events.sort((a, b) => b.at - a.at);
@@ -237,6 +257,8 @@ export interface ActivityDeps {
   audit(): AuditEntry[];
   wire(): WireItem[];
   relays(): Promise<Relay[]>;
+  /** a campaign's discussion from disk (no chain read) */
+  discussion?: (campaign: number) => Thread | null;
   creators: Persona[];
   holderAgents: Persona[];
   now?: () => number;
@@ -307,7 +329,7 @@ export function createActivity(d: ActivityDeps) {
     watched.add(id);
     return buildActivity({
       hub: d.hub, now: now(), startup: s, trades, campaigns, council, balances: bal, proposals, audit: d.audit().filter((e) => e.startup === id),
-      wire: d.wire(), relays, creators: d.creators, holderAgents: d.holderAgents, seenAt: (k) => seen.get(k) ?? null,
+      wire: d.wire(), relays, threads: Object.fromEntries([...campaigns].sort((x, y) => y.id - x.id).slice(0, 6).map((c) => [c.id, d.discussion?.(c.id) ?? null])), creators: d.creators, holderAgents: d.holderAgents, seenAt: (k) => seen.get(k) ?? null,
     });
   }
 
