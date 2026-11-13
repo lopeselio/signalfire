@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, txUrl, type Me, type State } from './api.ts';
 import { AccountMenu } from './AccountMenu.tsx';
+import { CursorGlow } from './CursorGlow.tsx';
 import { LiveAlerts } from './LiveAlerts.tsx';
 import { ThemeToggle } from './ThemeToggle.tsx';
 import { Creators } from './Creators.tsx';
@@ -154,6 +155,7 @@ export function App() {
         <p>Signalfire runs on NEAR’s test network. Attention tokens are not equity and not a claim on revenue. <a href={`https://testnet.nearblocks.io/address/${state?.hub ?? 'signalfire.testnet'}`} target="_blank" rel="noreferrer" title={`The hub contract, ${state?.hub ?? 'signalfire.testnet'}`}>See Signalfire’s contract on NEAR</a></p>
       </footer>
       <Onboarding open={help} onOpen={() => setHelp(true)} onClose={() => setHelp(false)} />
+      <CursorGlow />
       <LiveAlerts state={state} go={go} />
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => (
