@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, txUrl, type Me, type State } from './api.ts';
 import { AccountMenu } from './AccountMenu.tsx';
 import { CursorGlow } from './CursorGlow.tsx';
+import { signalBurst } from './burst.ts';
 import { LiveAlerts } from './LiveAlerts.tsx';
 import { ThemeToggle } from './ThemeToggle.tsx';
 import { Creators } from './Creators.tsx';
@@ -44,6 +45,17 @@ export function App() {
   const [busy, setBusy] = useState<string | null>(null);
   const [busyCopy, setBusyCopy] = useState<RunCopy | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const burstFor = useRef(0);
+  useEffect(() => {
+    // a success message for an action sends a small signal-fire burst from it ("it worked")
+    const last = toasts[toasts.length - 1];
+    if (!last || last.kind !== 'ok' || last.id <= burstFor.current) return;
+    burstFor.current = last.id;
+    requestAnimationFrame(() => {
+      const r = document.querySelector(`[data-toast="${last.id}"]`)?.getBoundingClientRect();
+      if (r) signalBurst(r.left + 18, r.top + r.height / 2, 0.8);
+    });
+  }, [toasts]);
   const [help, setHelp] = useState(() => !seenOnboarding());
   const [menu, setMenu] = useState(false);
 
@@ -159,7 +171,7 @@ export function App() {
       <LiveAlerts state={state} go={go} />
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast ${t.kind}`} title={t.title}>
+          <div key={t.id} className={`toast ${t.kind}`} title={t.title} data-toast={t.id}>
             {t.text}
             {t.tx && <> <a href={txUrl(t.tx)} target="_blank" rel="noreferrer" title="The public transaction on nearblocks">View on NEAR</a></>}
           </div>
