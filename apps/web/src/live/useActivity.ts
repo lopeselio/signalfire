@@ -12,7 +12,7 @@ export interface TradeRow {
 }
 export interface HolderRow { account: string; name: string; tag: string | null; balance: string; pct: number; council: boolean }
 export interface VoteRow { id: string; campaign: number; proposal: number; account: string; name: string; vote: 'yes' | 'no' | 'remove'; at: number; tx: string | null; url: string | null; text: string }
-export interface EventRow { id: string; campaign: number; kind: string; at: number; who: string; text: string; tx: string | null; url: string | null }
+export interface EventRow { id: string; campaign: number; kind: string; at: number; who: string; text: string; tx: string | null; url: string | null; link?: string }
 export interface Activity {
   startup: string; at: number; cursor: number; stale: boolean;
   market: { circulating: string; price: string; trades: number; buyers: number; feesIn: string; available: string };
