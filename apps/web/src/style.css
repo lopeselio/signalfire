@@ -425,6 +425,7 @@ ul.plain { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6
 .campaign.done { border-left-color: var(--ok); }
 .campaign.expired, .campaign.no_bids { border-left-color: var(--bad); opacity: 0.88; }
 .c-head { display: flex; justify-content: space-between; gap: 10px; cursor: pointer; }
+.c-head > button { align-self: flex-start; flex: none; }
 .c-head h3 { margin-bottom: 2px; }
 .cid { color: var(--smoke); font-weight: 500; }
 .clock { color: var(--ember-2); font-weight: 600; }
