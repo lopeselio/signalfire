@@ -3,6 +3,7 @@ import { b64encode, cashOutIntents, fmtNear, fmtTusd, intentsMessage, intentsNon
 import { api, txUrl } from './api.ts';
 import { useApp } from './ui.tsx';
 import { call, signMessage } from './wallet.ts';
+import { friendly } from './copy.ts';
 
 // A signed-in creator cashes tUSD earnings out for NEAR through the NEAR Intents Verifier.
 // Three wallet steps, then the desk settles: deposit tUSD into the Verifier for your own account; register your
@@ -32,23 +33,23 @@ export function CashOut() {
     setError(null);
     try {
       if (wallet > 0n) {
-        setStep('1/3 Deposit your tUSD into the Verifier (your wallet asks you to confirm)');
+        setStep('1 of 3: Moving your tUSD to the exchange (confirm in your wallet)');
         await call(info.tusd, 'ft_transfer_call', { receiver_id: info.verifier, amount: wallet.toString(), msg: account }, 1n);
       }
-      setStep('2/3 Sign the cash-out intent (your wallet shows the message)');
+      setStep('2 of 3: Approving the exchange: give tUSD, get NEAR (your wallet shows exactly that)');
       const fresh = await api<Info>('/intents/info');
       const amount = BigInt(fresh.deposited);
-      if (amount === 0n) throw new Error('the deposit hasn’t reached the Verifier yet; try again in a few seconds');
+      if (amount === 0n) throw new Error('Your tUSD hasn’t reached the exchange yet. Try again in a few seconds.');
       const deadline = Date.now() + 5 * 60_000;
       const message = intentsMessage(account, deadline, cashOutIntents({ tusd: info.tusd, wnear: info.wnear, amount, receiver: account }));
       const nonce = intentsNonce(fresh.salt ?? '', deadline, random15());
       const signed = await signMessage(message, info.verifier, nonce);
       const reg = await api<Info>(`/intents/info?publicKey=${encodeURIComponent(signed.publicKey)}`);
       if (!reg.keyRegistered) {
-        setStep('Register your wallet key with the Verifier (once; your wallet asks you to confirm)');
+        setStep('One-time setup: letting the exchange recognise your wallet (confirm in your wallet)');
         await call(info.verifier, 'add_public_key', { public_key: signed.publicKey }, 1n);
       }
-      setStep('3/3 The desk signs its side and the Verifier settles both');
+      setStep('3 of 3: Signalfire’s exchange desk is completing the swap. Both sides happen together or not at all.');
       const r = await api<{ tx: string; near: string }>('/intents/cashout', { amount: amount.toString(), message, nonce: b64encode(nonce), recipient: info.verifier, publicKey: signed.publicKey, signature: signed.signature });
       setDone(r);
       refreshMe();
@@ -76,7 +77,7 @@ export function CashOut() {
       {info && !info.enabled && <p className="bad-text small">Cash-outs are switched off on this server (no desk key).</p>}
       <button className="primary" disabled={!info?.enabled || !!step || total === 0n} onClick={() => void run()}>Cash out {fmtTusd(total)} tUSD</button>
       {step && <p className="small clock">{step}…</p>}
-      {error && <p className="bad-text small">{error}</p>}
+      {error && <p className="bad-text small" title={error}>{friendly(error)}</p>}
       {done && <p className="ok-text small">Received {fmtNear(done.near, 4)} NEAR. <a href={txUrl(done.tx)} target="_blank" rel="noreferrer">execute_intents on the Verifier</a></p>}
       <p className="muted small">
         Testnet only. NEAR Intents (<code>intents.near</code>) runs on mainnet; on testnet Signalfire deploys its own instance of the
