@@ -35,14 +35,27 @@ With no NEAR keys the server still serves everything read-only from testnet (the
 agents' keys; set `AGENTS=0` to run without them). Without `NEARAI_API_KEY`, pitches and reports use plain
 fallback text, marked unsigned.
 
-1. **Open the landing page.** You see the headline, a "not equity, testnet only" notice, and on the right **the
-   signal fire** above the **Marketing funds** card (fees collected; available, set aside, paid to creators; **"Paid to
-   founders: 0 NEAR, by design"**). The fire is three.js fed by the wire: its height follows the number of onchain
-   actions in the last 24 hours (the caption says how many and names the latest), a buy through a creator's link throws
-   sparks, and a milestone payout flares it. With reduced motion or no WebGL you get a still flame of the same height.
-   Below: four startup cards (each with a small flame as tall as its treasury against the largest), totals across
-   startups that count up as they scroll in, "How it works" as three product cards, and **Live activity** (the wire),
-   what the agents and people just did on NEAR, with a **view** link to the transaction on every line.
+1. **Open the landing page.** You see one line, **"Turn buzz into real customers."**, two buttons (**Explore
+   startups**, **Launch yours**) and three live numbers read from NEAR (NEAR into marketing funds, new buyers brought
+   in, NEAR paid to creators), with **the signal fire** beside them. The fire is three.js fed by the wire: its height
+   follows the number of onchain actions in the last 24 hours (the caption says how many and names the latest), a buy
+   through a creator's link throws sparks, and a milestone payout flares it. With reduced motion or no WebGL you get a
+   still flame of the same height. Below, **Happening now**: the one campaign you can act on (**Taking offers now** with
+   a countdown to when offers close, else **Picking the winner** or **Running now**), its progress toward its new
+   buyers with the three payout marks, and one big button (**Sign in to take part**, **Seal an offer** for an approved
+   creator, else **Buy SYM tokens**); with nothing under way it says when the next brief opens. Beside it, the
+   **Marketing funds** card (fees collected; available, set aside, paid to creators; **"Paid to founders: 0 NEAR, by
+   design"**) and the "not equity, testnet only" notice. Then **How it works, in 3 steps**, with the exact token terms,
+   spend limits and a real campaign one click away under **The fine print**; **Find a startup to back** (cards with
+   the marketing fund, holders, trades in the last 24 hours, campaigns delivered and the campaign's stage); and **Live
+   activity** (the wire), what the agents and people just did on NEAR, with a **view** link to the transaction on
+   every line.
+
+   **Discover** (`/discover`) sorts startups into tabs by where their campaign stands, each with a count: **Taking
+   offers** (a brief is open), **Next brief soon** (nothing under way), **Picking the winner** (offers being opened or
+   the holders voting), **Running** (the creator is paid per new buyer), **Paid out** (delivered at least once) and
+   **All**; hover a tab for the exact contract phases. `/discover?stage=paid` opens a tab directly. The sort, the
+   evidence filters and the chips work in every tab.
 
    **First visit: pick your path.** A short welcome (what Signalfire is, "not equity, test network only") asks who
    you are: **Explore** (no wallet), **Back a startup** (buy, join the holders, vote), **Creator** (add NEAR to your
