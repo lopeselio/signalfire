@@ -3,7 +3,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { extname, join, normalize } from 'node:path';
 import { fmtTusd, openingMatches, pitchHash, priceAt } from '@signalfire/core';
 import { BRIEF_EVERY_MS, BRIEF_SAME_STARTUP_MS, outlayerRequestId, outlayerRuns, startAgents } from './agents.ts';
-import { BA_PATH, accountFromHeaders, authHandler, authOrigin } from './ba.ts';
+import { BA_PATH, accountFromHeaders, authHandler, authOrigin, recentRelays } from './ba.ts';
+import { createActivity, sinceFilter } from './activity.ts';
+import { ftBalance, getProposal, holdersOf } from './hub.ts';
+import { llmsTxt } from './llms.ts';
 import { rpc, view, viewNow } from './chain.ts';
 import { config, explorerTx, hasKey } from './config.ts';
 import { evidenceRoute } from './evidence/routes.ts';
@@ -15,7 +18,7 @@ import { agentInfo } from './keyless.ts';
 import { buildProof, vettingProof } from './proof.ts';
 import { computeThesis, type Thesis } from './thesis.ts';
 import { cashOutInfo, settleCashOut, type CashOutRequest } from './cashout.ts';
-import { latest as snapshot, type Snapshot } from './snapshot.ts';
+import { latest as snapshot, peek, type Snapshot } from './snapshot.ts';
 import { addWire, bidsFor, getState, getWire, loadBid, loadVetting, pendingApplicants, saveBid, savePrivateApp, setPendingApplicants, setState, tourStore } from './store.ts';
 import { LIMITS as TOUR_LIMITS, rateLimiter, tourRoute } from './tour.ts';
 
@@ -144,6 +147,25 @@ setTimeout(() => void refreshThesis().catch((e: Error) => console.warn(`thesis: 
 setInterval(() => void refreshThesis().catch((e: Error) => console.warn(`thesis: ${e.message}`)), 600_000).unref();
 
 const tourAllow = rateLimiter();
+
+// A startup's live activity (trades, holders, votes, campaign events): cheap reads, one build per startup shared by
+// every viewer for 1.5 s (activity.ts). Reads skip the snapshot's queue (viewNow) so a slow rebuild can't stall the tape.
+const activity = createActivity({
+  hub: config.hub,
+  startup: (id) => viewNow(config.hub, 'get_startup', { id }),
+  trades: (id) => viewNow(config.hub, 'get_trades', { startup: id, limit: 240 }),
+  campaigns: (id) => viewNow(config.hub, 'get_campaigns', { startup: id, from: 0, limit: 100 }),
+  council: (dao) => holdersOf(dao),
+  balance: (token, account) => ftBalance(token, account),
+  proposal: (dao, id) => getProposal(dao, id),
+  snapshotProposal: (c) => peek()?.proposals[c],
+  audit: () => peek()?.audit ?? [],
+  wire: () => getWire(),
+  relays: () => recentRelays(),
+  creators: CREATORS,
+  holderAgents: HOLDERS,
+});
+
 const sealedCache = new Map<number, { status: string } | null>();
 let scorerCache: { at: number; v: unknown } | null = null;
 
@@ -173,7 +195,23 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
       const s = await snapshot();
       return json(res, 200, [...s.audit].reverse().map(showAudit));
     }
-    let m: RegExpExecArray | null = /^\/api\/startup\/([a-z0-9]{2,8})\/trades$/.exec(p);
+    if (p === '/llms.txt') {
+      res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=300' });
+      const host = String(req.headers.host ?? 'signalfire.lopeselio.online');
+      const proto = String(req.headers['x-forwarded-proto'] ?? (/^(localhost|127\.)/.test(host) ? 'http' : 'https')).split(',')[0];
+      res.end(llmsTxt(config.hub, `${proto}://${host}`));
+      return;
+    }
+    let m: RegExpExecArray | null = /^\/api\/s\/([a-z0-9]{2,8})\/(activity|holders)$/.exec(p);
+    if (m) {
+      // the startup page polls this every 2 s; agents read it too. Shared for 1.5 s across callers (activity.ts).
+      const a = await activity.get(m[1]);
+      if (!a) return json(res, 404, { error: 'no such startup' });
+      if (m[2] === 'holders') return json(res, 200, { startup: a.startup, at: a.at, stale: a.stale, ...a.holders, votes: a.votes });
+      const since = Number(url.searchParams.get('since'));
+      return json(res, 200, sinceFilter(a, Number.isFinite(since) && since > 0 ? since : null));
+    }
+    m = /^\/api\/startup\/([a-z0-9]{2,8})\/trades$/.exec(p);
     if (m) return json(res, 200, (await snapshot()).trades[m[1]] ?? []);
     if (p === '/api/attestation') return json(res, 200, await attestation());
     if (p === '/api/agent') return json(res, 200, await agentInfo());
