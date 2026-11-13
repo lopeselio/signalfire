@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { fmtNear } from '@signalfire/core';
 import { acctUrl, type Startup } from './api.ts';
 import { EvidenceChips, EvidenceFilters, NO_FILTER, evidenceRank, passes, useEvidenceSummaries, type Summaries } from './EvidenceChips.tsx';
-import { useApp } from './ui.tsx';
+import { useApp, useNow } from './ui.tsx';
+import { STAGES, activeCampaign, campaignStage, delivered, stagesOf, useTrades24h, type Stage } from './landing/stage.ts';
+import { whenNext } from './tour/state.ts';
 import { NextAction } from './NextAction.tsx';
+import './landing/landing.css';
 
-// Discover: every startup on the hub as a card. One big number per card, the marketing treasury, because that is
-// what trading a startup's attention token builds: a budget for reaching customers that the founders can't pocket.
+// Discover: every startup on the hub as a card, in tabs by where its campaign stands (landing/stage.ts). One big
+// number per card, the marketing fund, then plain counts: holders, trades in 24 h, campaigns delivered.
 
 /** The demo startups' founders are fictional people; the operator account runs the startups for them. */
 const FOUNDERS: Record<string, { name: string; role: string }> = {
@@ -68,16 +71,25 @@ function CardFlame({ level, lit }: { level: number; lit: boolean }) {
   );
 }
 
-export function StartupCard({ s, ev }: { s: Startup; ev?: Summaries | null }) {
+const STAGE_CHIP: Record<Stage, { text: string; kind: string }> = {
+  offers: { text: 'taking offers', kind: 'ember' },
+  picking: { text: 'picking the winner', kind: 'warn' },
+  running: { text: 'campaign running', kind: 'ok' },
+  next: { text: 'next brief soon', kind: 'smoke' },
+  paid: { text: 'paid out', kind: 'ok' },
+};
+
+export function StartupCard({ s, ev, trades, now = Date.now() }: { s: Startup; ev?: Summaries | null; trades?: number; now?: number }) {
   const { state, go } = useApp();
   const f = founderOf(s, state!.operator);
   const treasury = BigInt(s.available) + BigInt(s.committed);
   // the card's flame: this treasury against the largest one on the hub
   const top = state!.startups.reduce((m, x) => { const v = BigInt(x.available) + BigInt(x.committed); return v > m ? v : m; }, 1n);
   const level = Number((treasury * 100n) / top) / 100;
-  const campaigns = state!.campaigns.filter((c) => c.startup === s.id);
-  const running = campaigns.find((c) => ['bidding', 'proposing', 'voting', 'funded', 'propose_failed'].includes(c.phase));
-  const results = campaigns.filter((c) => c.phase === 'done' || c.phase === 'expired').reduce((a, c) => a + c.results, 0);
+  const active = activeCampaign(state!, s.id);
+  const stage = (active && campaignStage(active, now)) || 'next';
+  const done = delivered(state!, s.id);
+  const chip = STAGE_CHIP[stage];
   const open = (): void => go(`/s/${s.id}`);
   return (
     <article className="s-card" onClick={open}>
@@ -85,15 +97,19 @@ export function StartupCard({ s, ev }: { s: Startup; ev?: Summaries | null }) {
         <StartupLogo id={s.id} />
         <div>
           <h3><a href={`/s/${s.id}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); open(); }}>{s.name}</a></h3>
-          <span className="s-sym">{s.id.toUpperCase()}{running && <span className="s-live">campaign {running.phase === 'funded' ? 'running' : 'open'}</span>}</span>
+          <span className="s-sym">{s.id.toUpperCase()}<span className={`chip ${chip.kind} s-stage`} title={STAGES.find((x) => x.id === stage)?.tip}>{chip.text}</span></span>
         </div>
       </header>
       <p className="s-pitch">{s.pitch}</p>
       <div className="s-big">
         <span className="s-big-l">Marketing fund</span>
-        <span className="s-big-n">{fmtNear(treasury, 3)}<small> NEAR</small><CardFlame level={level} lit={!!running} /></span>
-        <span className="s-big-sub">{fmtNear(s.paid, 3)} NEAR paid to creators · {results} new buyers reached</span>
+        <span className="s-big-n">{fmtNear(treasury, 3)}<small> NEAR</small><CardFlame level={level} lit={!!active} /></span>
       </div>
+      <dl className="s-stats">
+        <div><dt>holders</dt><dd>{s.holders.length}</dd></div>
+        <div><dt>trades, 24 h</dt><dd>{trades ?? '…'}</dd></div>
+        <div><dt>campaigns delivered</dt><dd>{done}</dd></div>
+      </dl>
       <EvidenceChips sum={ev?.[s.id]} />
       <footer className="s-card-foot">
         <Avatar name={f.name} />
@@ -110,25 +126,56 @@ export function StartupCard({ s, ev }: { s: Startup; ev?: Summaries | null }) {
 
 type Sort = 'treasury' | 'new' | 'buyers' | 'evidence';
 
+type Tab = Stage | 'all';
+const readTab = (): Tab => { const t = new URLSearchParams(location.search).get('stage'); return t && STAGES.some((x) => x.id === t) ? (t as Stage) : 'all'; };
+
+/** What an empty tab says, in plain words. */
+const EMPTY: Record<Tab, string> = {
+  offers: 'No brief is taking offers right now.',
+  next: 'Every startup has a campaign under way.',
+  picking: 'No winner is being picked right now.',
+  running: 'No campaign is running right now.',
+  paid: 'No campaign has paid out yet.',
+  all: 'No startup matches those filters yet.',
+};
+
 export function Discover() {
   const { state, account, go } = useApp();
+  const now = useNow(5000);
   const [sort, setSort] = useState<Sort>('treasury');
+  const [tab, setTabState] = useState<Tab>(readTab);
+  const setTab = (t: Tab): void => {
+    setTabState(t);
+    history.replaceState(null, '', t === 'all' ? '/discover' : `/discover?stage=${t}`);
+  };
   const ev = useEvidenceSummaries();
   const [filter, setFilter] = useState(NO_FILTER);
-  const list = state!.startups.filter((s) => s.status === 'live' && passes(filter, ev?.[s.id]));
+  const all = state!.startups.filter((s) => s.status === 'live');
+  const trades = useTrades24h(all.map((s) => s.id));
+  const stages = new Map(all.map((s) => [s.id, stagesOf(state!, s, now)]));
+  const count = (t: Tab): number => (t === 'all' ? all.length : all.filter((s) => stages.get(s.id)!.has(t)).length);
+  const list = all.filter((s) => (tab === 'all' || stages.get(s.id)!.has(tab)) && passes(filter, ev?.[s.id]));
   const key = (s: Startup): bigint => (sort === 'evidence' ? BigInt(evidenceRank(ev?.[s.id])) : sort === 'treasury' ? BigInt(s.available) + BigInt(s.committed) : sort === 'new' ? BigInt(s.created_ms) : BigInt(s.buyers));
   const sorted = [...list].sort((a, b) => (key(b) > key(a) ? 1 : key(b) < key(a) ? -1 : 0));
+  const tabs: { id: Tab; label: string; tip: string }[] = [...STAGES, { id: 'all', label: 'All', tip: 'Every live startup' }];
   return (
     <div className="discover">
       <section className="page-head">
         <p className="eyebrow">Discover</p>
-        <h1>Startups whose attention pays for reaching new customers</h1>
+        <h1>Find a startup worth talking about</h1>
         <p className="lede">
-          Each startup has an attention token and a marketing fund. The big number on each card is what that fund
-          holds right now: trading fees that only creators can earn, by bringing in new buyers.
+          Every startup here has an attention token and a marketing fund. Trades fill the fund; creators earn it only by
+          bringing in new buyers. Pick one that’s taking offers, or one whose campaign you want to watch.
         </p>
         <NextAction page="discover" />
       </section>
+      <div className="d-stages" role="tablist" aria-label="Campaign stage">
+        {tabs.map((t) => (
+          <button key={t.id} role="tab" aria-selected={tab === t.id} title={t.tip} className={`pill${tab === t.id ? ' on' : ''}`} onClick={() => setTab(t.id)}>
+            {t.label} <span className="d-count">{count(t.id)}</span>
+          </button>
+        ))}
+      </div>
       <div className="d-tools" role="radiogroup" aria-label="Sort startups">
         <span className="muted small">Sort by</span>
         {([['treasury', 'Marketing fund'], ['buyers', 'Buyers'], ['new', 'Newest'], ['evidence', 'Most evidence']] as [Sort, string][]).map(([k, l]) => (
@@ -137,8 +184,13 @@ export function Discover() {
         {account && <button className="ghost small d-launch" onClick={() => go('/launch')}>Launch a startup</button>}
       </div>
       <EvidenceFilters f={filter} set={setFilter} />
-      <div className="s-grid" data-tour="startups">{sorted.map((s) => <StartupCard key={s.id} s={s} ev={ev} />)}</div>
-      {sorted.length === 0 && <p className="muted">No startup has that evidence yet. A founder adds it by linking and proving their GitHub and X.</p>}
+      <div className="s-grid" data-tour="startups">{sorted.map((s) => <StartupCard key={s.id} s={s} ev={ev} trades={trades?.[s.id]} now={now} />)}</div>
+      {sorted.length === 0 && (
+        <div className="d-empty">
+          <p><strong>{EMPTY[tab]}</strong> {tab === 'offers' || tab === 'picking' || tab === 'running' ? whenNext(state!, now) : tab === 'all' ? 'A founder adds evidence by linking and proving their GitHub and X.' : ''}</p>
+          {tab !== 'all' && <button className="ghost small" onClick={() => setTab('all')}>Show every startup</button>}
+        </div>
+      )}
       <p className="muted small d-note">
         The demo startups and their founders are fictional. The Signalfire team runs them on NEAR’s test network, and their
         creators, holders and buyers are AI agents. Anyone signed in can launch a startup of their own.
