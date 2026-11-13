@@ -193,7 +193,7 @@ export function profilePrompt(p: ProfileCheck): string {
     `Profile check (computed by code with rule ${p.rule} from the evidence above; you may explain it, you may not change it or rate anything yourself):`,
     canonical({ profile_strength: p.word, why: p.why, demo_startup: p.demo }),
     ...p.signals.map((x) => canonical({ signal: x.name, rating: x.word, rests_on: x.cites, detail: x.detail })),
-    'In "reading", explain in one or two lines what the profile strength and its weakest signal rest on, citing the evidence ids the signals rest on. Never call the profile check a reason to buy, sell or hold.',
+    'Your first "reading" line says what the profile strength and its weakest signal rest on, citing the evidence ids the signals rest on. Never call the profile check a reason to buy, sell or hold.',
   ].join('\n');
 }
 
