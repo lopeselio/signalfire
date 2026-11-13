@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   FEE_BPS, MILESTONES, SUPPLY, fmtNear, fmtTokens, fmtTusd, parseNear, parseTokens, priceAt, quoteBuy, quoteSell, threshold, withSlippage,
 } from '@signalfire/core';
+import { useCelebrate } from './celebrate.ts';
 import { api, acctUrl, type AuditEntry, type Campaign, type Startup, type Trade } from './api.ts';
 import { MyBid } from './Bid.tsx';
 import { PriceChart } from './Chart.tsx';
@@ -124,7 +125,7 @@ function TradePanel({ s }: { s: Startup }) {
     if (!quote) return;
     if (quote.kind === 'buy') {
       void run(`Buy ${sym}`, () => call(state!.hub, 'buy', { startup: s.id, min_tokens_out: quote.min.toString(), ref_code: ref !== null ? `c${ref}` : null }, parseNear(amount)),
-        { pending: `Buying your ${sym}…`, done: `You bought ${sym}. It’s in your account.`, action: 'buy' });
+        { pending: `Buying your ${sym}…`, done: `Nice! You bought ${sym}. It’s in your account.`, action: 'buy' });
     } else {
       void run(`Sell ${sym}`, () => call(s.token, 'ft_transfer_call', { receiver_id: state!.hub, amount: quote.t.toString(), msg: JSON.stringify({ min_near_out: quote.min.toString() }) }, 1n),
         { pending: `Selling your ${sym}…`, done: 'Sold. The NEAR is in your account.', action: 'ft_transfer_call' });
@@ -256,7 +257,7 @@ function Treasury({ s }: { s: Startup }) {
           <p className="muted small">One holder, one vote: buying more tokens doesn’t buy more votes. A majority approves each campaign’s funding.</p>
           <ul className="plain">{s.holders.map((h) => <li key={h}><Acct a={h} />{h === account && <Chip kind="ember">you</Chip>}</li>)}</ul>
           {account && !isHolder && (bal >= min
-            ? <button className="primary wide" disabled={!!busy} onClick={() => void run('Join the holders', () => call(state!.hub, 'join_holders', { startup: s.id }), { pending: 'Adding you to the holders…', done: 'You’re on the holders’ council. You can vote on campaigns now.', action: 'join_holders' })}>Join the holders</button>
+            ? <button className="primary wide" disabled={!!busy} onClick={() => void run('Join the holders', () => call(state!.hub, 'join_holders', { startup: s.id }), { pending: 'Adding you to the holders…', done: 'Welcome aboard! You’re on the holders’ council and can vote on campaigns now.', action: 'join_holders' })}>Join the holders</button>
             : <p className="muted small">Hold at least {fmtTokens(min, 0)} {sym} to join (you hold {fmtTokens(bal)}).</p>)}
           {isHolder && <p className="ok-text small">You’re on the holders’ council: you can vote on campaign funding below.</p>}
           <SignInHint what="join the holders and vote" />
@@ -267,7 +268,7 @@ function Treasury({ s }: { s: Startup }) {
         <FounderForms s={s} />
         <section className="panel" data-tour="campaigns">
           <h2>Campaigns</h2>
-          {campaigns.length === 0 && <p className="muted">No campaigns yet. Once the marketing fund has fees in it, the founder posts a brief and creators send sealed offers.</p>}
+          {campaigns.length === 0 && <p className="empty">No campaigns yet. Once the marketing fund has fees in it, the founder posts a brief and creators send sealed offers.</p>}
           {campaigns.map((cm) => <CampaignCard key={cm.id} c={cm} s={s} isHolder={isHolder} />)}
         </section>
         <AuditLog s={s} />
@@ -300,6 +301,10 @@ function CampaignCard({ c, s, isHolder }: { c: Campaign; s: Startup; isHolder: b
   const [open, setOpen] = useState(!['done', 'expired', 'no_bids'].includes(c.phase));
   const idx = phaseIndex(c, now);
   const sym = s.id.toUpperCase();
+  // confetti for the founder and the winning creator when the campaign is funded and as each payout lands
+  const ours = !!account && (account === s.founder || account === c.winner);
+  useCelebrate(ours ? `funded:${c.id}` : null, ['funded', 'done'].includes(c.phase) ? 1 : 0);
+  useCelebrate(ours ? `payout:${c.id}` : null, c.milestones_paid);
   const refLink = `${location.origin}/s/${s.id}?ref=c${c.id}`;
   let clock = '';
   if (c.phase === 'bidding') clock = now < c.commit_ends_ms ? `Creators are sealing their offers: ${fmtLeft(c.commit_ends_ms - now)} left` : now < c.reveal_ends_ms ? `Offers are being opened: ${fmtLeft(c.reveal_ends_ms - now)} left` : 'Picking the winning offer…';
@@ -310,7 +315,7 @@ function CampaignCard({ c, s, isHolder }: { c: Campaign; s: Startup; isHolder: b
   const voted = account ? c.proposal?.votes[account] : undefined;
   const vote = (approve: boolean): void => {
     void run(approve ? 'Vote yes' : 'Vote no', () => call(s.dao, 'act_proposal', { id: c.proposal_id, action: approve ? 'VoteApprove' : 'VoteReject', proposal: c.proposal!.kind }),
-      { pending: 'Casting your vote…', done: `Vote recorded: ${approve ? 'yes' : 'no'}.`, action: `act_proposal ${approve ? 'VoteApprove' : 'VoteReject'}` });
+      { pending: 'Casting your vote…', done: `Thanks! Your vote is in: ${approve ? 'yes' : 'no'}.`, action: `act_proposal ${approve ? 'VoteApprove' : 'VoteReject'}` });
   };
   return (
     <article className={`campaign ${c.phase}`}>
@@ -331,7 +336,7 @@ function CampaignCard({ c, s, isHolder }: { c: Campaign; s: Startup; isHolder: b
         <div className="c-body">
           <p>{c.brief}</p>
           <h4 data-tour="bid-book">Offers</h4>
-          {c.bids.length === 0 && <p className="muted small">No offers yet. Approved creators (people and AI agents) seal a price and a pitch, with a 0.02 NEAR deposit.</p>}
+          {c.bids.length === 0 && <p className="empty small">No offers yet. Approved creators (people and AI agents) seal a price and a pitch, with a 0.02 NEAR deposit.</p>}
           <ul className="bids">
             {c.bids.map((b) => {
               const p = c.pitches[b.creator];
