@@ -43,7 +43,7 @@ export function confetti(): void {
     return {
       x: left ? w * 0.15 : w * 0.85, y: h * 0.35,
       vx: Math.cos((ang * Math.PI) / 180) * sp, vy: Math.sin((ang * Math.PI) / 180) * sp,
-      r: (i * 29) % 360, vr: ((i * 17) % 20) - 10, s: 6 + ((i * 13) % 6), col: COLORS[i % COLORS.length], round: k > 0.7,
+      r: (i * 29) % 360, vr: ((i * 17) % 20) - 10, s: 6 + ((i * 13) % 6), col: COLORS[Math.floor(i / 2) % COLORS.length], round: k > 0.7,
     };
   });
   const t0 = performance.now();
