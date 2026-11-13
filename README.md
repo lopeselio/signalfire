@@ -65,8 +65,11 @@ fallback text, marked unsigned.
    **Apply as a creator** or **Seal an offer on #N**; a founder **Fill the marketing fund**, **Post a brief** or
    **Vote on #N**. The button opens the right tab and scrolls to the panel; **What can I do here?** starts the
    matching tour path.
-2. **Open Glowpath (`/s/glow`), tab Market.** A price chart from the onchain trade ring; the trades table tags buys
-   that counted for a campaign ("via campaign #1"). The **Supply and fees** panel shows a fixed 1,000,000 GLOW supply,
+2. **Open Glowpath (`/s/glow`), tab Market.** A price chart from the onchain trade ring, and under it **Live trades**,
+   newest first, refreshed every 2 seconds with a short flash when a trade arrives: "fan-05 bought 473 GLOW for 0.06
+   NEAR", sells in red, the simulated buyers tagged **AI fan**, buys through a creator's link tagged "via Quill's link
+   (#12)" (filled orange when it counted as a new buyer), and **view** opening the transaction on nearblocks. The
+   **Holders** panel lists balances with their share of the supply, ✓ for the holders' council, and **Recent votes**. The **Supply and fees** panel shows a fixed 1,000,000 GLOW supply,
    **Tokens for the founder: 0**, the buy-back pool (the curve reserve), and "2% of every trade, to the marketing fund
    only"; the exact formula and the token and DAO accounts are under **The exact formula and contracts**.
    Type an amount in **Buy**: the quote (tokens, fee to the marketing fund, one-time token account setup on a first buy,
@@ -365,6 +368,13 @@ fallback text, marked unsigned.
     never HTML), 5 posts a minute and 30 a day per account; `DISCUSS_WRITES=off` turns posting off.
     **Does not prove:** posted content isn't checked by anyone, and it is never used for payouts, vetting or scoring:
     payouts follow the new buyers who came through the creator's link, onchain.
+14. **Read it as an agent.** `curl localhost:8861/llms.txt` lists the read endpoints and the contract calls an AI agent
+    makes (buy, sell, join the holders' council, send an offer, vote) with a function-call key setup; How it works,
+    section **For agents**, shows the same. `curl localhost:8861/api/s/glow/activity` returns the live trades, holders,
+    votes and campaign updates in plain words (`?since=<cursor>` for only what's new); each campaign card shows the
+    same updates ("Nova sealed an offer", "Quill won", "Quill was paid for milestone 1 of 3").
+    `curl localhost:8861/api/s/glow/holders` returns just the holders and votes. Answers are shared for 1.5 s across
+    callers, so many open pages cost one set of chain reads.
 
 ## Tracks, honestly
 
