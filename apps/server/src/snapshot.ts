@@ -35,11 +35,17 @@ const TTL = 4000;
 export function invalidate(): void { cache = null; }
 
 /** A fresh read (at most TTL old). The agents use this. */
+// at most one rebuild at a time: a rebuild is ~200 queued reads, and starting another every TTL while one is still
+// running (slow under RPC rate limits) stacks them up until none finishes
+let building: Promise<Snapshot> | null = null;
 export function snapshot(): Promise<Snapshot> {
+  if (building) return building;
   if (cache && Date.now() - cache.at < TTL) return cache.p;
   const p = build().then((s) => { good = s; return s; });
+  building = p;
   cache = { at: Date.now(), p };
-  p.catch(() => { if (cache?.p === p) cache = null; });
+  p.catch((e) => { console.error(`snapshot rebuild failed: ${(e as Error)?.message ?? e}`); if (cache?.p === p) cache = null; })
+    .finally(() => { if (building === p) building = null; });
   return p;
 }
 
@@ -51,8 +57,12 @@ export function latest(): Promise<Snapshot> {
 }
 
 async function build(): Promise<Snapshot> {
+  // a read that fails keeps the last good value instead of failing the whole rebuild (only the first build has none)
+  const keep = <T>(p: Promise<T>, prev: T | undefined): Promise<T> => (prev === undefined ? p : p.catch(() => prev));
   const [hc, startups, campaigns, creatorsRaw, audit, solvency] = await Promise.all([
-    getConfig(), getStartups(), getCampaigns(), getCreators(), getAudit(), view<Record<string, string>>('solvency'),
+    keep(getConfig(), good?.config), keep(getStartups(), good?.startups), keep(getCampaigns(), good?.campaigns),
+    keep(getCreators(), good?.creators.map(({ tusd: _t, wallet: _w, ...c }) => c) as Awaited<ReturnType<typeof getCreators>> | undefined),
+    keep(getAudit(), good?.audit), keep(view<Record<string, string>>('solvency'), good?.solvency),
   ]);
   relayWhitelist.note(startups); // a startup launched since boot can use the gasless relayer
   const applicants = [...new Set([...CREATORS.map((c) => c.account), ...pendingApplicants()])];
@@ -71,7 +81,7 @@ async function build(): Promise<Snapshot> {
     Promise.all(startups.map(async (s) => [s.id, await holdersOf(s.dao).catch(() => [])] as const)),
     Promise.all(campaigns.filter((c) => c.proposal_id !== null).map(async (c) => {
       const s = startups.find((x) => x.id === c.startup);
-      return [c.id, s ? await getProposal(s.dao, c.proposal_id!) : null] as const;
+      return [c.id, s ? await getProposal(s.dao, c.proposal_id!).catch(() => good?.proposals[c.id] ?? null) : null] as const;
     })),
   ]);
   return {
