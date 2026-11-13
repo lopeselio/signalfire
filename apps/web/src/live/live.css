@@ -1,0 +1,76 @@
+/* Live activity on a startup page: the trades tape, holders, campaign updates, For agents. */
+
+.tape { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+.tape-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+.tape-head h3 { margin: 0; font-size: 15px; }
+.live.off { background: var(--smoke); animation: none; }
+.tape-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.tape-row {
+  display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; column-gap: 8px; align-items: baseline;
+  padding: 7px 8px; margin: 0 -8px; border-top: 1px solid var(--line); font-size: 13.5px; border-radius: 8px;
+}
+.tape-row:first-child { border-top: 0; }
+.tape-side { font-size: 10px; }
+.tape-row.buy .tape-side { color: var(--ok); }
+.tape-row.sell .tape-side, .tape-row.sell .tape-text > span:first-child { color: var(--bad); }
+.tape-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; min-width: 0; overflow-wrap: anywhere; }
+.tape-meta { color: var(--smoke); font-size: 12px; white-space: nowrap; }
+.tape-meta a { color: inherit; }
+.tape-meta a:hover { color: var(--ember-2); }
+
+.tag { font: 500 11px var(--body); padding: 1px 7px; border-radius: 999px; background: var(--night-3); color: var(--ash-2); white-space: nowrap; }
+.tag.ai { background: #e7eef9; color: #2a4f86; }
+.tag.ref { background: var(--ember-wash); color: var(--ember-2); }
+.tag.ref.counted { background: var(--ember); color: #fff; }
+.tag.you { background: var(--ash); color: var(--night-2); }
+
+@keyframes arrive { 0% { background: var(--ember-dim); } 100% { background: transparent; } }
+@keyframes arrive-sell { 0% { background: #f6d2cd; } 100% { background: transparent; } }
+.flash { animation: arrive 1.6s ease-out; }
+.tape-row.sell.flash { animation-name: arrive-sell; }
+
+.holders-live h2 { margin-bottom: 4px; }
+.holders-list { list-style: none; margin: 10px 0 6px; padding: 0; display: grid; }
+.holders-list li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto 64px; column-gap: 10px; row-gap: 4px; align-items: baseline;
+  padding: 7px 0; border-top: 1px solid var(--line); font-size: 13.5px;
+}
+.holders-list li:first-child { border-top: 0; }
+.holders-list li.me .h-name a { font-weight: 600; }
+.h-name { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; min-width: 0; overflow-wrap: anywhere; }
+.h-name a { color: var(--ash); text-decoration: none; }
+.h-name a:hover { color: var(--ember-2); text-decoration: underline; }
+.h-bal { color: var(--ash-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.h-pct { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.h-bar { grid-column: 1 / -1; height: 3px; background: var(--night-3); border-radius: 999px; overflow: hidden; }
+.h-bar i { display: block; height: 100%; background: var(--ember); border-radius: 999px; transition: width 0.6s; }
+.council-mark { color: var(--ok); font-weight: 700; }
+.h-votes-title { font-size: 14px; margin: 16px 0 6px; }
+.votes-live { list-style: none; margin: 0; padding: 0; display: grid; }
+.votes-live li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 8px; margin: 0 -8px; border-top: 1px solid var(--line); font-size: 13.5px; border-radius: 8px; }
+.votes-live li:first-child { border-top: 0; }
+.votes-live li.no > span:first-child { color: var(--bad); }
+
+.c-activity { margin: 10px 0 4px; }
+.c-activity ol { list-style: none; margin: 0; padding: 0; display: grid; }
+.c-activity li {
+  display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; column-gap: 9px; align-items: baseline;
+  padding: 5px 8px; margin: 0 -8px; font-size: 13px; border-radius: 8px;
+}
+.c-activity .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--smoke); align-self: center; }
+.ca-text { min-width: 0; overflow-wrap: anywhere; }
+
+.for-agents pre { background: var(--night-3); border-radius: 10px; padding: 12px 14px; overflow-x: auto; font: 12.5px/1.5 var(--mono); max-width: 100%; }
+.for-agents .tbl td:first-child { white-space: nowrap; }
+
+@media (max-width: 560px) {
+  .tape-row { grid-template-columns: 12px minmax(0, 1fr); }
+  .tape-row .tape-meta { grid-column: 2; }
+  .c-activity li { grid-template-columns: 8px minmax(0, 1fr); }
+  .c-activity .tape-meta { grid-column: 2; }
+  .votes-live li { flex-direction: column; gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flash, .tape-row.sell.flash { animation: none; }
+  .h-bar i { transition: none; }
+}
