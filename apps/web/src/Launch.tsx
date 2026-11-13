@@ -23,10 +23,14 @@ export function Launch() {
       <section className="page-head">
         <h1>Launch a startup</h1>
         <p className="lede">
-          One transaction creates <code>{symbol || 'sym'}.{state!.hub}</code>, your attention token, and <code>{symbol || 'sym'}-dao.{state!.hub}</code>,
-          its Sputnik DAO. All 1,000,000 tokens go on the bonding curve; you get none. Trading fees fill a marketing treasury you
-          can’t withdraw from. You become the founder: you post campaign briefs and set the constraints the rules run within.
+          One step creates your attention token and its holders’ council. All 1,000,000 tokens go on sale at automatic
+          prices; you get none. Trading fees fill a marketing fund you can’t withdraw from. As founder, you post campaign
+          briefs and set the spend limits.
         </p>
+        <details className="tech">
+          <summary>What gets created on NEAR</summary>
+          <p className="muted small">Token <code>{symbol || 'sym'}.{state!.hub}</code> and Sputnik DAO <code>{symbol || 'sym'}-dao.{state!.hub}</code>.</p>
+        </details>
       </section>
       <SignInHint what="launch a startup" />
       {account && (
@@ -39,11 +43,11 @@ export function Launch() {
           <label className="field"><span>Pitch (max 280 characters)</span><textarea maxLength={280} value={pitch} onChange={(e) => setPitch(e.target.value)} /></label>
           <fieldset className="ev-launch" data-tour="launch-links">
             <legend>Your GitHub and X (optional, recommended)</legend>
-            <p className="muted small">Backers see an Evidence tab and a research brief about you. Linked accounts show as “claimed” until you prove them from the Founder’s desk: your wallet signs a message, you publish it from that account.</p>
-            <label className="field"><span>GitHub user, org or owner/repo</span><input value={gh} onChange={(e) => setGh(e.target.value)} aria-invalid={!!gh.trim() && !ghT} /></label>
+            <p className="muted small">Backers see an Evidence tab and a research brief about you. Linked accounts show as “claimed” until you prove them from the Founder’s desk: your wallet signs a short note, and you post it from that account.</p>
+            <label className="field"><span>GitHub username, organization, or owner/repository</span><input value={gh} onChange={(e) => setGh(e.target.value)} aria-invalid={!!gh.trim() && !ghT} /></label>
             <label className="field"><span>X handle</span><input value={x} onChange={(e) => setX(e.target.value)} aria-invalid={!!x.trim() && !xT} placeholder="@handle" /></label>
           </fieldset>
-          <p className="small">The holders’ council starts with you ({account}); anyone holding 100 tokens can join. Launching attaches 1 NEAR, which pays for the token and DAO accounts.</p>
+          <p className="small">The holders’ council starts with you; anyone holding 100 tokens can join. Launching costs 1 NEAR, which pays to set up the token and the holders’ council on NEAR.</p>
           <button className="primary" disabled={!okSym || !name.trim() || !linksOk || !!busy} onClick={() => void run(`Launch ${symbol.toUpperCase()}`, () =>
             call(state!.hub, 'launch_startup', { symbol, name: name.trim(), pitch: pitch.trim(), council: [account], constraints: null }, parseNear('1')),
             { pending: `Launching ${symbol.toUpperCase()}…`, done: `${symbol.toUpperCase()} is live. Taking you to its page…`, action: 'launch_startup' }).then(async (ok) => {
