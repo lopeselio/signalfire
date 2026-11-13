@@ -311,18 +311,30 @@ export function createActivity(d: ActivityDeps) {
     });
   }
 
-  /** The activity of one startup, shared by every caller for `ttl` ms; on a failed read, the last good one (stale). */
-  function get(id: string): Promise<Activity | null> {
-    const c = cache.get(id);
-    if (c && now() - c.at < ttl) return c.p;
-    const p = build(id).then((a) => { if (a) good.set(id, a); return a; }).catch((e: unknown) => {
-      const g = good.get(id);
-      if (g) return { ...g, stale: true };
-      cache.delete(id);
-      throw e;
-    });
-    cache.set(id, { at: now(), p });
+  /**
+   * The activity of one startup. A build is shared by every caller for `ttl` ms; after that, callers get the last good
+   * build at once while one rebuild runs in the background (so a slow RPC never stalls a page). If the rebuild
+   * fails, the last good build is marked stale.
+   */
+  const building = new Map<string, Promise<Activity | null>>();
+  const failed = new Set<string>();
+  function refresh(id: string): Promise<Activity | null> {
+    const run = building.get(id);
+    if (run) return run;
+    const p = build(id)
+      .then((a) => { if (a) good.set(id, a); else good.delete(id); failed.delete(id); cache.set(id, { at: now(), p: Promise.resolve(a) }); return a; })
+      .catch((e: unknown) => { failed.add(id); if (!good.has(id)) throw e; return good.get(id)!; })
+      .finally(() => building.delete(id));
+    building.set(id, p);
     return p;
+  }
+  const mark = (a: Activity | null): Activity | null => (a && failed.has(a.startup) ? { ...a, stale: true } : a);
+  async function get(id: string): Promise<Activity | null> {
+    const c = cache.get(id);
+    if (c && now() - c.at < ttl) return mark(await c.p);
+    const g = good.get(id);
+    if (g) { void refresh(id).catch(() => undefined); return mark(g); }
+    return mark(await refresh(id));
   }
   return { get };
 }
