@@ -42,6 +42,9 @@ export async function signIn(): Promise<string> {
   throw new Error('Your wallet signed, but the session didn’t start. Sign in again; if it repeats, try another wallet.');
 }
 
+/** True for the error NEAR Connect throws when its wallet picker is closed without choosing a wallet. */
+export const dismissed = (e: unknown): boolean => (e as Error)?.message === 'User rejected';
+
 export async function signOut(): Promise<void> {
   try { await authClient().signOut(); } catch { /* cookie may already be gone */ }
   try { await authClient().near.disconnect(); } catch { /* not connected */ }
