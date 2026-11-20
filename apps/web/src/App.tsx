@@ -15,7 +15,7 @@ import { HowItWorks, Onboarding, seenOnboarding } from './tour/Onboarding.tsx';
 import { StartupPage } from './Startup.tsx';
 import { friendly } from './copy.ts';
 import { Ctx, Flame, shortAcct, type AppCtx, type RunCopy } from './ui.tsx';
-import { signIn as walletSignIn, signOut } from './wallet.ts';
+import { dismissed, signIn as walletSignIn, signOut } from './wallet.ts';
 import { Waiting } from './Waiting.tsx';
 
 // The shell: routing by path (/, /discover, /s/:id, /creators, /dashboard, /launch, /plan, /how), the header, polling and toasts.
@@ -98,7 +98,7 @@ export function App() {
       setAccount(a);
       refreshMe();
       toast({ kind: 'ok', text: `You're signed in as ${shortAcct(a)}.`, title: a });
-    } catch (e) { const m = (e as Error).message; toast({ kind: 'bad', text: friendly(m), title: m }); }
+    } catch (e) { if (dismissed(e)) return; const m = (e as Error).message; toast({ kind: 'bad', text: friendly(m), title: m }); }
   }, [refreshMe, toast]);
 
   const run: AppCtx['run'] = useCallback(async (label, fn, copy) => {
